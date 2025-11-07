@@ -12,7 +12,6 @@ pub struct ServerConfig {
     pub host: String,
     pub port: u16,
 
-    pub server_name: String,
     pub motd: String,
     pub max_players: u32,
 }
@@ -50,7 +49,6 @@ host = "0.0.0.0"
 port = 25565
 
 # server details
-server_name = "An Mist Server"
 motd = "Welcome to the Mist Server!"
 max_players = 10"#;
         

@@ -1,6 +1,8 @@
 use tokio::net::TcpListener;
 use fancy_log::{LogLevel, log};
 
+use crate::{net::codec, server::conn::handle_conn};
+
 pub async fn start_listener() -> anyhow::Result<()> {
     let addr = format!("{}:{}", 
         crate::config::SERVER_CONFIG.host,
@@ -12,10 +14,13 @@ pub async fn start_listener() -> anyhow::Result<()> {
 
     loop {
         let (socket, addr) = listener.accept().await?;
-        log(LogLevel::Info, format!("New connection from {}", addr).as_str());
+
+        log(LogLevel::Debug, format!("New connection from {}", addr).as_str());
 
         tokio::spawn(async move {
-            
+            if let Err(e) = handle_conn(socket) .await {
+                log(LogLevel::Error, format!("Error handling connection from {}: {}", addr, e).as_str());
+            }
         });
     }
 }
