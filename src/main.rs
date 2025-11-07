@@ -1,3 +1,5 @@
+mod config;
+
 fn main() {
-    println!("Hello, world!");
+    config::load_config();
 }
