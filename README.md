@@ -3,4 +3,6 @@ An minecraft server implementation in rust
 
 ## Features
 - [x] Config (.toml)
-- [ ] Server querying
+**Networking**
+- [ ] Inital handshake
+- [ ] Server info querying
