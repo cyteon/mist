@@ -1,16 +1,20 @@
 use std::process::exit;
-
+use once_cell::sync::Lazy;
 use serde::{Deserialize};
 use fancy_log::{LogLevel, log};
 
+pub static SERVER_CONFIG: Lazy<ServerConfig> = Lazy::new(|| {
+    load_config()
+});
+
 #[derive(Deserialize)]
 pub struct ServerConfig {
-    host: String,
-    port: u16,
+    pub host: String,
+    pub port: u16,
 
-    server_name: String,
-    motd: String,
-    max_players: u32,
+    pub server_name: String,
+    pub motd: String,
+    pub max_players: u32,
 }
 
 pub fn load_config() -> ServerConfig {
