@@ -26,7 +26,7 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
     let _packet_len = read_var(stream).await?;
     let packet_id = read_var(stream).await?;
 
-    dbg!("Received packet with ID: {}", packet_id);
+    dbg!(packet_id);
 
     match state {
         ProtocolState::Status => {
