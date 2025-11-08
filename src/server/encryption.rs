@@ -1,21 +1,13 @@
 use std::task::ready;
-use aes::{
-    Aes128,
-    cipher::{
-        KeyIvInit, 
-        AsyncStreamCipher
-    }
-};
-use cfb8::{
-    Encryptor, Decryptor,
-};
+use aes::Aes128;
+use aes::cipher::{KeyIvInit, BlockEncryptMut, BlockDecryptMut, generic_array::GenericArray};
+use cfb8::{Encryptor, Decryptor};
 use tokio::io::{AsyncRead, AsyncWrite};
-use std::cell::RefCell;
 
 pub struct EncryptedStream<S> {
     pub stream: S,
-    pub encryptor: RefCell<Encryptor<Aes128>>,
-    pub decryptor: RefCell<Decryptor<Aes128>>,
+    pub encryptor: Encryptor<Aes128>,
+    pub decryptor: Decryptor<Aes128>,
 }
 
 impl<S> EncryptedStream<S> {
@@ -25,8 +17,8 @@ impl<S> EncryptedStream<S> {
         let decryptor = Decryptor::<Aes128>::new_from_slices(secret, secret).unwrap();
         EncryptedStream {
             stream,
-            encryptor: RefCell::new(encryptor),
-            decryptor: RefCell::new(decryptor),
+            encryptor,
+            decryptor,
         }
     }
 }
@@ -46,8 +38,11 @@ impl<S: AsyncRead + Unpin> AsyncRead for EncryptedStream<S> {
             if filled_after > filled_before {
                 let new_data = &mut buf.filled_mut()[filled_before..filled_after];
                 
-                // Borrow mutably and decrypt in place
-                this.decryptor.borrow_mut().decrypt(new_data.into());
+                // never again
+                for byte in new_data.iter_mut() {
+                    let block = GenericArray::from_mut_slice(std::slice::from_mut(byte));
+                    this.decryptor.decrypt_block_mut(block);
+                }
             }
         }
         
@@ -63,9 +58,11 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for EncryptedStream<S> {
     ) -> std::task::Poll<std::io::Result<usize>> {
         let mut encrypted_buf = buf.to_vec();
         let this = self.as_mut().get_mut();
-        
-        // Borrow mutably and encrypt in place
-        this.encryptor.borrow_mut().encrypt(encrypted_buf.as_mut_slice().into());
+
+        for byte in encrypted_buf.iter_mut() {
+            let block = GenericArray::from_mut_slice(std::slice::from_mut(byte));
+            this.encryptor.encrypt_block_mut(block);
+        }
         
         let n = ready!(std::pin::Pin::new(&mut this.stream).poll_write(cx, &encrypted_buf))?;
         std::task::Poll::Ready(Ok(n))
