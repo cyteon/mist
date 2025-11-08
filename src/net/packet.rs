@@ -5,6 +5,7 @@ use crate::net::codec::read_var;
 pub enum ClientPacket {
     Handshake,
     Ping,
+    LoginStart
 }
 
 pub enum ProtocolState {
@@ -24,7 +25,7 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
     match state {
         ProtocolState::Status => {
             match packet_id {
-                0x01 | 0x21 => {
+                0x01 => {
                     Ok(Some(ClientPacket::Ping))
                 },
                 
@@ -33,6 +34,18 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
                 }
             }
         },
+
+        ProtocolState::Login => {
+            match packet_id {
+                0x00 => {
+                    Ok(Some(ClientPacket::LoginStart))
+                },
+                
+                _ => {
+                    Ok(None)
+                }
+            }
+        }
 
         _ => {
             Ok(None)

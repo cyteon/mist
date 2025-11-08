@@ -14,6 +14,7 @@ pub struct ServerConfig {
 
     pub motd: String,
     pub max_players: u32,
+    pub online_mode: bool,
 }
 
 pub fn load_config() -> ServerConfig {
@@ -49,8 +50,9 @@ host = "0.0.0.0"
 port = 25565
 
 # server details
-motd = "Welcome to the Mist Server!"
-max_players = 10"#;
+motd = "An mist server"
+max_players = 10
+online_mode = true"#;
         
         if std::fs::write(path, default_config).is_err() {
             log(LogLevel::Error, "Failed to write default config");

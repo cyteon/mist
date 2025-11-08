@@ -26,6 +26,7 @@ pub async fn send_status_response<W: tokio::io::AsyncWriteExt + Unpin>(stream: &
 
     write_var(stream, packet_data.len() as i32).await?;
     stream.write_all(&packet_data).await?;
+    stream.flush().await?;
 
     Ok(())
 }

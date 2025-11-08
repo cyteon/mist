@@ -4,11 +4,10 @@ use fancy_log::{LogLevel, log};
 use tokio::{io::AsyncWriteExt, net::TcpStream, time::timeout};
 
 use crate::net::{
-    codec::write_var, 
     packet::{ClientPacket, ProtocolState, read_packet}, 
     packets::{
-        clientbound::status_response::send_status_response, 
-        serverbound::handshake::{HandshakePacket, read_handshake}
+        clientbound::{disconnect::send_disconnect_login, encryption_request::send_encryption_request, pong::send_pong, status_response::send_status_response}, 
+        serverbound::{handshake::{HandshakePacket, read_handshake}, login_start::read_login_start}
     }
 };
 
@@ -22,11 +21,17 @@ pub async fn handle_conn(mut socket: TcpStream) -> anyhow::Result<()> {
         1 => {
             state = ProtocolState::Status;
             send_status_response(&mut socket).await?;
-            socket.flush().await?;
         },
         
         2 => {
             state = ProtocolState::Login;
+
+            if handshake.protocol_version != 773 {
+                send_disconnect_login(
+                    &mut socket, 
+                    "Unsupported version. Please use Minecraft 1.21.10"
+                ).await?;
+            }
         },
 
         _ => {
@@ -37,16 +42,20 @@ pub async fn handle_conn(mut socket: TcpStream) -> anyhow::Result<()> {
     loop {
         match timeout(Duration::from_secs(2), read_packet(&mut socket, &state)).await {
             Ok(Ok(Some(packet))) => {
-                if let ClientPacket::Ping = packet {
-                    let mut packet_data = vec![];
-                    write_var(&mut packet_data, 0x01).await?;
-                    packet_data.extend_from_slice([0u8; 8].as_ref());
+                match packet {
+                    ClientPacket::Ping => {
+                        send_pong(&mut socket).await?;
+                        log(LogLevel::Debug, "Responded to ping request");
+                    },
 
-                    write_var(&mut socket, packet_data.len() as i32).await?;
-                    socket.write_all(&packet_data).await?;
-                    socket.flush().await?;
+                    ClientPacket::LoginStart => {
+                        let login_start = read_login_start(&mut socket).await?;
+                        log(LogLevel::Info, format!("{} ({}) is connecting", login_start.name, login_start.uuid).as_str());
 
-                    log(LogLevel::Debug, "Responded to ping request");
+                        send_encryption_request(&mut socket).await?;
+                    }
+
+                    _ => { }
                 }
             },
 
