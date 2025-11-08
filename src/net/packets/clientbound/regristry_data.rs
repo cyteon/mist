@@ -21,9 +21,8 @@ pub async fn send_regristry_data<W: tokio::io::AsyncWriteExt + Unpin>(stream: &m
     write_var(&mut packet_data, entry_id.len() as i32).await?;
     packet_data.extend_from_slice(entry_id.as_bytes());
 
-    packet_data.push(1u8);
+    packet_data.push(0u8);
 
-    
     let mut overworld = HashMap::new();
     overworld.insert("has_skylight".to_string(), Value::Byte(1));
     overworld.insert("has_ceiling".to_string(), Value::Byte(0));
