@@ -12,9 +12,9 @@ pub struct EncryptedStream<S> {
 
 impl<S> EncryptedStream<S> {
     pub fn new(stream: S, secret: &[u8]) -> Self {
-        dbg!(secret.len());
         let encryptor = Encryptor::<Aes128>::new_from_slices(secret, secret).unwrap();
         let decryptor = Decryptor::<Aes128>::new_from_slices(secret, secret).unwrap();
+
         EncryptedStream {
             stream,
             encryptor,
@@ -38,7 +38,6 @@ impl<S: AsyncRead + Unpin> AsyncRead for EncryptedStream<S> {
             if filled_after > filled_before {
                 let new_data = &mut buf.filled_mut()[filled_before..filled_after];
                 
-                // never again
                 for byte in new_data.iter_mut() {
                     let block = GenericArray::from_mut_slice(std::slice::from_mut(byte));
                     this.decryptor.decrypt_block_mut(block);
