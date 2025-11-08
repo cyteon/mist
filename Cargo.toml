@@ -13,3 +13,8 @@ tokio-macros = "2.5.0"
 anyhow = "1.0.100"
 rsa = { version = "0.9.8" }
 rand = "0.8"
+sha1 = "0.10.6"
+num-bigint = "0.4.6"
+reqwest = { version = "0.12.24", features = ["json", "blocking"] }
+serde_json = "1.0.145"
+base64 = "0.22.1"
