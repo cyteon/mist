@@ -7,7 +7,7 @@ pub async fn send_encryption_request<W: tokio::io::AsyncWriteExt + Unpin>(stream
 
     write_var(&mut packet_data, 0x01).await?;
 
-    write_var(&mut packet_data, "".as_bytes().len() as i32).await?;
+    write_var(&mut packet_data, "".len() as i32).await?;
     packet_data.extend_from_slice("".as_bytes());
 
     let pkcs8 = RSA_PUBLIC_KEY.to_public_key_der()?;

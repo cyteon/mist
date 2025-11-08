@@ -18,3 +18,6 @@ num-bigint = "0.4.6"
 reqwest = { version = "0.12.24", features = ["json", "blocking"] }
 serde_json = "1.0.145"
 base64 = "0.22.1"
+aes = "0.8.4"
+cfb8 = "0.8.1"
+block-padding = "0.4.1"

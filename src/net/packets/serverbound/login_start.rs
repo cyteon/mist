@@ -8,6 +8,13 @@ pub struct LoginStartPacket {
 }
 
 pub async fn read_login_start<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow::Result<LoginStartPacket> {
+    let _packet_len = read_var(stream).await?;
+    let packet_id = read_var(stream).await?;
+
+    if packet_id != 0x00 {
+        anyhow::bail!("Expected login start packet ID 0x00, got {}", packet_id);
+    }
+
     let name_len = read_var(stream).await? as usize;
     let mut name_buf = vec![0u8; name_len];
     stream.read_exact(&mut name_buf).await?;
