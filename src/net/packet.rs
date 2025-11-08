@@ -6,7 +6,9 @@ pub enum ClientPacket {
     Handshake,
     Ping,
     LoginStart,
-    EncryptionResponse
+    EncryptionResponse,
+    KnownPacks,
+    AcknowledgeFinishConfiguration
 }
 
 pub enum ProtocolState {
@@ -50,7 +52,23 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
                     Ok(None)
                 }
             }
-        }
+        },
+
+        ProtocolState::Configuration => {
+            match packet_id {
+                0x03 => {
+                    Ok(Some(ClientPacket::AcknowledgeFinishConfiguration))
+                },
+
+                0x07 => {
+                    Ok(Some(ClientPacket::KnownPacks))
+                },
+                
+                _ => {
+                    Ok(None)
+                }
+            }
+        },
 
         _ => {
             Ok(None)

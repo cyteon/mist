@@ -4,8 +4,7 @@ use tokio::net::TcpStream;
 use crate::{
     config::SERVER_CONFIG, 
 
-    net::{
-        packets::{
+    net::packets::{
             clientbound::{
                 disconnect::send_disconnect_login, 
                 encryption_request::send_encryption_request, 
@@ -19,11 +18,10 @@ use crate::{
                 login_start::read_login_start
             }
         }, 
-    }, 
     
     server::{
         auth::authenticate_player, 
-        encryption::EncryptedStream
+        encryption::EncryptedStream, state::configuration
     }
 };
 
@@ -76,6 +74,8 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
 
     send_login_success(&mut socket, player.clone().unwrap().name.as_str(), player.clone().unwrap().uuid.as_str()).await?;
     read_login_acknowledged(&mut socket).await?;
+
+    configuration::configuration(socket, player.unwrap()).await?;
 
     Ok(())
 }
