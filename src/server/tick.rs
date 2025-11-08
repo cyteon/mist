@@ -1,6 +1,6 @@
 use tokio::time;
 use fancy_log::{LogLevel, log};
-use tokio::time::{sleep, Duration};
+use tokio::time::Duration;
 
 pub async fn start_tick_loop() -> anyhow::Result<()> {
     log(LogLevel::Info, "Tick loop started");

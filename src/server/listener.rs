@@ -1,7 +1,7 @@
 use tokio::net::TcpListener;
 use fancy_log::{LogLevel, log};
 
-use crate::{net::codec, server::conn::handle_conn};
+use crate::server::conn::handle_conn;
 
 pub async fn start_listener() -> anyhow::Result<()> {
     let addr = format!("{}:{}", 

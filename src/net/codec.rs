@@ -1,7 +1,5 @@
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::net::packet::{self, HandshakePacket};
-
 pub async fn read_var<R: AsyncReadExt + Unpin>(reader: &mut R) -> anyhow::Result<u32> {
     let mut num_read = 0;
     let mut result = 0;
