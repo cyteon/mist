@@ -21,10 +21,13 @@ pub enum ProtocolState {
 }
 
 pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &ProtocolState) -> anyhow::Result<Option<ClientPacket>> {
-    let _packet_len = read_var(stream).await?;
+    let packet_len = read_var(stream).await?;
     let packet_id = read_var(stream).await?;
 
-    log(fancy_log::LogLevel::Debug, format!("Received packet with ID: 0x{:02X}", packet_id).as_str());
+    log(
+        fancy_log::LogLevel::Debug, 
+        format!("Received packet with ID: 0x{:02X} with length: {}", packet_id, packet_len).as_str()
+    );
 
     match state {
         ProtocolState::Status => {
@@ -34,6 +37,14 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
                 },
                 
                 _ => {
+                    // handle the packet len so it dosent mix into the next read
+                    
+                    if packet_len > 1 {
+                        for _ in 0..(packet_len - 1) {
+                            let _ = stream.read_u8().await?;
+                        }
+                    }
+
                     Ok(None)
                 }
             }
@@ -50,6 +61,12 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
                 }
                 
                 _ => {
+                    if packet_len > 1 {
+                        for _ in 0..(packet_len - 1) {
+                            let _ = stream.read_u8().await?;
+                        }
+                    }
+
                     Ok(None)
                 }
             }
@@ -66,6 +83,12 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
                 },
                 
                 _ => {
+                    if packet_len > 1 {
+                        for _ in 0..(packet_len - 1) {
+                            let _ = stream.read_u8().await?;
+                        }
+                    }
+
                     Ok(None)
                 }
             }

@@ -5,19 +5,19 @@ use crate::{
     config::SERVER_CONFIG, 
 
     net::packets::{
-            clientbound::{
-                disconnect::send_disconnect_login, 
-                encryption_request::send_encryption_request, 
-                login_success::send_login_success
-            }, 
-            
-            serverbound::{
-                encryption_response::read_encryption_response, 
-                handshake::HandshakePacket, 
-                login_acknowledged::read_login_acknowledged, 
-                login_start::read_login_start
-            }
+        clientbound::{
+            disconnect::send_disconnect_login, 
+            encryption_request::send_encryption_request, 
+            login_success::send_login_success
         }, 
+        
+        serverbound::{
+            encryption_response::read_encryption_response, 
+            handshake::HandshakePacket, 
+            login_acknowledged::read_login_acknowledged, 
+            login_start::read_login_start
+        }
+    }, 
     
     server::{
         auth::authenticate_player, 
@@ -40,7 +40,7 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
     if handshake.protocol_version != 773 {
         send_disconnect_login(
             &mut socket, 
-            "Unsupported version. Please use Minecraft 1.21.10"
+            "Unsupported version. Please use Minecraft 1.21.9 - 1.21.10"
         ).await?;
     }
 

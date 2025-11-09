@@ -10,7 +10,10 @@ use crate::{
         }, 
         
         packets::clientbound::{
-            finish_configuration::send_finish_configuration, known_packs::send_known_packs, login_play::send_login_play, regristry_data::send_all_registers
+            finish_configuration::send_finish_configuration, 
+            known_packs::send_known_packs, 
+            login_play::send_login_play, 
+            regristry_data::send_all_registers
         }
     }, 
     
@@ -53,8 +56,19 @@ pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Playe
             },
 
             Ok(Ok(None)) => { },
-            Err(_) => { socket.shutdown().await?; }
-            Ok(Err(_)) => { socket.shutdown().await?; }
+
+            Err(_) => {
+                log(LogLevel::Warn, format!("{} timed out during configuration state", player.name).as_str());
+                socket.shutdown().await?; 
+                break; 
+            }
+
+            Ok(Err(_)) => {
+                log(LogLevel::Warn, format!("{} encountered an error during configuration state", player.name).as_str());
+
+                socket.shutdown().await?; 
+                break; 
+            }
         }
     }
 

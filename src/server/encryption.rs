@@ -2,6 +2,7 @@ use std::task::ready;
 use aes::Aes128;
 use aes::cipher::{KeyIvInit, BlockEncryptMut, BlockDecryptMut, generic_array::GenericArray};
 use cfb8::{Encryptor, Decryptor};
+use fancy_log::log;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 pub struct EncryptedStream<S> {
@@ -57,7 +58,7 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for EncryptedStream<S> {
     ) -> std::task::Poll<std::io::Result<usize>> {
         let mut encrypted_buf = buf.to_vec();
         let this = self.as_mut().get_mut();
-
+        
         for byte in encrypted_buf.iter_mut() {
             let block = GenericArray::from_mut_slice(std::slice::from_mut(byte));
             this.encryptor.encrypt_block_mut(block);
