@@ -36,9 +36,7 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
                     Ok(Some(ClientPacket::Ping))
                 },
                 
-                _ => {
-                    // handle the packet len so it dosent mix into the next read
-                    
+                _ => {                    
                     if packet_len > 1 {
                         for _ in 0..(packet_len - 1) {
                             let _ = stream.read_u8().await?;
@@ -74,7 +72,12 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
 
         ProtocolState::Configuration => {
             match packet_id {
-                0x03 => {
+                // According to the protocol docs, this is supposed to be 0x03
+                // But every time after sending the finish config, i get a 0x01 back
+                // Which makes no sense as 0x01 in the config stage is a cookie request response
+                // But for now ill just parse it as an acknowledgment, unless shit breaks
+                // TODO: fix
+                0x01 => {
                     Ok(Some(ClientPacket::AcknowledgeFinishConfiguration))
                 },
 
@@ -95,6 +98,12 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
         },
 
         _ => {
+            if packet_len > 1 {
+                for _ in 0..(packet_len - 1) {
+                    let _ = stream.read_u8().await?;
+                }
+            }
+
             Ok(None)
         }
     }

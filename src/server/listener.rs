@@ -14,6 +14,7 @@ pub async fn start_listener() -> anyhow::Result<()> {
 
     loop {
         let (socket, addr) = listener.accept().await?;
+        socket.set_nodelay(true)?;
 
         log(LogLevel::Debug, format!("New connection from {}", addr).as_str());
 

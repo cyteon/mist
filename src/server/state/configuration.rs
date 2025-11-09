@@ -47,6 +47,8 @@ pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Playe
                         log(LogLevel::Debug, format!("{} has finished configuration", player.name).as_str());
                         
                         send_login_play(&mut socket).await?;
+                        log(LogLevel::Debug, format!("Switching {} to play state", player.name).as_str());
+
                         play::play(socket, player).await?;
                         break;
                     },
@@ -57,14 +59,21 @@ pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Playe
 
             Ok(Ok(None)) => { },
 
-            Err(_) => {
-                log(LogLevel::Warn, format!("{} timed out during configuration state", player.name).as_str());
+            Err(e) => {
+                log(
+                    LogLevel::Error, 
+                    format!("{} has timed out during configuration state: {}", player.name, e).as_str()
+                );
+                
                 socket.shutdown().await?; 
                 break; 
             }
 
-            Ok(Err(_)) => {
-                log(LogLevel::Warn, format!("{} encountered an error during configuration state", player.name).as_str());
+            Ok(Err(e)) => {
+                log(
+                    LogLevel::Error, 
+                    format!("Error while reading packet from {} during configuration state: {}", player.name, e).as_str()
+                );
 
                 socket.shutdown().await?; 
                 break; 

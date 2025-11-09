@@ -29,14 +29,23 @@ pub async fn play(mut socket: EncryptedStream<TcpStream>, player: Player) -> any
             },
 
             Ok(Ok(None)) => { },
-            Err(_) => { 
-                log(LogLevel::Info, format!("{} has timed out during play state", player.name).as_str());
+
+            Err(e) => { 
+                log(
+                    LogLevel::Error, 
+                    format!("{} has timed out during play state: {}", player.name, e).as_str()
+                );
+
                 socket.shutdown().await?; 
                 break; 
             }
                 
-            Ok(Err(_)) => {
-                log(LogLevel::Info, format!("{} has encountered an error during play state", player.name).as_str());
+            Ok(Err(e)) => {
+                log(
+                    LogLevel::Error, 
+                    format!("Error while reading packet from {} during play state: {}", player.name, e).as_str()
+                );
+
                 socket.shutdown().await?; 
                 break; 
             }
