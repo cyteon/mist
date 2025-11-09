@@ -1,3 +1,4 @@
+use fancy_log::log;
 use tokio::io::AsyncReadExt;
 
 use crate::net::codec::read_var;
@@ -23,7 +24,7 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
     let _packet_len = read_var(stream).await?;
     let packet_id = read_var(stream).await?;
 
-    dbg!(&packet_id);
+    log(fancy_log::LogLevel::Debug, format!("Received packet with ID: 0x{:02X}", packet_id).as_str());
 
     match state {
         ProtocolState::Status => {

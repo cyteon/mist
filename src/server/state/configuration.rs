@@ -10,9 +10,7 @@ use crate::{
         }, 
         
         packets::clientbound::{
-            finish_configuration::send_finish_configuration, 
-            known_packs::send_known_packs, 
-            regristry_data::send_all_registers
+            finish_configuration::send_finish_configuration, known_packs::send_known_packs, login_play::send_login_play, regristry_data::send_all_registers
         }
     }, 
     
@@ -45,6 +43,7 @@ pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Playe
                     ClientPacket::AcknowledgeFinishConfiguration => {
                         log(LogLevel::Debug, format!("{} has finished configuration", player.name).as_str());
                         
+                        send_login_play(&mut socket).await?;
                         play::play(socket, player).await?;
                         break;
                     },

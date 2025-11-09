@@ -71,9 +71,7 @@ pub async fn send_all_registers<W: AsyncWriteExt + Unpin>(
     stream: &mut W,
 ) -> anyhow::Result<()> {
     for packet in REGISTRY_PACKETS.iter() {
-        let mut packet_data = vec![];
-
-        write_var(&mut packet_data, 0x07).await?;
+        let mut packet_data = vec![0x07];
 
         write_var(&mut packet_data, packet.registry_id.len() as i32).await?;
         packet_data.extend_from_slice(packet.registry_id.as_bytes());
