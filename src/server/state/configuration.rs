@@ -4,7 +4,17 @@ use fancy_log::{LogLevel, log};
 use tokio::{io::AsyncWriteExt, net::TcpStream, time::timeout};
 
 use crate::{
-    net::{codec::write_var, packet::{ClientPacket, ProtocolState, read_packet}, packets::clientbound::{finish_configuration::send_finish_configuration, known_packs::send_known_packs, regristry_data::send_regristry_data}}, 
+    net::{
+        packet::{
+            ClientPacket, ProtocolState, read_packet
+        }, 
+        
+        packets::clientbound::{
+            finish_configuration::send_finish_configuration, 
+            known_packs::send_known_packs, 
+            regristry_data::send_all_registers
+        }
+    }, 
     
     server::{
         encryption::EncryptedStream, state::{login::Player, play}
@@ -15,21 +25,26 @@ pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Playe
     log(LogLevel::Debug, format!("{} has entered the configuration state", player.name).as_str());
 
     send_known_packs(&mut socket).await?;
+
+    log(LogLevel::Debug, format!("Sent known packs to {}", player.name).as_str());
    
     loop {
         match timeout(Duration::from_secs(15), read_packet(&mut socket, &ProtocolState::Configuration)).await {
             Ok(Ok(Some(packet))) => {
                 match packet {
                     ClientPacket::KnownPacks => {
-                        send_regristry_data(&mut socket).await?;
+                        log(LogLevel::Debug, format!("{} has sent known packs", player.name).as_str());
 
-                        // config finished as there is A LOT we dont have
+                        send_all_registers(&mut socket).await?;
+                        log(LogLevel::Debug, format!("Sent registry data to {}", player.name).as_str());
+
                         send_finish_configuration(&mut socket).await?;
                         log(LogLevel::Debug, format!("Sent finish configuration to {}", player.name).as_str());
                     },
 
                     ClientPacket::AcknowledgeFinishConfiguration => {
                         log(LogLevel::Debug, format!("{} has finished configuration", player.name).as_str());
+                        
                         play::play(socket, player).await?;
                         break;
                     },

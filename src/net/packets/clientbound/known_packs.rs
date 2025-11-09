@@ -1,8 +1,7 @@
 use crate::net::codec::write_var;
 
 pub async fn send_known_packs<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
-    let mut packet_data = vec![];
-    write_var(&mut packet_data, 0x0E).await?;
+    let mut packet_data = vec![0x0E];
 
     write_var(&mut packet_data, 1).await?;
 

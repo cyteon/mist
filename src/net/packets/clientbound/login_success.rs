@@ -1,8 +1,7 @@
 use crate::net::codec::write_var;
 
 pub async fn send_login_success<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, username: &str, uuid: &str) -> anyhow::Result<()> {
-    let mut packet_data = vec![];
-    write_var(&mut packet_data, 0x02).await?;
+    let mut packet_data = vec![0x02];
 
     let uuid_clean = uuid.replace("-", "");
     let uuid_bytes = hex::decode(&uuid_clean)?;

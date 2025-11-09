@@ -3,9 +3,7 @@ use rsa::pkcs8::EncodePublicKey;
 use crate::{RSA_PUBLIC_KEY, net::codec::write_var};
 
 pub async fn send_encryption_request<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
-    let mut packet_data = vec![];
-
-    write_var(&mut packet_data, 0x01).await?;
+    let mut packet_data = vec![0x01];
 
     write_var(&mut packet_data, "".len() as i32).await?;
     packet_data.extend_from_slice("".as_bytes());

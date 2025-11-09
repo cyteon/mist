@@ -73,7 +73,10 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
     }
 
     send_login_success(&mut socket, player.clone().unwrap().name.as_str(), player.clone().unwrap().uuid.as_str()).await?;
+    log(LogLevel::Debug, format!("Sent login success to {}", player.as_ref().unwrap().name).as_str());
+    
     read_login_acknowledged(&mut socket).await?;
+    log(LogLevel::Debug, format!("{} sent login acknowledged", player.as_ref().unwrap().name).as_str());
 
     configuration::configuration(socket, player.unwrap()).await?;
 
