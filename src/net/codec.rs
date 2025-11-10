@@ -37,9 +37,10 @@ pub async fn write_var<W: AsyncWriteExt + Unpin>(stream: &mut W, mut value: i32)
 
         stream.write_u8(temp).await?;
 
-        if value == 0 {
+        if value <= 0 {
             break;
         }
     }
+
     Ok(())
 }

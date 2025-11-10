@@ -22,17 +22,8 @@ use crate::{
     server::{
         auth::authenticate_player, 
         encryption::EncryptedStream, state::configuration
-    }
+    }, types::player::Player
 };
-
-#[derive(Clone)]
-pub struct Player {
-    pub name: String,
-    pub uuid: String,
-    pub shared_secret: Option<Vec<u8>>,
-    pub skin_texture: Option<String>,
-}
-
 
 pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow::Result<()> {
     let mut player: Option<Player>;
@@ -47,12 +38,10 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
     let login_start = read_login_start(&mut socket).await?;
     log(LogLevel::Info, format!("{} ({}) is connecting", login_start.name, login_start.uuid).as_str());
 
-    player = Some(Player {
-        name: login_start.name,
-        uuid: login_start.uuid,
-        shared_secret: None,
-        skin_texture: None,
-    });
+    player = Some(Player::new(
+        login_start.name.clone(), 
+        login_start.uuid.clone()
+    ));
 
     send_encryption_request(&mut socket).await?;
 

@@ -18,8 +18,8 @@ use crate::{
     }, 
     
     server::{
-        encryption::EncryptedStream, state::{login::Player, play}
-    }
+        encryption::EncryptedStream, state::play
+    }, types::player::Player
 };
 
 pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Player) -> anyhow::Result<()> {

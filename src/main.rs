@@ -4,6 +4,7 @@ use once_cell::sync::Lazy;
 mod config;
 mod server;
 mod net;
+mod types;
 
 pub static RSA_PRIVATE_KEY: Lazy<rsa::RsaPrivateKey> = Lazy::new(|| {
     rsa::RsaPrivateKey::new(&mut rand::thread_rng(), 1024).expect("Failed to generate RSA key")

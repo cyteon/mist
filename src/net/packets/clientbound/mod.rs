@@ -8,3 +8,4 @@ pub mod finish_configuration;
 pub mod regristry_data;
 pub mod login_play;
 pub mod keep_alive;
+pub mod sync_player_position;

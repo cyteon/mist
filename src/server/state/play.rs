@@ -7,18 +7,16 @@ use crate::{
     net::{packet::{
         ProtocolState, 
         read_packet
-    }, packets::clientbound::keep_alive::send_keep_alive}, 
+    }, packets::clientbound::{keep_alive::send_keep_alive, sync_player_position::send_sync_player_position}}, 
     
-    server::{
-        encryption::EncryptedStream, 
-        state::login::Player
-    }
+    server::encryption::EncryptedStream,
+    types::player::Player
 };
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow::Result<()> {
+pub async fn play(socket: EncryptedStream<TcpStream>, player: Player    ) -> anyhow::Result<()> {
     log(LogLevel::Debug, format!("{} has entered the play state", player.name).as_str());
 
     let socket = Arc::new(Mutex::new(socket));
@@ -38,13 +36,14 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         })
     };
 
+    send_sync_player_position(&mut *socket.lock().await, &player).await?;
+
     loop {
         let mut socket_guard = socket.lock().await;
+        
         match timeout(Duration::from_secs(20), read_packet(&mut *socket_guard, &ProtocolState::Play)).await {
             Ok(Ok(Some(packet))) => {
                 match packet {
-                    
-
                     _ => { }
                 }
                 socket_guard.shutdown().await?; 
