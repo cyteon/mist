@@ -1,6 +1,21 @@
-use tokio::net::TcpStream;
+use std::collections::HashMap;
+use once_cell::sync::Lazy;
+use tokio::{net::TcpStream, sync::{Mutex, RwLock}};
 
-use crate::{net::packets::serverbound::handshake::{HandshakePacket, read_handshake}, server::state};
+use crate::{
+    net::packets::serverbound::handshake::{
+        HandshakePacket, 
+        read_handshake
+    }, 
+
+    server::{
+        encryption::EncryptedStream, 
+        state
+    }
+};
+
+pub static PLAYER_SOCKET_MAP: Lazy<RwLock<HashMap<String, Mutex<EncryptedStream<TcpStream>>>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
 
 pub async fn handle_conn(mut socket: TcpStream) -> anyhow::Result<()> {
     let handshake: HandshakePacket = read_handshake(&mut socket).await?;

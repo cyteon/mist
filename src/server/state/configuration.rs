@@ -9,12 +9,16 @@ use crate::{
             ClientPacket, ProtocolState, read_packet
         }, 
         
-        packets::{clientbound::{
-            finish_configuration::send_finish_configuration, 
-            known_packs::send_known_packs, 
-            login_play::send_login_play, 
-            regristry_data::send_all_registers
-        }, serverbound::known_packs::read_known_packs}
+        packets::{
+            clientbound::{
+                finish_configuration::send_finish_configuration, 
+                known_packs::send_known_packs, 
+                login_play::send_login_play, 
+                regristry_data::send_all_registers
+            }, 
+            
+            serverbound::known_packs::read_known_packs
+        }
     }, 
     
     server::{
