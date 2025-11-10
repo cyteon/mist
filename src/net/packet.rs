@@ -8,7 +8,7 @@ pub enum ClientPacket {
     Ping,
     LoginStart,
     EncryptionResponse,
-    KnownPacks,
+    KnownPacks(std::io::Cursor<Vec<u8>>),
     AcknowledgeFinishConfiguration
 }
 
@@ -22,12 +22,19 @@ pub enum ProtocolState {
 
 pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &ProtocolState) -> anyhow::Result<Option<ClientPacket>> {
     let packet_len = read_var(stream).await?;
-    let packet_id = read_var(stream).await?;
 
-    log(
-        fancy_log::LogLevel::Debug, 
-        format!("Received packet with ID: 0x{:02X} with length: {}", packet_id, packet_len).as_str()
-    );
+    let mut packet_buf = vec![0u8; packet_len as usize];
+    stream.read_exact(&mut packet_buf).await?;
+
+    let mut cursor = std::io::Cursor::new(packet_buf);
+    let packet_id = read_var(&mut cursor).await?;
+
+    if packet_id != 0x0C && packet_id != 0x1D { // these packets are spammy
+        log(
+            fancy_log::LogLevel::Debug, 
+            format!("Received packet with ID: 0x{:02X} with length: {}", packet_id, packet_len).as_str()
+        );
+    }
 
     match state {
         ProtocolState::Status => {
@@ -36,13 +43,7 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
                     Ok(Some(ClientPacket::Ping))
                 },
                 
-                _ => {                    
-                    if packet_len > 1 {
-                        for _ in 0..(packet_len - 1) {
-                            let _ = stream.read_u8().await?;
-                        }
-                    }
-
+                _ => {
                     Ok(None)
                 }
             }
@@ -72,38 +73,21 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
 
         ProtocolState::Configuration => {
             match packet_id {
-                // According to the protocol docs, this is supposed to be 0x03
-                // But every time after sending the finish config, i get a 0x01 back
-                // Which makes no sense as 0x01 in the config stage is a cookie request response
-                // But for now ill just parse it as an acknowledgment, unless shit breaks
-                // TODO: fix
-                0x01 => {
+                0x03 => {
                     Ok(Some(ClientPacket::AcknowledgeFinishConfiguration))
                 },
 
                 0x07 => {
-                    Ok(Some(ClientPacket::KnownPacks))
+                    Ok(Some(ClientPacket::KnownPacks(cursor)))
                 },
                 
                 _ => {
-                    if packet_len > 1 {
-                        for _ in 0..(packet_len - 1) {
-                            let _ = stream.read_u8().await?;
-                        }
-                    }
-
                     Ok(None)
                 }
             }
         },
 
         _ => {
-            if packet_len > 1 {
-                for _ in 0..(packet_len - 1) {
-                    let _ = stream.read_u8().await?;
-                }
-            }
-
             Ok(None)
         }
     }

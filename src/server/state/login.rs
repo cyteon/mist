@@ -37,10 +37,10 @@ pub struct Player {
 pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow::Result<()> {
     let mut player: Option<Player>;
 
-    if handshake.protocol_version != 773 {
+    if handshake.protocol_version != 772 {
         send_disconnect_login(
             &mut socket, 
-            "Unsupported version. Please use Minecraft 1.21.9 - 1.21.10"
+            "Unsupported version. Please use Minecraft 1.21.7 - 1.21.8"
         ).await?;
     }
 

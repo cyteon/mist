@@ -9,12 +9,12 @@ use crate::{
             ClientPacket, ProtocolState, read_packet
         }, 
         
-        packets::clientbound::{
+        packets::{clientbound::{
             finish_configuration::send_finish_configuration, 
             known_packs::send_known_packs, 
             login_play::send_login_play, 
             regristry_data::send_all_registers
-        }
+        }, serverbound::known_packs::read_known_packs}
     }, 
     
     server::{
@@ -33,7 +33,8 @@ pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Playe
         match timeout(Duration::from_secs(15), read_packet(&mut socket, &ProtocolState::Configuration)).await {
             Ok(Ok(Some(packet))) => {
                 match packet {
-                    ClientPacket::KnownPacks => {
+                    ClientPacket::KnownPacks(mut cursor) => {
+                        read_known_packs(&mut cursor).await?;
                         log(LogLevel::Debug, format!("{} has sent known packs", player.name).as_str());
 
                         send_all_registers(&mut socket).await?;

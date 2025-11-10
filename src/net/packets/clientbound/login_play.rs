@@ -10,8 +10,8 @@ pub async fn send_login_play<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W
 
     write_var(&mut packet_data, 1).await?; // dimension count
     
-    write_var(&mut packet_data, "world".len() as i32).await?;
-    packet_data.extend_from_slice("world".as_bytes()); // dimension identifier
+    write_var(&mut packet_data, "overworld".len() as i32).await?;
+    packet_data.extend_from_slice("overworld".as_bytes()); // dimension identifier
 
     write_var(&mut packet_data, SERVER_CONFIG.max_players as i32).await?;
     write_var(&mut packet_data, 16).await?; // view distance
