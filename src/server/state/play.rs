@@ -6,7 +6,7 @@ use tokio::{io::AsyncWriteExt, net::TcpStream, time::{self, timeout}};
 use crate::{
     net::{packet::{
         ClientPacket, ProtocolState, read_packet
-    }, packets::{clientbound::{keep_alive::send_keep_alive, sync_player_position::send_sync_player_position}, serverbound::confirm_teleportation::read_confirm_teleportation}}, 
+    }, packets::{clientbound::{keep_alive::send_keep_alive, player_info_update::send_player_info_update, sync_player_position::send_sync_player_position}, serverbound::confirm_teleportation::read_confirm_teleportation}}, 
     
     server::{conn::PLAYER_SOCKET_MAP, encryption::EncryptedStream},
     types::player::Player
@@ -41,6 +41,16 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         LogLevel::Debug, 
         format!("Sent initial player position to {}", player.name).as_str()
     );
+
+    PLAYER_SOCKET_MAP.write().await.insert(
+        player.name.clone(), 
+        Arc::clone(&socket)
+    );
+
+    for player_socket in PLAYER_SOCKET_MAP.read().await.values() {
+        let mut socket_guard = player_socket.lock().await;
+        send_player_info_update(&mut *socket_guard, &player).await?;
+    }
 
     loop {
         let mut socket_guard = socket.lock().await;

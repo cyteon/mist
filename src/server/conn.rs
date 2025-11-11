@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use once_cell::sync::Lazy;
 use tokio::{net::TcpStream, sync::{Mutex, RwLock}};
 
@@ -14,7 +14,7 @@ use crate::{
     }
 };
 
-pub static PLAYER_SOCKET_MAP: Lazy<RwLock<HashMap<String, Mutex<EncryptedStream<TcpStream>>>>> =
+pub static PLAYER_SOCKET_MAP: Lazy<RwLock<HashMap<String, Arc<Mutex<EncryptedStream<TcpStream>>>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
 pub async fn handle_conn(mut socket: TcpStream) -> anyhow::Result<()> {
