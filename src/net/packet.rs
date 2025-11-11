@@ -9,7 +9,8 @@ pub enum ClientPacket {
     LoginStart,
     EncryptionResponse,
     KnownPacks(std::io::Cursor<Vec<u8>>),
-    AcknowledgeFinishConfiguration
+    AcknowledgeFinishConfiguration,
+    ConfirmTeleprortion(std::io::Cursor<Vec<u8>>),
 }
 
 pub enum ProtocolState {
@@ -79,6 +80,18 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
 
                 0x07 => {
                     Ok(Some(ClientPacket::KnownPacks(cursor)))
+                },
+                
+                _ => {
+                    Ok(None)
+                }
+            }
+        },
+
+        ProtocolState::Play => {
+            match packet_id {
+                0x00 => {
+                    Ok(Some(ClientPacket::ConfirmTeleprortion(cursor)))
                 },
                 
                 _ => {

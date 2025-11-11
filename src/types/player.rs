@@ -15,6 +15,8 @@ pub struct Player {
 
     pub yaw: f32,
     pub pitch: f32,
+
+    pub initial_sync_done: bool,
 }
 
 impl Player {
@@ -36,6 +38,8 @@ impl Player {
 
             yaw: 0.0,
             pitch: 0.0,
+
+            initial_sync_done: false,
         }
     }
 }

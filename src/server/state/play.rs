@@ -5,9 +5,8 @@ use tokio::{io::AsyncWriteExt, net::TcpStream, time::{self, timeout}};
 
 use crate::{
     net::{packet::{
-        ProtocolState, 
-        read_packet
-    }, packets::clientbound::{keep_alive::send_keep_alive, sync_player_position::send_sync_player_position}}, 
+        ClientPacket, ProtocolState, read_packet
+    }, packets::{clientbound::{keep_alive::send_keep_alive, sync_player_position::send_sync_player_position}, serverbound::confirm_teleportation::read_confirm_teleportation}}, 
     
     server::{conn::PLAYER_SOCKET_MAP, encryption::EncryptedStream},
     types::player::Player
@@ -16,7 +15,7 @@ use crate::{
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow::Result<()> {
+pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> anyhow::Result<()> {
     log(LogLevel::Debug, format!("{} has entered the play state", player.name).as_str());
 
     let socket = Arc::new(Mutex::new(socket));
@@ -38,16 +37,23 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
     send_sync_player_position(&mut *socket.lock().await, &player).await?;
 
+    log(
+        LogLevel::Debug, 
+        format!("Sent initial player position to {}", player.name).as_str()
+    );
+
     loop {
         let mut socket_guard = socket.lock().await;
 
         match timeout(Duration::from_secs(20), read_packet(&mut *socket_guard, &ProtocolState::Play)).await {
             Ok(Ok(Some(packet))) => {
                 match packet {
+                    ClientPacket::ConfirmTeleprortion(mut cursor) => {
+                        read_confirm_teleportation(&mut cursor, &mut player).await?;
+                    }
+
                     _ => { }
                 }
-                socket_guard.shutdown().await?; 
-                break; 
             },
 
             Ok(Ok(None)) => { },

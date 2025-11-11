@@ -5,7 +5,7 @@ use crate::{net::codec::write_var, types::player::Player};
 pub async fn send_sync_player_position<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, player: &Player) -> anyhow::Result<()> {    
     let mut packet_data = vec![0x41];
 
-    write_var(&mut packet_data, rand::random::<i32>()).await?; // teleport id
+    write_var(&mut packet_data, 1).await?; // teleport id
     
     packet_data.write_f64(player.x).await?;
     packet_data.write_f64(player.y).await?;
