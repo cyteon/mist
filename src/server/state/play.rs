@@ -5,9 +5,21 @@ use once_cell::sync::Lazy;
 use tokio::{io::AsyncWriteExt, net::TcpStream, sync::RwLock, time::{self, timeout}};
 
 use crate::{
-    net::{packet::{
-        ClientPacket, ProtocolState, read_packet
-    }, packets::{clientbound::{keep_alive::send_keep_alive, sync_player_position::send_sync_player_position}, serverbound::confirm_teleportation::read_confirm_teleportation}}, 
+    net::{
+        packet::{
+            ClientPacket, ProtocolState, read_packet
+        }, 
+
+        packets::{
+            clientbound::{
+                game_event::send_game_event, 
+                keep_alive::send_keep_alive, 
+                sync_player_position::send_sync_player_position
+            },
+
+            serverbound::confirm_teleportation::read_confirm_teleportation
+        }
+    }, 
     
     server::{conn::PLAYER_SOCKET_MAP, encryption::EncryptedStream},
     types::player::Player
@@ -56,6 +68,8 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         player.lock().await.name.clone(),
         Arc::clone(&player)
     );
+
+    send_game_event(&mut *socket.lock().await, 13, 0.0).await?;
 
     loop {
         let mut socket_guard = socket.lock().await;
