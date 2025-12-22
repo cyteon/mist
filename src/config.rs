@@ -15,6 +15,8 @@ pub struct ServerConfig {
     pub motd: String,
     pub max_players: u32,
     pub online_mode: bool,
+
+    pub world_name: String,
 }
 
 pub fn load_config() -> ServerConfig {
@@ -35,9 +37,9 @@ pub fn load_config() -> ServerConfig {
 
         match toml::from_str::<ServerConfig>(&config_str.unwrap()) {
             Ok(config) => config,
-            Err(_) => {
-                log(LogLevel::Error, "Failed to parse config");
-                log(LogLevel::Error, "Stopping server");
+            Err(e) => {
+                log(LogLevel::Error, format!("Failed to parse config:\n\n{}", e).as_str());
+                log(LogLevel::Info, "Stopping server");
 
                 exit(1);
             }
@@ -52,7 +54,9 @@ port = 25565
 # server details
 motd = "An mist server"
 max_players = 10
-online_mode = true"#;
+online_mode = true
+
+world_name = "world""#;
         
         if std::fs::write(path, default_config).is_err() {
             log(LogLevel::Error, "Failed to write default config");

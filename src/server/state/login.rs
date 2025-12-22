@@ -22,7 +22,9 @@ use crate::{
     server::{
         auth::authenticate_player, 
         encryption::EncryptedStream, state::configuration
-    }, types::player::Player
+    }, 
+    
+    types::player::Player
 };
 
 pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow::Result<()> {
@@ -34,6 +36,8 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
             "Unsupported version. Please use Minecraft 1.21.10"
         ).await?;
     }
+
+    
 
     let login_start = read_login_start(&mut socket).await?;
     log(LogLevel::Info, format!("{} ({}) is connecting", login_start.name, login_start.uuid).as_str());

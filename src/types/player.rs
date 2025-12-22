@@ -29,8 +29,8 @@ impl Player {
             skin_texture: None,
 
             x: 0.0,
-            y: 0.0,
-            z: 60.0,
+            y: 60.0,
+            z: 0.0,
 
             vx: 0.0,
             vy: 0.0,

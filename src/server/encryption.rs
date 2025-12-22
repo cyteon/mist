@@ -2,7 +2,6 @@ use std::task::ready;
 use aes::Aes128;
 use aes::cipher::{KeyIvInit, BlockEncryptMut, BlockDecryptMut, generic_array::GenericArray};
 use cfb8::{Encryptor, Decryptor};
-use fancy_log::log;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 pub struct EncryptedStream<S> {
