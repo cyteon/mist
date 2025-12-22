@@ -2,6 +2,7 @@
 An minecraft server implementation in rust for minecraft 1.21.10
 
 ## Features
+**General**
 - [x] Config (.toml)
 
 **Networking**
@@ -9,8 +10,13 @@ An minecraft server implementation in rust for minecraft 1.21.10
 - [x] Server info querying
 - [x] Encryption
 - [x] Mojang authentication
-- [ ] Enter play state
+- [x] Enter play state
 
 **World**
+- [ ] Show players in tablist
+- [x] Spawning player
+- [ ] Player skins
+- [ ] Sending chunks
+- [ ] Lightning
 - [ ] Basic worldgen
-- [ ] Spawning player
+- [ ] World saves
