@@ -7,7 +7,7 @@ use tokio::{io::AsyncWriteExt, net::TcpStream, sync::RwLock, time::{self, timeou
 use crate::{
     net::{packet::{
         ClientPacket, ProtocolState, read_packet
-    }, packets::{clientbound::{keep_alive::send_keep_alive, player_info_update::send_player_info_update, sync_player_position::send_sync_player_position}, serverbound::confirm_teleportation::read_confirm_teleportation}}, 
+    }, packets::{clientbound::{keep_alive::send_keep_alive, sync_player_position::send_sync_player_position}, serverbound::confirm_teleportation::read_confirm_teleportation}}, 
     
     server::{conn::PLAYER_SOCKET_MAP, encryption::EncryptedStream},
     types::player::Player
@@ -56,35 +56,6 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         player.lock().await.name.clone(),
         Arc::clone(&player)
     );
-
-    for player_socket in PLAYER_SOCKET_MAP.read().await.values() {
-        let mut socket_guard = player_socket.lock().await;
-        let player_guard = player.lock().await;
-
-        send_player_info_update(&mut *socket_guard, vec![&*player_guard]).await?;
-    }
-
-    {
-        let mut socket_guard = socket.lock().await;
-        let player_guard = player.lock().await;
-        
-        let players = PLAYERS.read().await;
-
-        let other_players_owned: Vec<Player> = players
-            .values()
-            .filter_map(|p| {
-                let p_guard = p.blocking_lock();
-                if p_guard.name != player_guard.name {
-                    Some(p_guard.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-        
-        let other_player_refs: Vec<&Player> = other_players_owned.iter().collect();
-        send_player_info_update(&mut *socket_guard, other_player_refs).await?;
-    }
 
     loop {
         let mut socket_guard = socket.lock().await;
