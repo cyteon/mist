@@ -1,11 +1,55 @@
 use fancy_log::LogLevel;
 
-pub fn ensure_save_folder() {
-    std::fs::create_dir_all(crate::config::SERVER_CONFIG.world_name.clone()).unwrap();
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct PlayerSave {
+    pub uuid: String,
+
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+
+    pub vx: f64,
+    pub vy: f64,
+    pub vz: f64,
+
+    pub yaw: f32,
+    pub pitch: f32,
 }
 
-pub fn save() {
-    ensure_save_folder();
+pub fn ensure_save_folders() {
+    std::fs::create_dir_all(crate::config::SERVER_CONFIG.world_name.clone()).unwrap();
+    std::fs::create_dir_all(format!("{}/players", crate::config::SERVER_CONFIG.world_name.clone())).unwrap();
+}
 
+pub async fn save() {
+    ensure_save_folders();
     fancy_log::log(LogLevel::Info, "Autosaving...");
+
+    for player in crate::server::state::play::PLAYERS.read().await.values() {
+        let player = player.lock().await;
+
+        let player_save = PlayerSave {
+            uuid: player.uuid.clone(),
+
+            x: player.x,
+            y: player.y,
+            z: player.z,
+
+            vx: player.vx,
+            vy: player.vy,
+            vz: player.vz,
+
+            yaw: player.yaw,
+            pitch: player.pitch,
+        };
+        
+        let player_json = serde_json::to_string_pretty(&player_save).unwrap();
+        let player_path = format!(
+            "{}/players/{}.json", 
+            crate::config::SERVER_CONFIG.world_name.clone(), 
+            player.uuid
+        );
+
+        std::fs::write(player_path, player_json).unwrap();
+    }
 }

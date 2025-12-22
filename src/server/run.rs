@@ -8,7 +8,7 @@ pub async fn run() -> anyhow::Result<()> {
         crate::config::SERVER_CONFIG.port
     ).as_str());
 
-    crate::server::save::ensure_save_folder();
+    crate::server::save::ensure_save_folders();
 
     // server setup stuff goes here before listener activates
 

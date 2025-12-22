@@ -12,8 +12,8 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
 
     loop {
         if ticks_until_autosave == 0 {
-            ticks_until_autosave = 6000;
-            save();
+            ticks_until_autosave = 100; // todo: change to 6000
+            save().await;
         } else {
             ticks_until_autosave -= 1;
         }
