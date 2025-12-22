@@ -11,3 +11,4 @@ pub mod keep_alive;
 pub mod sync_player_position;
 pub mod player_info_update;
 pub mod game_event;
+pub mod plugin_message;
