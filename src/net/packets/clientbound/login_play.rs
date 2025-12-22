@@ -3,7 +3,7 @@ use tokio::io::AsyncWriteExt;
 use crate::{config::SERVER_CONFIG, net::codec::write_var};
 
 pub async fn send_login_play<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
-    let mut packet_data = vec![0x2B];
+    let mut packet_data = vec![0x30];
 
     packet_data.write_i32(1).await?; // palceholder for entity id
     packet_data.push(false as u8); // is hardcore

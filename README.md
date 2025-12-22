@@ -1,5 +1,5 @@
 # Mist
-An minecraft server implementation in rust
+An minecraft server implementation in rust for minecraft 1.21.10
 
 ## Features
 - [x] Config (.toml)

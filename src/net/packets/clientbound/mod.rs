@@ -5,7 +5,7 @@ pub mod encryption_request;
 pub mod login_success;
 pub mod known_packs;
 pub mod finish_configuration;
-pub mod regristry_data;
+pub mod registry_data;
 pub mod login_play;
 pub mod keep_alive;
 pub mod sync_player_position;
