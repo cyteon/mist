@@ -1,6 +1,7 @@
 use tokio::{task, try_join};
-
 use fancy_log::{LogLevel, log};
+
+use crate::server::save;
 
 pub async fn run() -> anyhow::Result<()> {
     log(LogLevel::Info, format!("Starting server on {}:{}", 
@@ -9,6 +10,10 @@ pub async fn run() -> anyhow::Result<()> {
     ).as_str());
 
     crate::server::save::ensure_save_folders();
+
+    if !save::exists("regions/0_0.mist_region") {
+        crate::world::worldgen::initial_gen().await;
+    }
 
     // server setup stuff goes here before listener activates
 

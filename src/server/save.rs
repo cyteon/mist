@@ -19,6 +19,15 @@ pub struct PlayerSave {
 pub fn ensure_save_folders() {
     std::fs::create_dir_all(crate::config::SERVER_CONFIG.world_name.clone()).unwrap();
     std::fs::create_dir_all(format!("{}/players", crate::config::SERVER_CONFIG.world_name.clone())).unwrap();
+    std::fs::create_dir_all(format!("{}/regions", crate::config::SERVER_CONFIG.world_name.clone())).unwrap();
+}
+
+pub fn exists(path: &str) -> bool {
+    std::path::Path::new(format!(
+        "{}/{}",
+        crate::config::SERVER_CONFIG.world_name.clone(),
+        path
+    ).as_str()).exists()
 }
 
 pub async fn save() {
@@ -51,5 +60,9 @@ pub async fn save() {
         );
 
         std::fs::write(player_path, player_json).unwrap();
+    }
+
+    for region in crate::world::worldgen::REGIONS.lock().await.values() {
+        region.save().await;
     }
 }

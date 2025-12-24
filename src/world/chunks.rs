@@ -1,8 +1,45 @@
+use serde::{Deserialize, Serialize};
+use anyhow::Context;
+
+#[derive(Serialize, Deserialize)]
 pub struct Region {
     pub x: i32,
     pub z: i32,
+    pub chunks: Vec<Chunk>,
 }
 
+impl Region {
+    pub fn to_chunk(&self) -> (i32, i32) {
+        (self.x << 5, self.z << 5)
+    }
+
+    pub fn new(x: i32, z: i32) -> Self {
+        Region {
+            x,
+            z,
+            chunks: Vec::new(),
+        }
+    }
+
+    pub async fn save(&self) -> anyhow::Result<()> {
+        let region_path = format!(
+            "{}/regions/{}_{}.mist_region",
+            crate::config::SERVER_CONFIG.world_name.clone(),
+            self.x,
+            self.z
+        );
+
+        let serialized = postcard::to_allocvec(self)
+            .context("Failed to serialize region")?;
+    
+        std::fs::write(region_path, serialized)
+            .context("Failed to write region to disk")?;
+    
+        Ok(())
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct Chunk {
     pub x: i32,
     pub z: i32,
@@ -10,11 +47,8 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    pub fn to_region(&self) -> Region {
-        Region {
-            x: self.x >> 5,
-            z: self.z >> 5,
-        }
+    pub fn to_region(&self) -> (i32, i32) {
+        (self.x >> 5, self.z >> 5)
     }
 
     pub fn generate(x: i32, z: i32) -> Self {
@@ -41,6 +75,7 @@ impl Chunk {
 }
 
 // 16x16x16 chunk section, 24 per chunk
+#[derive(Serialize, Deserialize)]
 pub struct Section {
     pub y: i32,
     pub blocks: BlockStorage,
@@ -88,6 +123,7 @@ impl Section {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct BlockStorage {
     pub palette: Vec<u16>,
     pub bits_per_block: u8,
