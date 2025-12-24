@@ -9,8 +9,6 @@ pub async fn send_game_event<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W
 
     write_var(stream, packet_data.len() as i32).await?;
 
-    dbg!(&packet_data);
-
     stream.write_all(&packet_data).await?;
     stream.flush().await?;
 
