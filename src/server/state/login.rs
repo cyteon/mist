@@ -30,14 +30,16 @@ use crate::{
 pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow::Result<()> {
     let mut player: Option<Player>;
 
-    if handshake.protocol_version != 773 {
+    if handshake.protocol_version != crate::SERVER_PROTOCOL_VERSION {
         send_disconnect_login(
             &mut socket, 
-            "Unsupported version. Please use Minecraft 1.21.10"
+            format!(
+                "Incompatible minecraft version. Server is running {} (protocol {})", 
+                crate::SERVER_VERSION,
+                crate::SERVER_PROTOCOL_VERSION
+            ).as_str()
         ).await?;
     }
-
-    
 
     let login_start = read_login_start(&mut socket).await?;
     log(LogLevel::Info, format!("{} ({}) is connecting", login_start.name, login_start.uuid).as_str());

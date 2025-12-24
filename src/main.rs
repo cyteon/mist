@@ -15,9 +15,13 @@ pub static RSA_PUBLIC_KEY: Lazy<rsa::RsaPublicKey> = Lazy::new(|| {
     rsa::RsaPublicKey::from(&*RSA_PRIVATE_KEY)
 });
 
+pub static SERVER_PROTOCOL_VERSION: i32 = 773;
+pub static SERVER_VERSION: &str = "1.21.10";
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     set_log_level(LogLevel::Debug);
+    log(LogLevel::Info, format!("Start mist for minecraft {}/{}", SERVER_VERSION, SERVER_PROTOCOL_VERSION).as_str());
 
     // just to ensure that config has loaded
     log(LogLevel::Info, format!("Server motd is \"{}\"", &config::SERVER_CONFIG.motd).as_str());

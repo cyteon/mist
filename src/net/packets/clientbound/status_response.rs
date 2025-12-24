@@ -3,8 +3,8 @@ use crate::net::codec::write_var;
 pub async fn send_status_response<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
     let json = format!(r#"{{
         "version": {{
-            "name": "1.21.10",
-            "protocol": 773
+            "name": "{}",
+            "protocol": {}
         }},
         "players": {{
             "max": {},
@@ -14,6 +14,8 @@ pub async fn send_status_response<W: tokio::io::AsyncWriteExt + Unpin>(stream: &
             "text": "{}"
         }}
     }}"#,
+        crate::SERVER_VERSION,
+        crate::SERVER_PROTOCOL_VERSION,
         crate::config::SERVER_CONFIG.max_players,
         crate::config::SERVER_CONFIG.motd
     );
