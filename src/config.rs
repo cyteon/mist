@@ -17,6 +17,7 @@ pub struct ServerConfig {
     pub online_mode: bool,
 
     pub world_name: String,
+    pub world_seed: u64,
 }
 
 pub fn load_config() -> ServerConfig {
@@ -45,7 +46,9 @@ pub fn load_config() -> ServerConfig {
             }
         }
     } else {
-        let default_config = r#"# the host the server will bind to
+        let random_seed = rand::random::<u64>();
+        
+        let default_config = format!(r#"# the host the server will bind to
 host = "0.0.0.0"
 
 # the port the server will listen on
@@ -56,9 +59,11 @@ motd = "An mist server"
 max_players = 10
 online_mode = true
 
-world_name = "world""#;
+world_name = "world"
+world_seed = {}
+"#, random_seed);
         
-        if std::fs::write(path, default_config).is_err() {
+        if std::fs::write(path, &default_config).is_err() {
             log(LogLevel::Error, "Failed to write default config");
             log(LogLevel::Error, "Stopping server");
 
@@ -67,7 +72,7 @@ world_name = "world""#;
             log(LogLevel::Info, "Default config created");
         }
 
-        match toml::from_str::<ServerConfig>(default_config) {
+        match toml::from_str::<ServerConfig>(&default_config) {
             Ok(config) => config,
             Err(_) => {
                 log(LogLevel::Error, "Failed to parse default config");
