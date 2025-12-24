@@ -13,6 +13,8 @@ pub async fn run() -> anyhow::Result<()> {
 
     if !save::exists("regions/0_0.mist_region") {
         crate::world::worldgen::initial_gen().await;
+    } else {
+        crate::server::save::load_world().await;
     }
 
     // server setup stuff goes here before listener activates

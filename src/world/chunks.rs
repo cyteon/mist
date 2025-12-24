@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 use anyhow::Context;
+use flate2::write::ZlibEncoder;
+use flate2::read::ZlibDecoder;
+use flate2::Compression;
 
 #[derive(Serialize, Deserialize)]
 pub struct Region {
@@ -32,10 +35,40 @@ impl Region {
         let serialized = postcard::to_allocvec(self)
             .context("Failed to serialize region")?;
     
-        std::fs::write(region_path, serialized)
-            .context("Failed to write region to disk")?;
+        let compressed = tokio::task::spawn_blocking(move || {
+            let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+            std::io::copy(&mut &serialized[..], &mut encoder).unwrap();
+            encoder.finish().unwrap()
+        }).await?;
+    
+        tokio::fs::write(region_path, compressed).await
+            .context("Failed to write region file")?;
     
         Ok(())
+    }
+
+    pub async fn load(x: i32, z: i32) -> anyhow::Result<Self> {
+        let region_path = format!(
+            "{}/regions/{}_{}.mist_region",
+            crate::config::SERVER_CONFIG.world_name.clone(),
+            x,
+            z
+        );
+
+        let compressed = tokio::fs::read(region_path).await
+            .context("Failed to read region file")?;
+    
+        let serialized = tokio::task::spawn_blocking(move || {
+            let mut decoder = ZlibDecoder::new(&compressed[..]);
+            let mut decompressed = Vec::new();
+            std::io::copy(&mut decoder, &mut decompressed).unwrap();
+            decompressed
+        }).await?;
+    
+        let region: Region = postcard::from_bytes(&serialized)
+            .context("Failed to deserialize region")?;
+    
+        Ok(region)
     }
 }
 

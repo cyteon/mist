@@ -34,6 +34,8 @@ pub async fn save() {
     ensure_save_folders();
     fancy_log::log(LogLevel::Info, "Autosaving...");
 
+    let start = std::time::Instant::now();
+
     for player in crate::server::state::play::PLAYERS.read().await.values() {
         let player = player.lock().await;
 
@@ -63,6 +65,63 @@ pub async fn save() {
     }
 
     for region in crate::world::worldgen::REGIONS.lock().await.values() {
-        region.save().await;
+        if region.save().await.is_err() {
+            fancy_log::log(LogLevel::Error, format!(
+                "Failed to save region {}, {}", 
+                region.x, 
+                region.z
+            ).as_str());
+        }
     }
+
+    let duration = start.elapsed();
+    fancy_log::log(LogLevel::Info, format!("Autosave complete in {:.2?}", duration).as_str());
+}
+
+pub async fn load_world() {
+    ensure_save_folders();
+    fancy_log::log(LogLevel::Info, "Loading world...");
+
+    let start = std::time::Instant::now();
+
+    let mut regions_lock = crate::world::worldgen::REGIONS.lock().await;
+
+    let region_files = std::fs::read_dir(format!(
+        "{}/regions", 
+        crate::config::SERVER_CONFIG.world_name.clone()
+    )).unwrap();
+
+    for entry in region_files {
+        let entry = entry.unwrap();
+        let file_name = entry.file_name();
+        let file_name_str = file_name.to_str().unwrap();
+
+        if file_name_str.ends_with(".mist_region") {
+            let coords: Vec<&str> = file_name_str.trim_end_matches(".mist_region").split('_').collect();
+            if coords.len() != 2 {
+                continue;
+            }
+
+            let x: i32 = coords[0].parse().unwrap();
+            let z: i32 = coords[1].parse().unwrap();
+
+            match crate::world::chunks::Region::load(x, z).await {
+                Ok(region) => {
+                    regions_lock.insert((x, z), region);
+                },
+                
+                Err(e) => {
+                    fancy_log::log(LogLevel::Error, format!(
+                        "Failed to load region {}, {}: {}", 
+                        x, 
+                        z, 
+                        e
+                    ).as_str());
+                }
+            }
+        }
+    }
+
+    let duration = start.elapsed();
+    fancy_log::log(LogLevel::Info, format!("World loaded in {:.2?}", duration).as_str());
 }
