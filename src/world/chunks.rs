@@ -102,7 +102,7 @@ impl Chunk {
 
         for x in 0..16 {
             for z in 0..16 {
-                chunk.sections[0].set_block(x, 0, z, 31);
+                chunk.sections[0].set_block(x, 0, z, 0);
             }
         }
 
@@ -185,7 +185,7 @@ impl BlockStorage {
         BlockStorage {
             palette: vec![0],
             bits_per_block: 0,
-            data: vec![0i64; 64],
+            data: Vec::new(),
         }
     }
 
@@ -211,6 +211,10 @@ impl BlockStorage {
     }
     
     fn get_palette_index(&self, idx: usize, bits: usize) -> u16 {
+        if bits == 0 {
+            return 0;
+        }
+
         let bit_idx = idx * bits;
         let data_idx = bit_idx / 64;
         let bit_offset = bit_idx % 64;
@@ -227,6 +231,10 @@ impl BlockStorage {
     }
     
     pub fn set_palette_index(&mut self, idx: usize, palette_index: u16) {
+        if self.bits_per_block == 0 {
+            return;
+        }
+
         let bits = self.bits_per_block as usize;
         let bit_idx = idx * bits;
         let data_idx = bit_idx / 64;

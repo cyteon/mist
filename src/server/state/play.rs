@@ -85,6 +85,11 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
 
         for chunk in regions_lock.get(&(0,0)).unwrap().chunks.iter() {
             send_chunk_data_with_light(&mut *stream_lock, &chunk).await?;
+
+            log(
+                LogLevel::Debug, 
+                format!("Sent chunk ({}, {}) to {}", chunk.x, chunk.z, player.lock().await.name).as_str()
+            );
         }
     }
 
