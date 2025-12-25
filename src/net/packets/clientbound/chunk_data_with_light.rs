@@ -39,7 +39,7 @@ pub async fn send_chunk_data_with_light<W: tokio::io::AsyncWriteExt + Unpin>(
     write_var(&mut packet_data, 0).await?; // empty block light mask
     write_var(&mut packet_data, 0).await?; // sky light arrays count
     write_var(&mut packet_data, 0).await?; // block light arrays count
-    
+
     write_var(stream, packet_data.len() as i32).await?;
     stream.write_all(&packet_data).await?;
     stream.flush().await?;
