@@ -23,7 +23,7 @@ pub async fn send_chunk_data_with_light<W: tokio::io::AsyncWriteExt + Unpin>(
         section.blocks.write_paletted_container(&mut data_section).await?;
         
         data_section.write_u8(0).await?; // 0 bpe
-        write_var(&mut data_section, 1).await?; // no data
+        write_var(&mut data_section, 1).await?; // plains biome id
     }
     
     write_var(&mut packet_data, data_section.len() as i32).await?;
