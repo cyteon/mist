@@ -3,6 +3,9 @@ use anyhow::Context;
 use flate2::write::ZlibEncoder;
 use flate2::read::ZlibDecoder;
 use flate2::Compression;
+use tokio::io::AsyncWriteExt;
+
+use crate::net::codec::write_var;
 
 #[derive(Serialize, Deserialize)]
 pub struct Region {
@@ -107,7 +110,6 @@ impl Chunk {
     }
 }
 
-// 16x16x16 chunk section, 24 per chunk
 #[derive(Serialize, Deserialize)]
 pub struct Section {
     pub y: i32,
@@ -153,6 +155,19 @@ impl Section {
             4..=8 => min_bits,
             _ => 15, 
         }
+    }
+
+    pub fn block_count(&self) -> i16 {
+        let mut count = 0i16;
+        for i in 0..4096 {
+            let palette_idx = self.blocks.get_palette_index(i, self.blocks.bits_per_block as usize);
+            let block_id = self.blocks.palette[palette_idx as usize];
+
+            if block_id != 0 {
+                count += 1;
+            }
+        }
+        count
     }
 }
 
@@ -225,5 +240,41 @@ impl BlockStorage {
             self.data[data_idx + 1] &= !extra_mask;
             self.data[data_idx + 1] |= (palette_index as u64 >> (bits - extra_bits)) & extra_mask;
         }
+    }
+
+    pub async fn write_paletted_container<W: AsyncWriteExt + Unpin>(&self, writer: &mut W) -> anyhow::Result<()> {
+        writer.write_u8(self.bits_per_block).await?;
+        
+        match self.bits_per_block {
+            0 => {
+                write_var(writer, self.palette[0] as i32).await?;
+                write_var(writer, 0).await?;
+            }
+
+            1..=8 => {
+                write_var(writer, self.palette.len() as i32).await?;
+                for &block_id in &self.palette {
+                    write_var(writer, block_id as i32).await?;
+                }
+                
+                write_var(writer, self.data.len() as i32).await?;
+                for &value in &self.data {
+                    writer.write_u64(value).await?;
+                }
+            }
+
+            15 => {
+                write_var(writer, self.data.len() as i32).await?;
+
+                for &value in &self.data {
+                    writer.write_u64(value).await?;
+                }
+            }
+            _ => {
+                anyhow::bail!("Invalid bits_per_block value: {}", self.bits_per_block);
+            }
+        }
+        
+        Ok(())
     }
 }

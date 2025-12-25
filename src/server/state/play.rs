@@ -12,9 +12,10 @@ use crate::{
 
         packets::{
             clientbound::{
+                chunk_data_with_light::send_chunk_data_with_light, 
                 game_event::send_game_event,
-                keep_alive::send_keep_alive, 
-                set_center_chunk::send_set_center_chunk, 
+                keep_alive::send_keep_alive,
+                set_center_chunk::send_set_center_chunk,
                 sync_player_position::send_sync_player_position
             },
 
@@ -72,6 +73,25 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
 
     send_game_event(&mut *socket.lock().await, 13, 0.0).await?;
     send_set_center_chunk(&mut *socket.lock().await, 0, 0).await?;
+
+    log(
+        LogLevel::Debug, 
+        format!("Sent center chunk and is now sending chunks to {}", player.lock().await.name).as_str()
+    );
+
+    {
+        let regions_lock = crate::world::worldgen::REGIONS.lock().await;
+        let mut stream_lock = socket.lock().await;
+
+        for chunk in regions_lock.get(&(0,0)).unwrap().chunks.iter() {
+            send_chunk_data_with_light(&mut *stream_lock, &chunk).await?;
+        }
+    }
+
+    log(
+        LogLevel::Debug, 
+        format!("Finished sending chunks to {}", player.lock().await.name).as_str()
+    );
 
     loop {
         let mut socket_guard = socket.lock().await;
