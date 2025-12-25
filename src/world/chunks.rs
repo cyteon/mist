@@ -149,22 +149,24 @@ impl Section {
         }
         
         let min_bits = (palette_size as f32).log2().ceil() as u8;
+        let bits = min_bits.max(4);
         
-        match min_bits {
-            0..=3 => 4,
-            4..=8 => min_bits,
+        match bits {
+            0 => 0,
+            4..=8 => bits,
             _ => 15, 
         }
     }
 
     pub fn block_count(&self) -> i16 {
         let mut count = 0i16;
+        
         for i in 0..4096 {
             let palette_idx = self.blocks.get_palette_index(i, self.blocks.bits_per_block as usize);
-            let block_id = self.blocks.palette[palette_idx as usize];
-
-            if block_id != 0 {
-                count += 1;
+            if let Some(&block_id) = self.blocks.palette.get(palette_idx as usize) {
+                if block_id != 0 {
+                    count += 1;
+                }
             }
         }
         count
@@ -175,7 +177,7 @@ impl Section {
 pub struct BlockStorage {
     pub palette: Vec<u16>,
     pub bits_per_block: u8,
-    pub data: Vec<u64>,
+    pub data: Vec<i64>,
 }
 
 impl BlockStorage {
@@ -183,7 +185,7 @@ impl BlockStorage {
         BlockStorage {
             palette: vec![0],
             bits_per_block: 0,
-            data: vec![0u64; 64],
+            data: vec![0i64; 64],
         }
     }
 
@@ -200,7 +202,7 @@ impl BlockStorage {
         let total_bits = 4096 * new_bits;
         let new_size = (total_bits + 63) / 64;
         
-        self.data = vec![0u64; new_size];
+        self.data = vec![0i64; new_size];
         self.bits_per_block = new_bits_per_block;
         
         for (i, &palette_idx) in indices.iter().enumerate() {
@@ -212,13 +214,13 @@ impl BlockStorage {
         let bit_idx = idx * bits;
         let data_idx = bit_idx / 64;
         let bit_offset = bit_idx % 64;
-        let mask = (1u64 << bits) - 1;
+        let mask = (1i64 << bits) - 1;
         
         let mut value = (self.data[data_idx] >> bit_offset) & mask;
         
         if bit_offset + bits > 64 {
             let extra_bits = bit_offset + bits - 64;
-            value |= (self.data[data_idx + 1] & ((1u64 << extra_bits) - 1)) << (bits - extra_bits);
+            value |= (self.data[data_idx + 1] & ((1i64 << extra_bits) - 1)) << (bits - extra_bits);
         }
         
         value as u16
@@ -229,16 +231,16 @@ impl BlockStorage {
         let bit_idx = idx * bits;
         let data_idx = bit_idx / 64;
         let bit_offset = bit_idx % 64;
-        let mask = (1u64 << bits) - 1;
+        let mask = (1i64 << bits) - 1;
         
         self.data[data_idx] &= !(mask << bit_offset);
-        self.data[data_idx] |= ((palette_index as u64) & mask) << bit_offset;
+        self.data[data_idx] |= ((palette_index as i64) & mask) << bit_offset;
         
         if bit_offset + bits > 64 {
             let extra_bits = bit_offset + bits - 64;
-            let extra_mask = (1u64 << extra_bits) - 1;
+            let extra_mask = (1i64 << extra_bits) - 1;
             self.data[data_idx + 1] &= !extra_mask;
-            self.data[data_idx + 1] |= (palette_index as u64 >> (bits - extra_bits)) & extra_mask;
+            self.data[data_idx + 1] |= (palette_index as i64 >> (bits - extra_bits)) & extra_mask;
         }
     }
 
@@ -248,10 +250,9 @@ impl BlockStorage {
         match self.bits_per_block {
             0 => {
                 write_var(writer, self.palette[0] as i32).await?;
-                write_var(writer, 0).await?;
             }
 
-            1..=8 => {
+            4..=8 => {
                 write_var(writer, self.palette.len() as i32).await?;
                 for &block_id in &self.palette {
                     write_var(writer, block_id as i32).await?;
@@ -259,17 +260,14 @@ impl BlockStorage {
                 
                 write_var(writer, self.data.len() as i32).await?;
                 for &value in &self.data {
-                    writer.write_u64(value).await?;
+                    writer.write_i64(value).await?;
                 }
             }
 
             15 => {
-                write_var(writer, self.data.len() as i32).await?;
-
-                for &value in &self.data {
-                    writer.write_u64(value).await?;
-                }
+                todo!("Direct palette storage not implemented");
             }
+            
             _ => {
                 anyhow::bail!("Invalid bits_per_block value: {}", self.bits_per_block);
             }

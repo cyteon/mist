@@ -8,7 +8,7 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
     log(LogLevel::Info, "Tick loop started");
 
     let mut interval = time::interval(Duration::from_millis(50)); // 20 tps
-    let mut ticks_until_autosave = 0; // so it autosaves on start
+    let mut ticks_until_autosave = 100; // so it autosaves 5 seconds after start
 
     loop {
         if ticks_until_autosave == 0 {

@@ -1,5 +1,6 @@
 use tokio::net::TcpListener;
 use fancy_log::{LogLevel, log};
+use tokio::time::{timeout, Duration};
 
 use crate::server::conn::handle_conn;
 
@@ -9,7 +10,20 @@ pub async fn start_listener() -> anyhow::Result<()> {
         crate::config::SERVER_CONFIG.port
     );
 
-    let listener = TcpListener::bind(&addr).await?;
+    let listener = match timeout(Duration::from_secs(1), TcpListener::bind(&addr)).await {
+        Ok(Ok(listener)) => listener,
+
+        Ok(Err(e)) => {
+            log(LogLevel::Error, format!("Failed to bind to {}: {}", addr, e).as_str());
+            panic!("Failed to bind to address: {}", e);
+        }
+
+        Err(_) => {
+            log(LogLevel::Error, format!("Timeout while binding to {}", addr).as_str());
+            panic!("Bind timeout");
+        }
+    };
+    
     log(LogLevel::Info, format!("Listening on {}", &addr).as_str());
 
     loop {
