@@ -18,9 +18,9 @@ pub async fn initial_gen() {
         for z in -1..=0 {
             let mut region = Region::new(x, z);
 
-            for x in 0..32 {
-                for z in 0..32 {
-                    region.chunks.push(Chunk::generate((x << 5) + x, (z << 5) + z));
+            for cx in 0..32 {
+                for cz in 0..32 {
+                    region.chunks.push(Chunk::generate((x << 5) + cx, (z << 5) + cz));
                 }
             }
 

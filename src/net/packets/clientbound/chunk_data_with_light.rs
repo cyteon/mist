@@ -32,19 +32,38 @@ pub async fn send_chunk_data_with_light<W: tokio::io::AsyncWriteExt + Unpin>(
     // block entities
     write_var(&mut packet_data, 0).await?;
 
-    // light data - todo: actually make
-    write_var(&mut packet_data, 0).await?; // sky light mask
-    write_var(&mut packet_data, 0).await?; // block light mask
-    write_var(&mut packet_data, 0).await?; // empty sky light mask
-    write_var(&mut packet_data, 0).await?; // empty block light mask
+    let section_count = chunk.sections.len() + 2;
+    let mask = (1u64 << section_count) - 1;
 
-    let sky_light: Vec<u8> = (0..chunk.sections.len() * 2048).map(|_| 0u8).collect();
-    write_var(&mut packet_data, sky_light.len() as i32).await?;
-    packet_data.write_all(&sky_light).await?;
+    // light data - todo: make it dynamic and not just fullbright
 
-    let block_light: Vec<u8> = (0..chunk.sections.len() * 2048).map(|_| 0u8).collect();
-    write_var(&mut packet_data, block_light.len() as i32).await?;
-    packet_data.write_all(&block_light).await?;
+    // sky light mask
+    write_var(&mut packet_data, 1).await?;
+    packet_data.write_i64(mask as i64).await?;
+
+    // block Light Mask
+    write_var(&mut packet_data, 1).await?;
+    packet_data.write_i64(mask as i64).await?;
+
+    // empty sky light mask
+    write_var(&mut packet_data, 0).await?;
+
+    // empty block light mask
+    write_var(&mut packet_data, 0).await?;
+
+    // sky light array
+    write_var(&mut packet_data, section_count as i32).await?;
+    for _ in 0..section_count {
+        write_var(&mut packet_data, 2048).await?;
+        packet_data.write_all(&[0xFF; 2048]).await?;
+    }
+
+    // block light arry
+    write_var(&mut packet_data, section_count as i32).await?;
+    for _ in 0..section_count {
+        write_var(&mut packet_data, 2048).await?;
+        packet_data.write_all(&[0xFF; 2048]).await?;
+    }
 
     //dbg!(&packet_data.len()); // okay so this made the code not break, maybe cause it adds slight io delay
     // slight timeout to simulate the io delay??
