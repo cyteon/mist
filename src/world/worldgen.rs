@@ -14,17 +14,20 @@ pub async fn initial_gen() {
     let start_time = std::time::Instant::now();
     fancy_log::log(fancy_log::LogLevel::Info, "Generating world...");
 
-    let mut region = Region::new(0, 0);
+    for x in -1..=0 {
+        for z in -1..=0 {
+            let mut region = Region::new(x, z);
 
-    for x in 0..32 {
-        for z in 0..32 {
-            region.chunks.push(Chunk::generate(x, z));
+            for x in 0..32 {
+                for z in 0..32 {
+                    region.chunks.push(Chunk::generate((x << 5) + x, (z << 5) + z));
+                }
+            }
+
+            let mut regions = REGIONS.lock().await;
+            regions.insert((x, z), region);
         }
     }
-
-    let mut regions = REGIONS.lock().await;
-    regions.insert((0, 0), region);
-
 
     let duration = start_time.elapsed();
     fancy_log::log(fancy_log::LogLevel::Info, format!("World generated in {:.2?}", duration).as_str());
