@@ -2,3 +2,7 @@
 
 config.toml
 /world
+
+# cuz site on diffrent branch and they appear when switching branch
+.svelte-kit
+node_modules
