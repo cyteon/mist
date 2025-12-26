@@ -15,6 +15,8 @@ pub struct ServerConfig {
     pub motd: String,
     pub max_players: u32,
     pub online_mode: bool,
+    pub view_distance: u8,
+    pub simulation_distance: u8,
 
     pub world_name: String,
     pub world_seed: u64,
@@ -58,6 +60,9 @@ port = 25565
 motd = "An mist server"
 max_players = 10
 online_mode = true
+
+view_distance = 8
+simulation_distance = 8
 
 world_name = "world"
 world_seed = {}

@@ -14,9 +14,9 @@ pub async fn send_login_play<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W
     packet_data.extend_from_slice("overworld".as_bytes()); // dimension identifier
 
     write_var(&mut packet_data, SERVER_CONFIG.max_players as i32).await?;
-    write_var(&mut packet_data, 16).await?; // view distance
+    write_var(&mut packet_data, SERVER_CONFIG.view_distance as i32).await?;
+    write_var(&mut packet_data, SERVER_CONFIG.simulation_distance as i32).await?;
 
-    write_var(&mut packet_data, 8).await?; // simulation distance
     packet_data.push(false as u8); // reduced debug info
     packet_data.push(true as u8); // enable respawn screen
     packet_data.push(false as u8); // do limited crafting

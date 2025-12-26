@@ -80,16 +80,24 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
     );
 
     {
+        let view_distance = crate::config::SERVER_CONFIG.view_distance as i32;
+        let chunk_loading_width = view_distance * 2 + 7;
+
         let regions_lock = crate::world::worldgen::REGIONS.lock().await;
         let mut stream_lock = socket.lock().await;
 
-        for chunk in regions_lock.get(&(0,0)).unwrap().chunks.iter() {
-            send_chunk_data_with_light(&mut *stream_lock, &chunk).await?;
-
-            log(
-                LogLevel::Debug, 
-                format!("Sent chunk ({}, {}) to {}", chunk.x, chunk.z, player.lock().await.name).as_str()
-            );
+        for cx in -chunk_loading_width/2..=chunk_loading_width/2 {
+            for cz in -chunk_loading_width/2..=chunk_loading_width/2 {
+                if let Some(region) = regions_lock.get(&(cx >> 5, cz >> 5)) {
+                    if let Some(chunk) = region.chunks.iter().find(|chunk| chunk.x == cx && chunk.z == cz) {
+                        send_chunk_data_with_light(&mut *stream_lock, chunk).await?;
+                        log(
+                            LogLevel::Debug, 
+                            format!("Sent chunk ({}, {}) to {}", cx, cz, player.lock().await.name).as_str()
+                        );
+                    }
+                }
+            }
         }
     }
 
