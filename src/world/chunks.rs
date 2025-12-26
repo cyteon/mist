@@ -102,7 +102,10 @@ impl Chunk {
 
         for x in 0..16 {
             for z in 0..16 {
-                chunk.sections[0].set_block(x, 0, z, 0);
+                chunk.sections[0].set_block(
+                    x, 0, z, 
+                    crate::types::blocks::BLOCKS.get("minecraft:grass_block").unwrap().default
+                ); // should be grass
             }
         }
 
@@ -125,7 +128,7 @@ impl Section {
     }
 
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block_id: u16) {
-        let idx = (y * 16 * 16 + z * 16 + x ) as usize;
+        let idx = (y as usize * 16 * 16) + (z as usize * 16) + (x as usize);
         
         let mut palette_index = self.blocks.palette.iter().position(|&id| id == block_id);
         
@@ -266,7 +269,7 @@ impl BlockStorage {
                     write_var(writer, block_id as i32).await?;
                 }
                 
-                write_var(writer, self.data.len() as i32).await?;
+                //write_var(writer, self.data.len() as i32).await?;
                 for &value in &self.data {
                     writer.write_i64(value).await?;
                 }
