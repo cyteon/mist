@@ -32,7 +32,7 @@ pub fn exists(path: &str) -> bool {
 
 pub async fn save() {
     ensure_save_folders();
-    fancy_log::log(LogLevel::Info, "Autosaving...");
+    fancy_log::log(LogLevel::Info, "Saving...");
 
     let start = std::time::Instant::now();
 
@@ -75,7 +75,7 @@ pub async fn save() {
     }
 
     let duration = start.elapsed();
-    fancy_log::log(LogLevel::Info, format!("Autosave complete in {:.2?}", duration).as_str());
+    fancy_log::log(LogLevel::Info, format!("Save complete in {:.2?}", duration).as_str());
 }
 
 pub async fn load_world() {

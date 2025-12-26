@@ -26,5 +26,14 @@ async fn main() -> anyhow::Result<()> {
     // just to ensure that config has loaded
     log(LogLevel::Info, format!("Server motd is \"{}\"", &config::SERVER_CONFIG.motd).as_str());
 
+    tokio::spawn(async {
+        tokio::signal::ctrl_c().await.ok();
+        log(LogLevel::Info, "Received shutdown signal, stopping server...");
+        
+        crate::server::save::save().await;
+
+        std::process::exit(0);
+    });
+
     server::run::run().await
 }

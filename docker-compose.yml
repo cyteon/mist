@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  mist:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mist-server
+    ports:
+      - "25565:25565"
+    volumes:
+      - ./config.toml:/app/config.toml:ro
+      - ./worlds:/app/worlds
+      - ./logs:/app/logs
+    restart: unless-stopped
+    environment:
+      - RUST_LOG=info
+    networks:
+      - minecraft
+
+networks:
+  minecraft:
+    driver: bridge
