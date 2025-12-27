@@ -2,7 +2,9 @@ use std::{collections::HashMap, time::Duration};
 
 use fancy_log::LogLevel;
 use once_cell::sync::Lazy;
-use tokio::{io::AsyncWriteExt, net::TcpStream, sync::RwLock, time::{self, timeout}};
+use tokio::{io::AsyncWriteExt, net::TcpStream, sync::{RwLock, Mutex}, time::{self, timeout}};
+use std::sync::Arc;
+use futures::future::join_all;
 
 use crate::{
     net::{
@@ -30,10 +32,6 @@ use crate::{
     server::{conn::PLAYER_SOCKET_MAP, encryption::EncryptedStream},
     types::player::Player
 };
-
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use futures::future::join_all;
 
 pub static PLAYERS: Lazy<RwLock<HashMap<String, Arc<Mutex<Player>>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
