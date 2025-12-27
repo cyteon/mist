@@ -3,7 +3,7 @@ use once_cell::sync::Lazy;
 
 pub struct Block {
     pub key: String,
-    pub default: u16,
+    pub id: u16,
 }
 
 pub static BLOCKS: Lazy<HashMap<String, Block>> = Lazy::new(|| {
@@ -24,7 +24,7 @@ pub static BLOCKS: Lazy<HashMap<String, Block>> = Lazy::new(|| {
             key.clone(),
             Block {
                 key,
-                default: default_state.id,
+                id: default_state.id,
             },
         );
     }
@@ -47,4 +47,8 @@ pub struct RawBlockState {
     pub default: bool,
     #[serde(default)]
     pub properties: HashMap<String, String>,
+}
+
+pub fn get(key: &str) -> Option<&'static Block> {
+    BLOCKS.get(key)
 }

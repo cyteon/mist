@@ -28,8 +28,8 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, player: &
         _ => {}
     }
 
-    // todo: replace placeholder
-    let block_id =  crate::types::blocks::BLOCKS.get("minecraft:stone").unwrap().default;
+    // todo: replace stone placeholder
+    let block_id = crate::types::blocks::get("minecraft:stone").unwrap().id;
 
     let chunk_pos = (bx.div_euclid(16), bz.div_euclid(16));
     let region_pos = (chunk_pos.0.div_euclid(32), chunk_pos.1.div_euclid(32));

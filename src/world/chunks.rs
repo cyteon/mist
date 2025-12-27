@@ -104,7 +104,7 @@ impl Chunk {
             for z in 0..16 {
                 chunk.sections[0].set_block(
                     x, 0, z, 
-                    crate::types::blocks::BLOCKS.get("minecraft:grass_block").unwrap().default
+                    crate::types::blocks::get("minecraft:grass_block").unwrap().id
                 ); // should be grass
             }
         }
