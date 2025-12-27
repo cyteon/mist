@@ -1,11 +1,11 @@
 use tokio::time;
-use fancy_log::{LogLevel, log};
+use fancy_log::LogLevel;
 use tokio::time::Duration;
 
 use crate::server::save::save;
 
 pub async fn start_tick_loop() -> anyhow::Result<()> {
-    log(LogLevel::Info, "Tick loop started");
+    crate::log::log(LogLevel::Info, "Tick loop started");
 
     let mut interval = time::interval(Duration::from_millis(50)); // 20 tps
     let mut ticks_until_autosave = 100; // so it autosaves 5 seconds after start

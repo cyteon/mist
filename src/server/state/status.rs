@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use fancy_log::{LogLevel, log};
+use fancy_log::LogLevel;
 use tokio::{
     io::AsyncWriteExt, 
     net::TcpStream, 
@@ -29,7 +29,7 @@ pub async fn status(mut socket: TcpStream) -> anyhow::Result<()> {
                 match packet {
                     ClientPacket::Ping => {
                         send_pong(&mut socket).await?;
-                        log(LogLevel::Debug, "Responded to ping request");
+                        crate::log::log(LogLevel::Debug, "Responded to ping request");
                     },
 
                     _ => { }

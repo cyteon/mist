@@ -1,4 +1,3 @@
-use fancy_log::log;
 use tokio::io::AsyncReadExt;
 
 use crate::net::codec::read_var;
@@ -33,7 +32,7 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
     let packet_id = read_var(&mut cursor).await?;
 
     if packet_id != 0x0C && packet_id != 0x1D { // these packets are spammy
-        log(
+        crate::log::log(
             fancy_log::LogLevel::Debug, 
             format!("Received packet with ID: 0x{:02X} with length: {}", packet_id, packet_len).as_str()
         );

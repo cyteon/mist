@@ -2,6 +2,7 @@
 
 config.toml
 /world
+/logs
 
 # cuz site on diffrent branch and they appear when switching branch
 .svelte-kit

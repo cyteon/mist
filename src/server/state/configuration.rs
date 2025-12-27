@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use fancy_log::{LogLevel, log};
+use fancy_log::LogLevel;
 use tokio::{io::AsyncWriteExt, net::TcpStream, time::timeout};
 
 use crate::{
@@ -24,12 +24,12 @@ use crate::{
 };
 
 pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Player) -> anyhow::Result<()> {
-    log(LogLevel::Debug, format!("{} has entered the configuration state", player.name).as_str());
+    crate::log::log(LogLevel::Debug, format!("{} has entered the configuration state", player.name).as_str());
 
     send_plugin_message(&mut socket).await?;
     send_known_packs(&mut socket).await?;
 
-    log(LogLevel::Debug, format!("Sent known packs to {}", player.name).as_str());
+    crate::log::log(LogLevel::Debug, format!("Sent known packs to {}", player.name).as_str());
    
     loop {
         match timeout(Duration::from_secs(15), read_packet(&mut socket, &ProtocolState::Configuration)).await {
@@ -37,20 +37,20 @@ pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Playe
                 match packet {
                     ClientPacket::KnownPacks(mut cursor) => {
                         read_known_packs(&mut cursor).await?;
-                        log(LogLevel::Debug, format!("{} has sent known packs", player.name).as_str());
+                        crate::log::log(LogLevel::Debug, format!("{} has sent known packs", player.name).as_str());
 
                         send_all_registers(&mut socket).await?;
-                        log(LogLevel::Debug, format!("Sent registry data to {}", player.name).as_str());
+                        crate::log::log(LogLevel::Debug, format!("Sent registry data to {}", player.name).as_str());
 
                         send_finish_configuration(&mut socket).await?;
-                        log(LogLevel::Debug, format!("Sent finish configuration to {}", player.name).as_str());
+                        crate::log::log(LogLevel::Debug, format!("Sent finish configuration to {}", player.name).as_str());
                     },
 
                     ClientPacket::AcknowledgeFinishConfiguration => {
-                        log(LogLevel::Debug, format!("{} has finished configuration", player.name).as_str());
+                        crate::log::log(LogLevel::Debug, format!("{} has finished configuration", player.name).as_str());
                         
                         send_login_play(&mut socket).await?;
-                        log(LogLevel::Debug, format!("Switching {} to play state", player.name).as_str());
+                        crate::log::log(LogLevel::Debug, format!("Switching {} to play state", player.name).as_str());
 
                         play::play(socket, player).await?;
                         break;
@@ -63,7 +63,7 @@ pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Playe
             Ok(Ok(None)) => { },
 
             Err(e) => {
-                log(
+                crate::log::log(
                     LogLevel::Error, 
                     format!("{} has timed out during configuration state: {}", player.name, e).as_str()
                 );
@@ -73,7 +73,7 @@ pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Playe
             }
 
             Ok(Err(e)) => {
-                log(
+                crate::log::log(
                     LogLevel::Error, 
                     format!("Error while reading packet from {} during configuration state: {}", player.name, e).as_str()
                 );

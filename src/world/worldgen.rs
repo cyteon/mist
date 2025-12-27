@@ -12,7 +12,7 @@ pub static REGIONS: Lazy<Mutex<HashMap<(i32, i32), Region>>> = Lazy::new(|| {
 
 pub async fn initial_gen() {
     let start_time = std::time::Instant::now();
-    fancy_log::log(fancy_log::LogLevel::Info, "Generating world...");
+    crate::log::log(fancy_log::LogLevel::Info, "Generating world...");
 
     for x in -1..=0 {
         for z in -1..=0 {
@@ -30,5 +30,5 @@ pub async fn initial_gen() {
     }
 
     let duration = start_time.elapsed();
-    fancy_log::log(fancy_log::LogLevel::Info, format!("World generated in {:.2?}", duration).as_str());
+    crate::log::log(fancy_log::LogLevel::Info, format!("World generated in {:.2?}", duration).as_str());
 }

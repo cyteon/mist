@@ -32,7 +32,7 @@ pub fn exists(path: &str) -> bool {
 
 pub async fn save() {
     ensure_save_folders();
-    fancy_log::log(LogLevel::Info, "Saving...");
+    crate::log::log(LogLevel::Info, "Saving...");
 
     let start = std::time::Instant::now();
 
@@ -66,7 +66,7 @@ pub async fn save() {
 
     for region in crate::world::worldgen::REGIONS.lock().await.values() {
         if region.save().await.is_err() {
-            fancy_log::log(LogLevel::Error, format!(
+            crate::log::log(LogLevel::Error, format!(
                 "Failed to save region {}, {}", 
                 region.x, 
                 region.z
@@ -75,12 +75,12 @@ pub async fn save() {
     }
 
     let duration = start.elapsed();
-    fancy_log::log(LogLevel::Info, format!("Save complete in {:.2?}", duration).as_str());
+    crate::log::log(LogLevel::Info, format!("Save complete in {:.2?}", duration).as_str());
 }
 
 pub async fn load_world() {
     ensure_save_folders();
-    fancy_log::log(LogLevel::Info, "Loading world...");
+    crate::log::log(LogLevel::Info, "Loading world...");
 
     let start = std::time::Instant::now();
 
@@ -111,7 +111,7 @@ pub async fn load_world() {
                 },
                 
                 Err(e) => {
-                    fancy_log::log(LogLevel::Error, format!(
+                    crate::log::log(LogLevel::Error, format!(
                         "Failed to load region {}, {}: {}", 
                         x, 
                         z, 
@@ -123,5 +123,5 @@ pub async fn load_world() {
     }
 
     let duration = start.elapsed();
-    fancy_log::log(LogLevel::Info, format!("World loaded in {:.2?}", duration).as_str());
+    crate::log::log(LogLevel::Info, format!("World loaded in {:.2?}", duration).as_str());
 }

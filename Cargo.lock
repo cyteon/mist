@@ -951,6 +951,7 @@ dependencies = [
  "flate2",
  "futures",
  "hex",
+ "lazy_static",
  "num-bigint",
  "once_cell",
  "postcard",

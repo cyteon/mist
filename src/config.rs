@@ -1,7 +1,7 @@
 use std::process::exit;
 use once_cell::sync::Lazy;
-use serde::{Deserialize};
-use fancy_log::{LogLevel, log};
+use serde::Deserialize;
+use fancy_log::LogLevel;
 
 pub static SERVER_CONFIG: Lazy<ServerConfig> = Lazy::new(|| {
     load_config()
@@ -23,7 +23,7 @@ pub struct ServerConfig {
 }
 
 pub fn load_config() -> ServerConfig {
-    log(LogLevel::Info, "Loading config");
+    crate::log::log(LogLevel::Info, "Loading config");
 
     let path = "config.toml";
     let file_exists = std::path::Path::new(path).exists();
@@ -32,8 +32,8 @@ pub fn load_config() -> ServerConfig {
         let config_str = std::fs::read_to_string(path);
 
         if config_str.is_err() {
-            log(LogLevel::Error, "Failed to read config");
-            log(LogLevel::Error, "Stopping server");
+            crate::log::log(LogLevel::Error, "Failed to read config");
+            crate::log::log(LogLevel::Error, "Stopping server");
 
             exit(1);
         }
@@ -41,8 +41,8 @@ pub fn load_config() -> ServerConfig {
         match toml::from_str::<ServerConfig>(&config_str.unwrap()) {
             Ok(config) => config,
             Err(e) => {
-                log(LogLevel::Error, format!("Failed to parse config:\n\n{}", e).as_str());
-                log(LogLevel::Info, "Stopping server");
+                crate::log::log(LogLevel::Error, format!("Failed to parse config:\n\n{}", e).as_str());
+                crate::log::log(LogLevel::Info, "Stopping server");
 
                 exit(1);
             }
@@ -69,19 +69,19 @@ world_seed = {}
 "#, random_seed);
         
         if std::fs::write(path, &default_config).is_err() {
-            log(LogLevel::Error, "Failed to write default config");
-            log(LogLevel::Error, "Stopping server");
+            crate::log::log(LogLevel::Error, "Failed to write default config");
+            crate::log::log(LogLevel::Error, "Stopping server");
 
             exit(1);
         } else {
-            log(LogLevel::Info, "Default config created");
+            crate::log::log(LogLevel::Info, "Default config created");
         }
 
         match toml::from_str::<ServerConfig>(&default_config) {
             Ok(config) => config,
             Err(_) => {
-                log(LogLevel::Error, "Failed to parse default config");
-                log(LogLevel::Error, "Stopping server");
+                crate::log::log(LogLevel::Error, "Failed to parse default config");
+                crate::log::log(LogLevel::Error, "Stopping server");
 
                 exit(1);
             }

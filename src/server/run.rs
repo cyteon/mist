@@ -1,10 +1,10 @@
 use tokio::{task, try_join};
-use fancy_log::{LogLevel, log};
+use fancy_log::LogLevel;
 
 use crate::server::save;
 
 pub async fn run() -> anyhow::Result<()> {
-    log(LogLevel::Info, format!("Starting server on {}:{}", 
+    crate::log::log(LogLevel::Info, format!("Starting server on {}:{}", 
         crate::config::SERVER_CONFIG.host,
         crate::config::SERVER_CONFIG.port
     ).as_str());

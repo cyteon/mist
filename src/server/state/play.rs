@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use fancy_log::{LogLevel, log};
+use fancy_log::LogLevel;
 use once_cell::sync::Lazy;
 use tokio::{io::AsyncWriteExt, net::TcpStream, sync::RwLock, time::{self, timeout}};
 
@@ -39,7 +39,7 @@ pub static PLAYERS: Lazy<RwLock<HashMap<String, Arc<Mutex<Player>>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
 pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> anyhow::Result<()> {
-    log(LogLevel::Debug, format!("{} has entered the play state", player.name).as_str());
+    crate::log::log(LogLevel::Debug, format!("{} has entered the play state", player.name).as_str());
 
     let socket = Arc::new(Mutex::new(socket));
     let player = Arc::new(Mutex::new(player));
@@ -61,7 +61,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
 
     send_sync_player_position(&mut *socket.lock().await, &*player.lock().await).await?;
 
-    log(
+    crate::log::log(
         LogLevel::Debug, 
         format!("Sent initial player position to {}", player.lock().await.name).as_str()
     );
@@ -79,7 +79,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
     send_game_event(&mut *socket.lock().await, 13, 0.0).await?;
     send_set_center_chunk(&mut *socket.lock().await, 0, 0).await?;
 
-    log(
+    crate::log::log(
         LogLevel::Debug, 
         format!("Sent center chunk and is now sending chunks to {}", player.lock().await.name).as_str()
     );
@@ -130,7 +130,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                 }
             }
 
-            log(
+            crate::log::log(
                 LogLevel::Debug, 
                 format!("Finished sending chunks to {}", player_name).as_str()
             );
@@ -162,7 +162,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
             Ok(Ok(None)) => { },
 
             Err(e) => { 
-                log(
+                crate::log::log(
                     LogLevel::Error, 
                     format!("{} has timed out during play state: {}", player.lock().await.name, e).as_str()
                 );
@@ -174,7 +174,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
             }
                 
             Ok(Err(e)) => {
-                log(
+                crate::log::log(
                     LogLevel::Error, 
                     format!("Error while reading packet from {} during play state: {}", player.lock().await.name, e).as_str()
                 );

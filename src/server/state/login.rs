@@ -1,4 +1,4 @@
-use fancy_log::{LogLevel, log};
+use fancy_log::LogLevel;
 use tokio::net::TcpStream;
 
 use crate::{
@@ -42,7 +42,7 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
     }
 
     let login_start = read_login_start(&mut socket).await?;
-    log(LogLevel::Info, format!("{} ({}) is connecting", login_start.name, login_start.uuid).as_str());
+    crate::log::log(LogLevel::Info, format!("{} ({}) is connecting", login_start.name, login_start.uuid).as_str());
 
     player = Some(Player::new(
         login_start.name.clone(), 
@@ -68,10 +68,10 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
     }
 
     send_login_success(&mut socket, player.clone().unwrap().name.as_str(), player.clone().unwrap().uuid.as_str()).await?;
-    log(LogLevel::Debug, format!("Sent login success to {}", player.as_ref().unwrap().name).as_str());
+    crate::log::log(LogLevel::Debug, format!("Sent login success to {}", player.as_ref().unwrap().name).as_str());
     
     read_login_acknowledged(&mut socket).await?;
-    log(LogLevel::Debug, format!("{} sent login acknowledged", player.as_ref().unwrap().name).as_str());
+    crate::log::log(LogLevel::Debug, format!("{} sent login acknowledged", player.as_ref().unwrap().name).as_str());
 
     configuration::configuration(socket, player.unwrap()).await?;
 

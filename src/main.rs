@@ -1,7 +1,9 @@
-use fancy_log::{LogLevel, log, set_log_level};
+use fancy_log::{LogLevel, set_log_level};
 use once_cell::sync::Lazy;
 
 mod config;
+mod log;
+
 mod server;
 mod net;
 mod types;
@@ -21,14 +23,14 @@ pub static SERVER_VERSION: &str = "1.21.10";
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     set_log_level(LogLevel::Debug);
-    log(LogLevel::Info, format!("Start mist for minecraft {}/{}", SERVER_VERSION, SERVER_PROTOCOL_VERSION).as_str());
+    log::log(LogLevel::Info, format!("Starting mist for minecraft {}/{}", SERVER_VERSION, SERVER_PROTOCOL_VERSION).as_str());
 
     // just to ensure that config has loaded
-    log(LogLevel::Info, format!("Server motd is \"{}\"", &config::SERVER_CONFIG.motd).as_str());
+    log::log(LogLevel::Info, format!("Server motd is \"{}\"", &config::SERVER_CONFIG.motd).as_str());
 
     tokio::spawn(async {
         tokio::signal::ctrl_c().await.ok();
-        log(LogLevel::Info, "Received shutdown signal, stopping server...");
+        log::log(LogLevel::Info, "Received shutdown signal, stopping server...");
         
         crate::server::save::save().await;
 
