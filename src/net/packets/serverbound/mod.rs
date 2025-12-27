@@ -4,3 +4,5 @@ pub mod encryption_response;
 pub mod login_acknowledged;
 pub mod known_packs;
 pub mod confirm_teleportation;
+pub mod player_action;
+pub mod use_item_on;

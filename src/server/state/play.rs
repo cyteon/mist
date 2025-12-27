@@ -19,7 +19,11 @@ use crate::{
                 sync_player_position::send_sync_player_position
             },
 
-            serverbound::confirm_teleportation::read_confirm_teleportation
+            serverbound::{
+                confirm_teleportation::read_confirm_teleportation, 
+                player_action::read_player_action, 
+                use_item_on::read_use_item_on
+            }
         }
     }, 
     
@@ -141,6 +145,14 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                 match packet {
                     ClientPacket::ConfirmTeleprortion(mut cursor) => {
                         read_confirm_teleportation(&mut cursor, &mut *player.lock().await).await?;
+                    }
+                    
+                    ClientPacket::PlayerAction(mut cursor) => {
+                        read_player_action(&mut cursor).await?;
+                    }
+
+                    ClientPacket::UseItemOn(mut cursor) => {
+                        read_use_item_on(&mut cursor, &mut *player.lock().await).await?;
                     }
 
                     _ => { }
