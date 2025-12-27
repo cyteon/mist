@@ -64,10 +64,6 @@ pub async fn send_chunk_data_with_light<W: tokio::io::AsyncWriteExt + Unpin>(
         write_var(&mut packet_data, 2048).await?;
         packet_data.write_all(&[0xFF; 2048]).await?;
     }
-
-    //dbg!(&packet_data.len()); // okay so this made the code not break, maybe cause it adds slight io delay
-    // slight timeout to simulate the io delay??
-    tokio::time::sleep(std::time::Duration::from_micros(50)).await; // this works :O
     
     write_var(stream, packet_data.len() as i32).await?;
     stream.write_all(&packet_data).await?;
