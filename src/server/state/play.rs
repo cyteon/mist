@@ -80,7 +80,9 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         format!("Sent center chunk and is now sending chunks to {}", player.lock().await.name).as_str()
     );
 
-    {
+    let chunk_sender_task = {
+        let socket = Arc::clone(&socket);
+        let player_name = player.lock().await.name.clone();
         let view_distance = crate::config::SERVER_CONFIG.view_distance as i32;
         let chunk_loading_width = view_distance * 2 + 7;
 
@@ -103,35 +105,33 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
             chunk.x * chunk.x + chunk.z * chunk.z
         });
 
-        let mut tasks = Vec::new();
-        for chunk in chunks_to_send {
-            let socket_clone = Arc::clone(&socket);
-            let player_name = player.lock().await.name.clone();
-            
-            let task = tokio::spawn(async move {
-                let mut stream_lock = socket_clone.lock().await;
-                send_chunk_data_with_light(&mut *stream_lock, &chunk).await?;
-                
-                log(
-                    LogLevel::Debug, 
-                    format!("Sent chunk ({}, {}) to {}", chunk.x, chunk.z, player_name).as_str()
-                );
+        tokio::spawn(async move {
+            let mut encoding_tasks = Vec::new();
+            for chunk in chunks_to_send {
+                encoding_tasks.push(tokio::spawn(async move {
+                    let mut buffer = Vec::new();
+                    send_chunk_data_with_light(&mut buffer, &chunk).await?;
+                    Ok::<Vec<u8>, anyhow::Error>(buffer)
+                }));
+            }
 
-                Ok::<_, anyhow::Error>(())
-            });
-            tasks.push(task);
-        }
+            let results = join_all(encoding_tasks).await;
+            for result in results {
+                if let Ok(Ok(packet)) = result {
+                    let mut socket = socket.lock().await;
+                    if socket.write_all(&packet).await.is_err() {
+                        break;
+                    }
+                    let _ = socket.flush().await;
+                }
+            }
 
-        let results = join_all(tasks).await;
-        for result in results {
-            result??;
-        }
-    }
-
-    log(
-        LogLevel::Debug, 
-        format!("Finished sending chunks to {}", player.lock().await.name).as_str()
-    );
+            log(
+                LogLevel::Debug, 
+                format!("Finished sending chunks to {}", player_name).as_str()
+            );
+        })
+    };
 
     loop {
         let mut socket_guard = socket.lock().await;
@@ -157,6 +157,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
 
                 socket_guard.shutdown().await?;
                 keep_alive_future.abort();
+                chunk_sender_task.abort();
                 break; 
             }
                 
@@ -168,6 +169,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
 
                 socket_guard.shutdown().await?;
                 keep_alive_future.abort();
+                chunk_sender_task.abort();
                 break; 
             }
         }
