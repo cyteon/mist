@@ -16,7 +16,10 @@ An minecraft server implementation in rust for minecraft 1.21.10
 - [ ] Show players in tablist
 - [x] Spawning player
 - [ ] Player skins
-- [ ] Sending chunks
-- [ ] Lightning
-- [ ] Basic worldgen
-- [ ] World saves
+- [x] Sending chunks
+- [x] Fullbright lightning
+- [ ] Proper lightning
+- [x] Flat worldgen
+- [ ] Improved flat worldgen (ores and stone/deepslate from -64 to 64)
+- [ ] Proper worldgen
+- [x] World saves
