@@ -26,3 +26,4 @@ craftflow-nbt = "2.1.0"
 chrono = "0.4.42"
 postcard = { version = "1.0.2", features = ["alloc"] }
 flate2 = "1.1.5"
+futures = "0.3.31"

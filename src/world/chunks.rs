@@ -7,7 +7,7 @@ use tokio::io::AsyncWriteExt;
 
 use crate::net::codec::write_var;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Region {
     pub x: i32,
     pub z: i32,
@@ -75,7 +75,7 @@ impl Region {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Chunk {
     pub x: i32,
     pub z: i32,
@@ -113,7 +113,7 @@ impl Chunk {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Section {
     pub y: i32,
     pub blocks: BlockStorage,
@@ -176,7 +176,7 @@ impl Section {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct BlockStorage {
     pub palette: Vec<u16>,
     pub bits_per_block: u8,

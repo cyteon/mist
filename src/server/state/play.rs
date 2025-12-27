@@ -29,6 +29,7 @@ use crate::{
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use futures::future::join_all;
 
 pub static PLAYERS: Lazy<RwLock<HashMap<String, Arc<Mutex<Player>>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
@@ -84,20 +85,46 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         let chunk_loading_width = view_distance * 2 + 7;
 
         let regions_lock = crate::world::worldgen::REGIONS.lock().await;
-        let mut stream_lock = socket.lock().await;
-
+        
+        let mut chunks_to_send = Vec::new();
         for cx in -chunk_loading_width/2..=chunk_loading_width/2 {
             for cz in -chunk_loading_width/2..=chunk_loading_width/2 {
                 if let Some(region) = regions_lock.get(&(cx >> 5, cz >> 5)) {
                     if let Some(chunk) = region.chunks.iter().find(|chunk| chunk.x == cx && chunk.z == cz) {
-                        send_chunk_data_with_light(&mut *stream_lock, chunk).await?;
-                        log(
-                            LogLevel::Debug, 
-                            format!("Sent chunk ({}, {}) to {}", cx, cz, player.lock().await.name).as_str()
-                        );
+                        chunks_to_send.push(chunk.clone());
                     }
                 }
             }
+        }
+        drop(regions_lock);
+
+        // sort so chunk loading starts at 0,0
+        chunks_to_send.sort_by_key(|chunk| {
+            chunk.x * chunk.x + chunk.z * chunk.z
+        });
+
+        let mut tasks = Vec::new();
+        for chunk in chunks_to_send {
+            let socket_clone = Arc::clone(&socket);
+            let player_name = player.lock().await.name.clone();
+            
+            let task = tokio::spawn(async move {
+                let mut stream_lock = socket_clone.lock().await;
+                send_chunk_data_with_light(&mut *stream_lock, &chunk).await?;
+                
+                log(
+                    LogLevel::Debug, 
+                    format!("Sent chunk ({}, {}) to {}", chunk.x, chunk.z, player_name).as_str()
+                );
+
+                Ok::<_, anyhow::Error>(())
+            });
+            tasks.push(task);
+        }
+
+        let results = join_all(tasks).await;
+        for result in results {
+            result??;
         }
     }
 
