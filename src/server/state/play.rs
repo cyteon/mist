@@ -75,21 +75,6 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         Arc::clone(&player)
     );
 
-    for player_socket in PLAYER_SOCKET_MAP.read().await.values() {
-        let player_guard = player.lock().await;
-        let player_clone = player_guard.clone();
-        drop(player_guard);
-
-        let mut socket_guard: tokio::sync::MutexGuard<'_, EncryptedStream<TcpStream>> = player_socket.lock().await;
-        dbg!(&player_clone.uuid, &player_clone.name, &player_clone.skin_texture);
-
-        send_player_info_update(
-            &mut *socket_guard, 
-            vec![&player_clone],
-            vec![PlayerAction::AddPlayer, PlayerAction::UpdateListed(true)]
-        ).await?;
-    }
-
     {
         let player_guard = player.lock().await;
         let player_clone = player_guard.clone();
@@ -119,6 +104,21 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                 vec![PlayerAction::AddPlayer, PlayerAction::UpdateListed(true)]
             ).await?;            
         }
+    }
+
+    for player_socket in PLAYER_SOCKET_MAP.read().await.values() {
+        let player_guard = player.lock().await;
+        let player_clone = player_guard.clone();
+        drop(player_guard);
+
+        let mut socket_guard: tokio::sync::MutexGuard<'_, EncryptedStream<TcpStream>> = player_socket.lock().await;
+        dbg!(&player_clone.uuid, &player_clone.name, &player_clone.skin_texture);
+
+        send_player_info_update(
+            &mut *socket_guard, 
+            vec![&player_clone],
+            vec![PlayerAction::AddPlayer, PlayerAction::UpdateListed(true)]
+        ).await?;
     }
 
     send_game_event(&mut *socket.lock().await, 13, 0.0).await?;
