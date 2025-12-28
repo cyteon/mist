@@ -14,3 +14,4 @@ pub mod game_event;
 pub mod plugin_message;
 pub mod set_center_chunk;
 pub mod chunk_data_with_light;
+pub mod player_info_remove;

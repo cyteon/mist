@@ -31,7 +31,7 @@ use crate::{
     }, 
     
     server::{conn::PLAYER_SOCKET_MAP, encryption::EncryptedStream},
-    types::player::{self, Player}
+    types::player::Player
 };
 
 pub static PLAYERS: Lazy<RwLock<HashMap<String, Arc<Mutex<Player>>>>> =
@@ -66,21 +66,22 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
     );
 
     PLAYER_SOCKET_MAP.write().await.insert(
-        player.lock().await.name.clone(),
+        player.lock().await.uuid.clone(),
         Arc::clone(&socket)
     );
 
     PLAYERS.write().await.insert(
-        player.lock().await.name.clone(),
+        player.lock().await.uuid.clone(),
         Arc::clone(&player)
     );
 
     for player_socket in PLAYER_SOCKET_MAP.read().await.values() {
-        let mut socket_guard = player_socket.lock().await;
-
         let player_guard = player.lock().await;
         let player_clone = player_guard.clone();
         drop(player_guard);
+
+        let mut socket_guard: tokio::sync::MutexGuard<'_, EncryptedStream<TcpStream>> = player_socket.lock().await;
+        dbg!(&player_clone.uuid, &player_clone.name, &player_clone.skin_texture);
 
         send_player_info_update(
             &mut *socket_guard, 
@@ -90,8 +91,6 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
     }
 
     {
-        let mut socket_guard = socket.lock().await;
-
         let player_guard = player.lock().await;
         let player_clone = player_guard.clone();
         drop(player_guard);
@@ -112,11 +111,13 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         }
 
         if !other_players_owned.is_empty() {
+            let mut socket_guard = socket.lock().await;
+
             send_player_info_update(
                 &mut *socket_guard, 
                 other_players_owned.iter().collect(),
                 vec![PlayerAction::AddPlayer, PlayerAction::UpdateListed(true)]
-            ).await?;
+            ).await?;            
         }
     }
 
@@ -211,8 +212,8 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                     format!("{} has timed out during play state: {}", player.lock().await.name, e).as_str()
                 );
 
-                PLAYER_SOCKET_MAP.write().await.remove(&player.lock().await.name);
-                PLAYERS.write().await.remove(&player.lock().await.name);
+                PLAYER_SOCKET_MAP.write().await.remove(&player.lock().await.uuid);
+                PLAYERS.write().await.remove(&player.lock().await.uuid);
 
                 socket_guard.shutdown().await?;
                 keep_alive_future.abort();
@@ -226,8 +227,8 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                     format!("Error while reading packet from {} during play state: {}", player.lock().await.name, e).as_str()
                 );
 
-                PLAYER_SOCKET_MAP.write().await.remove(&player.lock().await.name);
-                PLAYERS.write().await.remove(&player.lock().await.name);
+                PLAYER_SOCKET_MAP.write().await.remove(&player.lock().await.uuid);
+                PLAYERS.write().await.remove(&player.lock().await.uuid);
 
                 socket_guard.shutdown().await?;
                 keep_alive_future.abort();

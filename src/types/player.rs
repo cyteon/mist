@@ -1,7 +1,8 @@
 #[derive(Clone)]
 pub struct Player {
-    pub name: String,
     pub uuid: String,
+    pub name: String,
+    
     pub shared_secret: Option<Vec<u8>>,
     pub skin_texture: Option<String>,
 
@@ -20,10 +21,10 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(name: String, uuid: String) -> Self {
+    pub fn new(uuid: String, name: String) -> Self {
         Player {
-            name,
             uuid,
+            name,
 
             shared_secret: None,
             skin_texture: None,

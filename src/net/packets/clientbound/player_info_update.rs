@@ -46,6 +46,7 @@ pub async fn send_player_info_update<W: tokio::io::AsyncWriteExt + Unpin>(
 				PlayerAction::AddPlayer => {
 					write_var(&mut packet_data, player.name.len() as i32).await?;
 					packet_data.extend_from_slice(player.name.as_bytes());
+
 					write_var(&mut packet_data, 0).await?; // empty property array
 				},
 

@@ -45,8 +45,8 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
     crate::log::log(LogLevel::Info, format!("{} ({}) is connecting", login_start.name, login_start.uuid).as_str());
 
     player = Some(Player::new(
-        login_start.name.clone(), 
-        login_start.uuid.clone()
+        login_start.uuid.clone(),
+        login_start.name.clone()
     ));
 
     send_encryption_request(&mut socket).await?;
