@@ -14,9 +14,10 @@ use crate::{
 
         packets::{
             clientbound::{
-                chunk_data_with_light::send_chunk_data_with_light, 
+                chunk_data_with_light::send_chunk_data_with_light,
                 game_event::send_game_event,
                 keep_alive::send_keep_alive,
+                player_info_update::send_player_info_update,
                 set_center_chunk::send_set_center_chunk,
                 sync_player_position::send_sync_player_position
             },
@@ -30,7 +31,7 @@ use crate::{
     }, 
     
     server::{conn::PLAYER_SOCKET_MAP, encryption::EncryptedStream},
-    types::player::Player
+    types::player::{self, Player}
 };
 
 pub static PLAYERS: Lazy<RwLock<HashMap<String, Arc<Mutex<Player>>>>> =
@@ -73,6 +74,33 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         player.lock().await.name.clone(),
         Arc::clone(&player)
     );
+
+    {
+        let mut socket_guard = socket.lock().await;
+
+        let player_guard = player.lock().await;
+        let player_clone = player_guard.clone();
+        drop(player_guard);
+
+        let players_guard = PLAYERS.read().await;
+        let players = players_guard.clone();
+        drop(players_guard);
+        
+        let mut other_players_owned = Vec::new();
+        for p in players.values() {
+            let p_guard = p.lock().await;
+
+            if p_guard.name != player_clone.name {
+                other_players_owned.push(p_guard.clone());
+            }
+
+            drop(p_guard);
+        }
+
+        if !other_players_owned.is_empty() {
+            send_player_info_update(&mut *socket_guard, other_players_owned.iter().collect()).await?;
+        }
+    }
 
     send_game_event(&mut *socket.lock().await, 13, 0.0).await?;
     send_set_center_chunk(&mut *socket.lock().await, 0, 0).await?;
@@ -138,7 +166,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
     loop {
         let mut socket_guard = socket.lock().await;
 
-        match timeout(Duration::from_secs(20), read_packet(&mut *socket_guard, &ProtocolState::Play)).await {
+        match timeout(Duration::from_secs(15), read_packet(&mut *socket_guard, &ProtocolState::Play)).await {
             Ok(Ok(Some(packet))) => {
                 match packet {
                     ClientPacket::ConfirmTeleprortion(mut cursor) => {
@@ -165,6 +193,9 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                     format!("{} has timed out during play state: {}", player.lock().await.name, e).as_str()
                 );
 
+                PLAYER_SOCKET_MAP.write().await.remove(&player.lock().await.name);
+                PLAYERS.write().await.remove(&player.lock().await.name);
+
                 socket_guard.shutdown().await?;
                 keep_alive_future.abort();
                 chunk_sender_task.abort();
@@ -176,6 +207,9 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                     LogLevel::Error, 
                     format!("Error while reading packet from {} during play state: {}", player.lock().await.name, e).as_str()
                 );
+
+                PLAYER_SOCKET_MAP.write().await.remove(&player.lock().await.name);
+                PLAYERS.write().await.remove(&player.lock().await.name);
 
                 socket_guard.shutdown().await?;
                 keep_alive_future.abort();

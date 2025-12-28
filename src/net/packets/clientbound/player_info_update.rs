@@ -6,24 +6,20 @@ pub async fn send_player_info_update<W: tokio::io::AsyncWriteExt + Unpin>(
 ) -> anyhow::Result<()> {
 	let mut packet_data = vec![0x44];
 
-    // 0x01 = add player
-    let mut val: u32 = 0x01;
-	loop {
-		let mut temp = (val & 0x7F) as u8;
-		val >>= 7;
-        
-		if val != 0 {
-			temp |= 0x80;
-		}
+	// 0x01 = add player
+	write_var(&mut packet_data, 0x01).await?;
 
-		packet_data.push(temp);
+	write_var(&mut packet_data, players.len() as i32).await?;
+	for player in players {
+		let uuid = player.uuid.replace("-", "");
+		let uuid_bytes = hex::decode(uuid).unwrap();
+		packet_data.extend_from_slice(&uuid_bytes);
 
-		if val == 0 {
-			break;
-		}
+		write_var(&mut packet_data, player.name.len() as i32).await?;
+		packet_data.extend_from_slice(player.name.as_bytes());
+		
+		write_var(&mut packet_data, 0).await?; // empty property array
 	}
-    
-    // TODO: finish
 
 	write_var(stream, packet_data.len() as i32).await?;
 	stream.write_all(&packet_data).await?;

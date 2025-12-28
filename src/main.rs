@@ -1,5 +1,8 @@
+use std::time::Duration;
+
 use fancy_log::{LogLevel, set_log_level};
 use once_cell::sync::Lazy;
+use tokio::time::timeout;
 
 mod config;
 mod log;
@@ -32,7 +35,11 @@ async fn main() -> anyhow::Result<()> {
         tokio::signal::ctrl_c().await.ok();
         log::log(LogLevel::Info, "Received shutdown signal, stopping server...");
         
-        crate::server::save::save().await;
+        match timeout(Duration::from_secs(10), crate::server::save::save()).await {
+            Err(_) => log::log(LogLevel::Error, "Timeout while saving server."),
+
+            _ => {}
+        }
 
         std::process::exit(0);
     });
