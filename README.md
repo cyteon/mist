@@ -11,11 +11,14 @@ An minecraft server implementation in rust for minecraft 1.21.10
 - [x] Encryption
 - [x] Mojang authentication
 - [x] Enter play state
+- [ ] Chat messages
+- [ ] Commands
 
 **World**
 - [ ] Show players in tablist
 - [x] Spawning player
-- [ ] Player skins
+- [ ] Synchronize players across all clients
+- [ ] Player skins (in online mode)
 - [x] Sending chunks
 - [x] Fullbright lightning
 - [ ] Proper lightning

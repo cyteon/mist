@@ -4,14 +4,23 @@ use crate::net::codec::read_var;
 
 pub enum ClientPacket {
     Handshake,
-    Ping,
-    LoginStart,
-    EncryptionResponse,
-    KnownPacks(std::io::Cursor<Vec<u8>>),
-    AcknowledgeFinishConfiguration,
-    ConfirmTeleprortion(std::io::Cursor<Vec<u8>>),
-    PlayerAction(std::io::Cursor<Vec<u8>>),
-    UseItemOn(std::io::Cursor<Vec<u8>>),
+
+    // login state
+    LoginStart, // 0x00
+    EncryptionResponse, // 0x01
+
+    // status state
+    Ping, // 0x01 in status
+
+    // config state
+    AcknowledgeFinishConfiguration, // 0x03 in configuration
+    KnownPacks(std::io::Cursor<Vec<u8>>), // 0x07 in configuration
+
+    // play state
+    ConfirmTeleprortion(std::io::Cursor<Vec<u8>>), // 0x00 in play
+    ChatMessage(std::io::Cursor<Vec<u8>>), // 0x08 in play
+    PlayerAction(std::io::Cursor<Vec<u8>>), // 0x28 in play
+    UseItemOn(std::io::Cursor<Vec<u8>>), // 0x3F in play
 }
 
 pub enum ProtocolState {
@@ -45,9 +54,7 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
                     Ok(Some(ClientPacket::Ping))
                 },
                 
-                _ => {
-                    Ok(None)
-                }
+                _ => Ok(None)
             }
         },
 
@@ -61,15 +68,7 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
                     Ok(Some(ClientPacket::EncryptionResponse))
                 }
                 
-                _ => {
-                    if packet_len > 1 {
-                        for _ in 0..(packet_len - 1) {
-                            let _ = stream.read_u8().await?;
-                        }
-                    }
-
-                    Ok(None)
-                }
+                _ => Ok(None)
             }
         },
 
@@ -95,6 +94,10 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
                     Ok(Some(ClientPacket::ConfirmTeleprortion(cursor)))
                 },
 
+                0x08 => {
+                    Ok(Some(ClientPacket::ChatMessage(cursor)))
+                },
+
                 0x28 => {
                     Ok(Some(ClientPacket::PlayerAction(cursor)))
                 },
@@ -103,9 +106,7 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
                     Ok(Some(ClientPacket::UseItemOn(cursor)))
                 },
                 
-                _ => {
-                    Ok(None)
-                }
+                _ => Ok(None)
             }
         },
 
