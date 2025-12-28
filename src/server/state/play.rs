@@ -17,7 +17,7 @@ use crate::{
                 chunk_data_with_light::send_chunk_data_with_light,
                 game_event::send_game_event,
                 keep_alive::send_keep_alive,
-                player_info_update::send_player_info_update,
+                player_info_update::{PlayerAction, send_player_info_update},
                 set_center_chunk::send_set_center_chunk,
                 sync_player_position::send_sync_player_position
             },
@@ -75,6 +75,20 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         Arc::clone(&player)
     );
 
+    for player_socket in PLAYER_SOCKET_MAP.read().await.values() {
+        let mut socket_guard = player_socket.lock().await;
+
+        let player_guard = player.lock().await;
+        let player_clone = player_guard.clone();
+        drop(player_guard);
+
+        send_player_info_update(
+            &mut *socket_guard, 
+            vec![&player_clone],
+            vec![PlayerAction::AddPlayer, PlayerAction::UpdateListed(true)]
+        ).await?;
+    }
+
     {
         let mut socket_guard = socket.lock().await;
 
@@ -98,7 +112,11 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         }
 
         if !other_players_owned.is_empty() {
-            send_player_info_update(&mut *socket_guard, other_players_owned.iter().collect()).await?;
+            send_player_info_update(
+                &mut *socket_guard, 
+                other_players_owned.iter().collect(),
+                vec![PlayerAction::AddPlayer, PlayerAction::UpdateListed(true)]
+            ).await?;
         }
     }
 
