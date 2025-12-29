@@ -14,18 +14,11 @@ use crate::{
 
         packets::{
             clientbound::{
-                chunk_data_with_light::send_chunk_data_with_light,
-                game_event::send_game_event,
-                keep_alive::send_keep_alive,
-                player_info_update::{PlayerAction, send_player_info_update},
-                set_center_chunk::send_set_center_chunk,
-                sync_player_position::send_sync_player_position
+                chunk_data_with_light::send_chunk_data_with_light, game_event::send_game_event, keep_alive::send_keep_alive, player_chat_message::send_player_chat_message, player_info_update::{PlayerAction, send_player_info_update}, set_center_chunk::send_set_center_chunk, sync_player_position::send_sync_player_position
             },
 
             serverbound::{
-                confirm_teleportation::read_confirm_teleportation, 
-                player_action::read_player_action, 
-                use_item_on::read_use_item_on
+                chat_message::read_chat_message, confirm_teleportation::read_confirm_teleportation, player_action::read_player_action, use_item_on::read_use_item_on
             }
         }
     }, 
@@ -75,6 +68,11 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         Arc::clone(&player)
     );
 
+    crate::log::log(
+        LogLevel::Debug, 
+        format!("Added {} to player list", player.lock().await.name).as_str()
+    );
+
     {
         let player_guard = player.lock().await;
         let player_clone = player_guard.clone();
@@ -120,6 +118,11 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
             vec![PlayerAction::AddPlayer, PlayerAction::UpdateListed(true)]
         ).await?;
     }
+
+    crate::log::log(
+        LogLevel::Debug, 
+        format!("Sent player info updates for {}", player.lock().await.name).as_str()
+    );
 
     send_game_event(&mut *socket.lock().await, 13, 0.0).await?;
     send_set_center_chunk(&mut *socket.lock().await, 0, 0).await?;
@@ -198,6 +201,30 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
 
                     ClientPacket::UseItemOn(mut cursor) => {
                         read_use_item_on(&mut cursor, &mut *player.lock().await).await?;
+                    }
+
+                    ClientPacket::ChatMessage(mut cursor) => {
+                        let message = read_chat_message(&mut cursor).await?;
+
+                        let player_guard = player.lock().await;
+                        let player_clone = player_guard.clone();
+                        drop(player_guard);
+
+                        crate::log::log(
+                            LogLevel::Info, 
+                            format!("<{}> {}", player_clone.name, message.content).as_str()
+                        );
+
+                        drop(socket_guard); // so we can use in the loop
+                        for player_socket in PLAYER_SOCKET_MAP.read().await.values() {
+                            let mut socket_guard = player_socket.lock().await;
+
+                            send_player_chat_message(
+                                &mut *socket_guard,
+                                &player_clone,
+                                &message
+                            ).await?;
+                        }
                     }
 
                     _ => { }
