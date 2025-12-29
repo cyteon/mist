@@ -216,12 +216,17 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                         );
 
                         drop(socket_guard); // so we can use in the loop
-                        for player_socket in PLAYER_SOCKET_MAP.read().await.values() {
-                            let mut socket_guard = player_socket.lock().await;
+                        for player in PLAYERS.read().await.values() {
+                            let mut target_player_guard = player.lock().await;
+
+                            let target_player_socket = PLAYER_SOCKET_MAP.read().await;
+                            let target_player_socket = target_player_socket.get(&target_player_guard.uuid).unwrap();
+                            let mut socket_guard = target_player_socket.lock().await;
 
                             send_player_chat_message(
                                 &mut *socket_guard,
                                 &player_clone,
+                                &mut *target_player_guard,
                                 &message
                             ).await?;
                         }

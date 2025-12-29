@@ -23,10 +23,6 @@ pub static RSA_PUBLIC_KEY: Lazy<rsa::RsaPublicKey> = Lazy::new(|| {
 pub static SERVER_PROTOCOL_VERSION: i32 = 773;
 pub static SERVER_VERSION: &str = "1.21.10";
 
-pub static GLOBAL_MESSAGE_INDEX: Lazy<tokio::sync::Mutex<i32>> = Lazy::new(|| {
-    tokio::sync::Mutex::new(-1)
-});
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     set_log_level(LogLevel::Debug);

@@ -18,6 +18,7 @@ pub struct Player {
     pub pitch: f32,
 
     pub initial_sync_done: bool,
+    pub chat_index: i32,
 }
 
 impl Player {
@@ -41,6 +42,7 @@ impl Player {
             pitch: 0.0,
 
             initial_sync_done: false,
+            chat_index: -1,
         }
     }
 }

@@ -12,6 +12,7 @@ use crate::{
 pub async fn send_player_chat_message<W: tokio::io::AsyncWriteExt + Unpin>(
     stream: &mut W,
     player: &Player,
+    target: &mut Player,
     message: &Message
 ) -> anyhow::Result<()> {
     let mut packet_data = vec![0x3F];
@@ -19,9 +20,8 @@ pub async fn send_player_chat_message<W: tokio::io::AsyncWriteExt + Unpin>(
     // sector: header
 
     let global_message_index = {
-        let mut index_lock = crate::GLOBAL_MESSAGE_INDEX.lock().await;
-        *index_lock += 1;
-        *index_lock
+        target.chat_index += 1;
+        target.chat_index
     };
     write_var(&mut packet_data, global_message_index).await?;
 
