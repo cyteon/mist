@@ -16,10 +16,6 @@ pub struct Region {
 }
 
 impl Region {
-    pub fn to_chunk(&self) -> (i32, i32) {
-        (self.x << 5, self.z << 5)
-    }
-
     pub fn new(x: i32, z: i32) -> Self {
         Region {
             x,
@@ -84,10 +80,6 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    pub fn to_region(&self) -> (i32, i32) {
-        (self.x >> 5, self.z >> 5)
-    }
-
     pub fn generate(x: i32, z: i32) -> Self {
         // we will use this when proper generation
         let seed = crate::config::SERVER_CONFIG.world_seed as u64;

@@ -58,20 +58,6 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
             }
         },
 
-        ProtocolState::Login => {
-            match packet_id {
-                0x00 => {
-                    Ok(Some(ClientPacket::LoginStart))
-                },
-
-                0x01 => {
-                    Ok(Some(ClientPacket::EncryptionResponse))
-                }
-                
-                _ => Ok(None)
-            }
-        },
-
         ProtocolState::Configuration => {
             match packet_id {
                 0x03 => {
