@@ -22,10 +22,13 @@ pub async fn send_status_response<W: tokio::io::AsyncWriteExt + Unpin>(stream: &
 
     let mut packet_data = vec![0x00];
 
-    write_var(&mut packet_data, json.len() as i32).await?;
+    write_var(&mut packet_data, json.len() as i32)?;
     packet_data.extend_from_slice(json.as_bytes());
 
-    write_var(stream, packet_data.len() as i32).await?;
+    let mut len_prefix = Vec::with_capacity(5);
+    write_var(&mut len_prefix, packet_data.len() as i32)?;
+
+    stream.write_all(&len_prefix).await?;
     stream.write_all(&packet_data).await?;
     stream.flush().await?;
 

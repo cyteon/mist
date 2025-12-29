@@ -944,6 +944,7 @@ dependencies = [
  "anyhow",
  "base64",
  "block-padding",
+ "byteorder",
  "cfb8",
  "chrono",
  "craftflow-nbt",

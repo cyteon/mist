@@ -1,3 +1,4 @@
+use byteorder::{BigEndian, WriteBytesExt};
 use serde::{Deserialize, Serialize};
 use anyhow::Context;
 use flate2::write::ZlibEncoder;
@@ -255,23 +256,22 @@ impl BlockStorage {
         }
     }
 
-    pub async fn write_paletted_container<W: AsyncWriteExt + Unpin>(&self, writer: &mut W) -> anyhow::Result<()> {
-        writer.write_u8(self.bits_per_block).await?;
+    pub fn write_paletted_container<W: WriteBytesExt + Unpin>(&self, writer: &mut W) -> anyhow::Result<()> {
+        writer.write_u8(self.bits_per_block)?;
         
         match self.bits_per_block {
             0 => {
-                write_var(writer, self.palette[0] as i32).await?;
+                write_var(writer, self.palette[0] as i32)?;
             }
 
             4..=8 => {
-                write_var(writer, self.palette.len() as i32).await?;
+                write_var(writer, self.palette.len() as i32)?;
                 for &block_id in &self.palette {
-                    write_var(writer, block_id as i32).await?;
+                    write_var(writer, block_id as i32)?;
                 }
                 
-                //write_var(writer, self.data.len() as i32).await?;
                 for &value in &self.data {
-                    writer.write_i64(value).await?;
+                    writer.write_i64::<BigEndian>(value)?;
                 }
             }
 

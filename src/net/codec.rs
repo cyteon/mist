@@ -1,4 +1,5 @@
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use byteorder::WriteBytesExt;
+use tokio::io::{AsyncReadExt};
 
 pub async fn read_var<R: AsyncReadExt + Unpin>(reader: &mut R) -> anyhow::Result<u32> {
     let mut num_read = 0;
@@ -25,7 +26,7 @@ pub async fn read_var<R: AsyncReadExt + Unpin>(reader: &mut R) -> anyhow::Result
     Ok(result)
 }
 
-pub async fn write_var<W: AsyncWriteExt + Unpin>(stream: &mut W, mut value: i32) -> anyhow::Result<()> {
+pub fn write_var<W: WriteBytesExt + Unpin>(stream: &mut W, mut value: i32) -> anyhow::Result<()> {
     loop {
         let mut temp = (value & 0b01111111) as u8;
 
@@ -35,7 +36,7 @@ pub async fn write_var<W: AsyncWriteExt + Unpin>(stream: &mut W, mut value: i32)
             temp |= 0b10000000;
         }
 
-        stream.write_u8(temp).await?;
+        stream.write_u8(temp)?;
 
         if value <= 0 {
             break;

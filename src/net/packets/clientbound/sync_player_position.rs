@@ -1,26 +1,29 @@
-use tokio::io::AsyncWriteExt;
+use byteorder::{BigEndian, WriteBytesExt};
 
 use crate::{net::codec::write_var, types::player::Player};
 
 pub async fn send_sync_player_position<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, player: &Player) -> anyhow::Result<()> {    
     let mut packet_data = vec![0x46];
 
-    write_var(&mut packet_data, 1).await?; // teleport id
+    write_var(&mut packet_data, 1)?; // teleport id
     
-    packet_data.write_f64(player.x).await?;
-    packet_data.write_f64(player.y).await?;
-    packet_data.write_f64(player.z).await?;
+    packet_data.write_f64::<BigEndian>(player.x)?;
+    packet_data.write_f64::<BigEndian>(player.y)?;
+    packet_data.write_f64::<BigEndian>(player.z)?;
 
-    packet_data.write_f64(player.vx).await?;
-    packet_data.write_f64(player.vy).await?;
-    packet_data.write_f64(player.vz).await?;
+    packet_data.write_f64::<BigEndian>(player.vx)?;
+    packet_data.write_f64::<BigEndian>(player.vy)?;
+    packet_data.write_f64::<BigEndian>(player.vz)?;
 
-    packet_data.write_f32(player.yaw).await?;
-    packet_data.write_f32(player.pitch).await?;
+    packet_data.write_f32::<BigEndian>(player.yaw)?;
+    packet_data.write_f32::<BigEndian>(player.pitch)?;
 
-    packet_data.write_i32(0).await?; // teleport flags
+    packet_data.write_i32::<BigEndian>(0)?; // teleport flags
 
-    write_var(stream, packet_data.len() as i32).await?;
+    let mut len_prefix = Vec::with_capacity(5);
+    write_var(&mut len_prefix, packet_data.len() as i32)?;
+
+    stream.write_all(&len_prefix).await?;
     stream.write_all(&packet_data).await?;
     stream.flush().await?;
 

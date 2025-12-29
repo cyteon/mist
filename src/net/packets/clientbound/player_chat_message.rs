@@ -1,4 +1,4 @@
-use tokio::io::AsyncWriteExt;
+use byteorder::{BigEndian, WriteBytesExt};
 
 use crate::{
     net::{
@@ -23,38 +23,38 @@ pub async fn send_player_chat_message<W: tokio::io::AsyncWriteExt + Unpin>(
         target.chat_index += 1;
         target.chat_index
     };
-    write_var(&mut packet_data, global_message_index).await?;
+    write_var(&mut packet_data, global_message_index)?;
 
     let uuid = player.uuid.replace("-", "");
     let uuid_bytes = hex::decode(uuid).unwrap();
     packet_data.extend_from_slice(&uuid_bytes);
 
-    write_var(&mut packet_data, 0).await?; // "index", has no usage description
+    write_var(&mut packet_data, 0)?; // "index", has no usage description
 
-    packet_data.write_u8(0).await?; // no signature
+    packet_data.write_u8(0)?; // no signature
 
     // sector: body
 
     let message_bytes = message.content.as_bytes();
-    write_var(&mut packet_data, message_bytes.len() as i32).await?;
+    write_var(&mut packet_data, message_bytes.len() as i32)?;
     packet_data.extend_from_slice(message_bytes);
 
-    packet_data.write_i64(message.timestamp).await?;
-    packet_data.write_i64(message.salt).await?;
+    packet_data.write_i64::<BigEndian>(message.timestamp)?;
+    packet_data.write_i64::<BigEndian>(message.salt)?;
 
     // sector: signature (prefixed array, max len 20)
 
-    write_var(&mut packet_data, 0).await?; // empty array
+    write_var(&mut packet_data, 0)?; // empty array
 
     // sector: other
 
-    packet_data.write_u8(0).await?; // unsigned chat preview
+    packet_data.write_u8(0)?; // unsigned chat preview
 
-    write_var(&mut packet_data, 0).await?; // filter type
+    write_var(&mut packet_data, 0)?; // filter type
 
     // sector: chat formatting
 
-    write_var(&mut packet_data, 1).await?; // chat type
+    write_var(&mut packet_data, 1)?; // chat type
     
     let mut sender_nbt = Vec::<u8>::new(); 
     craftflow_nbt::to_writer(
@@ -63,9 +63,12 @@ pub async fn send_player_chat_message<W: tokio::io::AsyncWriteExt + Unpin>(
         .expect("Failed to write sender NBT");
     packet_data.extend_from_slice(&sender_nbt);
     
-    packet_data.write_u8(0).await?; // no target name
+    packet_data.write_u8(0)?; // no target name
 
-    write_var(stream, packet_data.len() as i32).await?;
+    let mut len_prefix = Vec::with_capacity(5);
+    write_var(&mut len_prefix, packet_data.len() as i32)?;
+
+    stream.write_all(&len_prefix).await?;
     stream.write_all(&packet_data).await?;
     stream.flush().await?;
 

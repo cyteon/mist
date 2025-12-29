@@ -59,11 +59,11 @@ pub async fn send_all_registers<W: AsyncWriteExt + Unpin>(
 ) -> anyhow::Result<()> {
     for packet in REGISTRY_PACKETS.iter() {
         let mut packet_data = vec![0x07];
-        write_var(&mut packet_data, packet.registry_id.len() as i32).await?;
+        write_var(&mut packet_data, packet.registry_id.len() as i32)?;
         packet_data.extend_from_slice(packet.registry_id.as_bytes());
-        write_var(&mut packet_data, packet.entries.len() as i32).await?;
+        write_var(&mut packet_data, packet.entries.len() as i32)?;
         for entry in packet.entries.iter() {
-            write_var(&mut packet_data, entry.id.len() as i32).await?;
+            write_var(&mut packet_data, entry.id.len() as i32)?;
             packet_data.extend_from_slice(entry.id.as_bytes());
             match &entry.data {
                 None => packet_data.push(0),
@@ -73,7 +73,11 @@ pub async fn send_all_registers<W: AsyncWriteExt + Unpin>(
                 }
             }
         }
-        write_var(stream, packet_data.len() as i32).await?;
+
+        let mut len_prefix = Vec::with_capacity(5);
+        write_var(&mut len_prefix, packet_data.len() as i32)?;
+
+        stream.write_all(&len_prefix).await?;
         stream.write_all(&packet_data).await?;
         stream.flush().await?;
     }
