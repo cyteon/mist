@@ -30,15 +30,20 @@ pub async fn status(mut socket: TcpStream) -> anyhow::Result<()> {
                     ClientPacket::Ping => {
                         send_pong(&mut socket).await?;
                         crate::log::log(LogLevel::Debug, "Responded to ping request");
+
+                        socket.shutdown().await?;
+                        break;
                     },
 
                     _ => { }
                 }
             },
 
-            Ok(Ok(None)) => { },
-            Err(_) => { socket.shutdown().await?; }
-            Ok(Err(_)) => { socket.shutdown().await?; }
+            Ok(Ok(None)) => { }
+            Err(_) => { socket.shutdown().await?; break; }
+            Ok(Err(_)) => { socket.shutdown().await?; break; }
         }
     }
+
+    Ok(())
 }

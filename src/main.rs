@@ -25,6 +25,8 @@ pub static SERVER_VERSION: &str = "1.21.10";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    console_subscriber::init();
+
     set_log_level(LogLevel::Debug);
     log::log(LogLevel::Info, format!("Starting mist for minecraft {}/{}", SERVER_VERSION, SERVER_PROTOCOL_VERSION).as_str());
 

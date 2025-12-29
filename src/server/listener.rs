@@ -33,7 +33,7 @@ pub async fn start_listener() -> anyhow::Result<()> {
         crate::log::log(LogLevel::Debug, format!("New connection from {}", addr).as_str());
 
         tokio::spawn(async move {
-            if let Err(e) = handle_conn(socket) .await {
+            if let Err(e) = handle_conn(socket).await {
                 crate::log::log(LogLevel::Error, format!("Error handling connection from {}: {}", addr, e).as_str());
             }
         });
