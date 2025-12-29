@@ -4,7 +4,6 @@ use fancy_log::LogLevel;
 use once_cell::sync::Lazy;
 use tokio::{io::AsyncWriteExt, net::TcpStream, sync::{RwLock, Mutex}, time::{self, timeout}};
 use std::sync::Arc;
-use futures::future::join_all;
 
 use crate::{
     net::{
@@ -157,25 +156,36 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
             chunk.x * chunk.x + chunk.z * chunk.z
         });
 
-        tokio::spawn(async move {
-            let mut encoding_tasks = Vec::new();
-            for chunk in chunks_to_send {
-                encoding_tasks.push(tokio::spawn(async move {
-                    let mut buffer = Vec::new();
-                    send_chunk_data_with_light(&mut buffer, &chunk).await?;
-                    Ok::<Vec<u8>, anyhow::Error>(buffer)
-                }));
-            }
-
-            let results = join_all(encoding_tasks).await;
-            for result in results {
-                if let Ok(Ok(packet)) = result {
-                    let mut socket = socket.lock().await;
-                    if socket.write_all(&packet).await.is_err() {
-                        break;
-                    }
-                    let _ = socket.flush().await;
+        tokio::spawn(async move {            
+            for batch in chunks_to_send.chunks(8) {
+                let mut encoding_tasks = Vec::new();
+                for chunk in batch {
+                    let chunk = chunk.clone();
+                    encoding_tasks.push(tokio::spawn(async move {
+                        let mut buffer = Vec::new();
+                        send_chunk_data_with_light(&mut buffer, &chunk).await?;
+                        Ok::<Vec<u8>, anyhow::Error>(buffer)
+                    }));
                 }
+
+                let results = futures::future::join_all(encoding_tasks).await;
+                
+                {
+                    let mut socket = socket.lock().await;
+                    for result in results {
+                        if let Ok(Ok(packet)) = result {
+                            if socket.write_all(&packet).await.is_err() {
+                                return;
+                            }
+                        }
+                    }
+
+                    if socket.flush().await.is_err() {
+                        return;
+                    }
+                }
+                
+                tokio::task::yield_now().await;
             }
 
             crate::log::log(
@@ -188,7 +198,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
     loop {
         let mut socket_guard = socket.lock().await;
 
-        match timeout(Duration::from_secs(15), read_packet(&mut *socket_guard, &ProtocolState::Play)).await {
+        match timeout(Duration::from_secs(30), read_packet(&mut *socket_guard, &ProtocolState::Play)).await {
             Ok(Ok(Some(packet))) => {
                 match packet {
                     ClientPacket::ConfirmTeleprortion(mut cursor) => {
@@ -215,7 +225,8 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                             format!("<{}> {}", player_clone.name, message.content).as_str()
                         );
 
-                        drop(socket_guard); // so we can use in the loop
+                        drop(socket_guard);
+                        
                         for player in PLAYERS.read().await.values() {
                             let mut target_player_guard = player.lock().await;
 
@@ -229,7 +240,11 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                                 &mut *target_player_guard,
                                 &message
                             ).await?;
+                            
+                            drop(socket_guard);
                         }
+                        
+                        continue;
                     }
 
                     _ => { }
