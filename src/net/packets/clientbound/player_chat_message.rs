@@ -54,7 +54,7 @@ pub async fn send_player_chat_message<W: tokio::io::AsyncWriteExt + Unpin>(
 
     // sector: chat formatting
 
-    write_var(&mut packet_data, 3).await?; // chat type
+    write_var(&mut packet_data, 1).await?; // chat type
     
     let mut sender_nbt = Vec::<u8>::new(); 
     craftflow_nbt::to_writer(
