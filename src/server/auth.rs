@@ -36,8 +36,6 @@ pub async fn authenticate_player(username: &str, shared_secret: Vec<u8>) -> anyh
     if resp.status().is_success() {
         let json: serde_json::Value = resp.json().await?;
         
-        dbg!(&json);
-
         let name = json["name"].as_str().unwrap_or("").to_string();
         let textures = json["properties"][0]["value"].as_str().unwrap_or("").to_string();
         let texture_signature = json["properties"][0]["signature"].as_str().unwrap_or("").to_string();

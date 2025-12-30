@@ -109,7 +109,6 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         drop(player_guard);
 
         let mut socket_guard: tokio::sync::MutexGuard<'_, EncryptedStream<TcpStream>> = player_socket.lock().await;
-        dbg!(&player_clone.uuid, &player_clone.username, &player_clone.textures, &player_clone.texture_signature);
 
         send_player_info_update(
             &mut *socket_guard, 
