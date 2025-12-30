@@ -1,10 +1,11 @@
 #[derive(Clone)]
 pub struct Player {
     pub uuid: String,
-    pub name: String,
+    pub username: String,
     
     pub shared_secret: Option<Vec<u8>>,
     pub textures: Option<String>,
+    pub texture_signature: Option<String>,
 
     pub x: f64,
     pub y: f64,
@@ -22,13 +23,14 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(uuid: String, name: String) -> Self {
+    pub fn new(uuid: String, username: String) -> Self {
         Player {
             uuid,
-            name,
+            username,
 
             shared_secret: None,
             textures: None,
+            texture_signature: None,
 
             x: 0.0,
             y: 60.0,

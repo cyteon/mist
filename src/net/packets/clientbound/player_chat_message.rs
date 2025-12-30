@@ -58,7 +58,7 @@ pub async fn send_player_chat_message<W: tokio::io::AsyncWriteExt + Unpin>(
     
     let mut sender_nbt = Vec::<u8>::new(); 
     craftflow_nbt::to_writer(
-        &mut sender_nbt, &craftflow_nbt::DynNBT::String(player.name.clone())
+        &mut sender_nbt, &craftflow_nbt::DynNBT::String(player.username.clone())
     )
         .expect("Failed to write sender NBT");
     packet_data.extend_from_slice(&sender_nbt);

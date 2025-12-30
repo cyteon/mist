@@ -1,4 +1,5 @@
 use crate::{net::codec::write_var, types::player::Player};
+use byteorder::WriteBytesExt;
 
 pub enum PlayerAction {
 	AddPlayer, // 0x01
@@ -44,10 +45,36 @@ pub async fn send_player_info_update<W: tokio::io::AsyncWriteExt + Unpin>(
 		for action in &actions {
 			match action {
 				PlayerAction::AddPlayer => {
-					write_var(&mut packet_data, player.name.len() as i32)?;
-					packet_data.extend_from_slice(player.name.as_bytes());
+					write_var(&mut packet_data, player.username.len() as i32)?;
+					packet_data.extend_from_slice(player.username.as_bytes());
 
-					write_var(&mut packet_data, 0)?; // empty property array
+					let mut property_count = 0;
+
+					if player.textures.is_some() {
+						property_count += 1
+					}
+
+					write_var(&mut packet_data, property_count)?;
+
+					if let Some(textures) = &player.textures {
+						let name = b"textures";
+						write_var(&mut packet_data, name.len() as i32)?;
+						packet_data.extend_from_slice(name);
+
+						let texture_bytes = textures.as_bytes();
+						write_var(&mut packet_data, texture_bytes.len() as i32)?;
+						packet_data.extend(texture_bytes);
+
+						if let Some(texture_signature) = &player.texture_signature {
+							packet_data.write_u8(1)?;
+
+							let signature_bytes = texture_signature.as_bytes();
+							write_var(&mut packet_data, signature_bytes.len() as i32)?;
+							packet_data.extend_from_slice(signature_bytes);
+						} else {
+							packet_data.write_u8(0)?;
+						}
+					}
 				},
 
 				PlayerAction::UpdateListed(listed) => {

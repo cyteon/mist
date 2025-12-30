@@ -61,17 +61,18 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
     player.as_mut().unwrap().shared_secret = Some(encryption_response.shared_secret.clone());
 
     if SERVER_CONFIG.online_mode {
-        let player_name = player.as_ref().unwrap().name.clone();
+        let player_name = player.as_ref().unwrap().username.clone();
         let player_data = authenticate_player(&player_name, encryption_response.shared_secret.clone()).await?;
 
         player.as_mut().unwrap().textures = Some(player_data.textures);
+        player.as_mut().unwrap().texture_signature = Some(player_data.texture_signature);
     }
 
-    send_login_success(&mut socket, player.clone().unwrap().name.as_str(), player.clone().unwrap().uuid.as_str()).await?;
-    crate::log::log(LogLevel::Debug, format!("Sent login success to {}", player.as_ref().unwrap().name).as_str());
+    send_login_success(&mut socket, &player.clone().unwrap()).await?;
+    crate::log::log(LogLevel::Debug, format!("Sent login success to {}", player.as_ref().unwrap().username).as_str());
     
     read_login_acknowledged(&mut socket).await?;
-    crate::log::log(LogLevel::Debug, format!("{} sent login acknowledged", player.as_ref().unwrap().name).as_str());
+    crate::log::log(LogLevel::Debug, format!("{} sent login acknowledged", player.as_ref().unwrap().username).as_str());
 
     configuration::configuration(socket, player.unwrap()).await?;
 
