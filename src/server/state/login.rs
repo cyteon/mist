@@ -64,7 +64,7 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
         let player_name = player.as_ref().unwrap().name.clone();
         let player_data = authenticate_player(&player_name, encryption_response.shared_secret.clone()).await?;
 
-        player.as_mut().unwrap().skin_texture = Some(player_data.skin_texture);
+        player.as_mut().unwrap().textures = Some(player_data.textures);
     }
 
     send_login_success(&mut socket, player.clone().unwrap().name.as_str(), player.clone().unwrap().uuid.as_str()).await?;

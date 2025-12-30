@@ -6,7 +6,7 @@ use crate::RSA_PUBLIC_KEY;
 
 pub struct PlayerData {
     pub name: String,
-    pub skin_texture: String,
+    pub textures: String,
 }
 
 fn generate_server_hash(shared_secret: &[u8]) -> String {
@@ -36,13 +36,9 @@ pub async fn authenticate_player(username: &str, shared_secret: Vec<u8>) -> anyh
         let json: serde_json::Value = resp.json().await?;
 
         let name = json["name"].as_str().unwrap_or("").to_string();
+        let textures = json["properties"][0]["value"].as_str().unwrap_or("").to_string();
 
-        let base64 = json["properties"][0]["value"].as_str().unwrap_or("").to_string();
-        let decoded = base64::decode(base64).unwrap_or_default();
-        let skin_json: serde_json::Value = serde_json::from_slice(&decoded)?;
-        let skin_texture = skin_json["textures"]["SKIN"]["url"].as_str().unwrap_or("").to_string();
-
-        Ok(PlayerData { name, skin_texture })
+        Ok(PlayerData { name, textures })
     } else {
         anyhow::bail!("Failed to authenticate player: HTTP {}", resp.status());
     }

@@ -4,7 +4,7 @@ pub struct Player {
     pub name: String,
     
     pub shared_secret: Option<Vec<u8>>,
-    pub skin_texture: Option<String>,
+    pub textures: Option<String>,
 
     pub x: f64,
     pub y: f64,
@@ -28,7 +28,7 @@ impl Player {
             name,
 
             shared_secret: None,
-            skin_texture: None,
+            textures: None,
 
             x: 0.0,
             y: 60.0,
