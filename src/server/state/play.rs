@@ -2,7 +2,7 @@ use std::{collections::HashMap, time::Duration};
 
 use fancy_log::LogLevel;
 use once_cell::sync::Lazy;
-use tokio::{io::AsyncWriteExt, net::TcpStream, sync::{RwLock, Mutex}, time::{self, timeout}};
+use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync::{Mutex, RwLock}, time::{self, timeout}};
 use std::sync::Arc;
 
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
 
         packets::{
             clientbound::{
-                chunk_data_with_light::send_chunk_data_with_light, game_event::send_game_event, keep_alive::send_keep_alive, player_chat_message::send_player_chat_message, player_info_update::{PlayerAction, send_player_info_update}, set_center_chunk::send_set_center_chunk, sync_player_position::send_sync_player_position
+                chunk_data_with_light::send_chunk_data_with_light, game_event::send_game_event, keep_alive::send_keep_alive, player_chat_message::send_player_chat_message, player_info_remove::send_player_info_remove, player_info_update::{PlayerAction, send_player_info_update}, set_center_chunk::send_set_center_chunk, sync_player_position::send_sync_player_position
             },
 
             serverbound::{
@@ -265,6 +265,12 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                 socket_guard.shutdown().await?;
                 keep_alive_future.abort();
                 chunk_sender_task.abort();
+
+                for other_player in PLAYER_SOCKET_MAP.read().await.values().into_iter() {
+                    let socket_lock = &mut *other_player.lock().await;
+                    send_player_info_remove(socket_lock, vec![&player.lock().await.uuid]).await?;
+                }
+
                 break; 
             }
                 
@@ -280,6 +286,12 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                 socket_guard.shutdown().await?;
                 keep_alive_future.abort();
                 chunk_sender_task.abort();
+
+                for other_player in PLAYER_SOCKET_MAP.read().await.values().into_iter() {
+                    let socket_lock = &mut *other_player.lock().await;
+                    send_player_info_remove(socket_lock, vec![&player.lock().await.uuid]).await?;
+                }
+
                 break; 
             }
         }
