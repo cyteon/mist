@@ -21,6 +21,7 @@ pub enum ClientPacket {
     ChatMessage(std::io::Cursor<Vec<u8>>), // 0x08 in play
     PlayerAction(std::io::Cursor<Vec<u8>>), // 0x28 in play
     UseItemOn(std::io::Cursor<Vec<u8>>), // 0x3F in play
+    SetPlayerPositionAndRotation(std::io::Cursor<Vec<u8>>), // 0x1E in play
 }
 
 pub enum ProtocolState {
@@ -90,6 +91,10 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
 
                 0x3F => {
                     Ok(Some(ClientPacket::UseItemOn(cursor)))
+                },
+
+                0x1E => {
+                    Ok(Some(ClientPacket::SetPlayerPositionAndRotation(cursor)))
                 },
                 
                 _ => Ok(None)

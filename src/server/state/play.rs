@@ -17,7 +17,7 @@ use crate::{
             },
 
             serverbound::{
-                chat_message::read_chat_message, confirm_teleportation::read_confirm_teleportation, player_action::read_player_action, use_item_on::read_use_item_on
+                chat_message::read_chat_message, confirm_teleportation::read_confirm_teleportation, player_action::read_player_action, set_player_position_and_rotation::read_set_player_position_and_rotation, use_item_on::read_use_item_on
             }
         }
     }, 
@@ -244,6 +244,10 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                         }
                         
                         continue;
+                    }
+
+                    ClientPacket::SetPlayerPositionAndRotation(mut cursor) => {
+                        read_set_player_position_and_rotation(&mut cursor, &mut *player.lock().await).await?;
                     }
 
                     _ => { }
