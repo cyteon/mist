@@ -42,6 +42,16 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
         ).await?;
     }
 
+    let current_players = crate::server::state::play::PLAYERS.read().await.len();
+    if current_players >= SERVER_CONFIG.max_players as usize {
+        send_disconnect_login(
+            &mut socket, 
+            "The server is full! Please try again later."
+        ).await?;
+        
+        return Ok(());
+    }
+
     let login_start = read_login_start(&mut socket).await?;
     crate::log::log(LogLevel::Info, format!("{} ({}) is connecting", login_start.name, login_start.uuid).as_str());
 
