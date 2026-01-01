@@ -1,4 +1,15 @@
 #[derive(Clone)]
+pub struct PlayerMovement {
+    pub foward: bool,
+    pub backward: bool,
+    pub left: bool,
+    pub right: bool,
+    pub jumping: bool,
+    pub sneaking: bool,
+    pub sprinting: bool,
+}
+
+#[derive(Clone)]
 pub struct Player {
     pub uuid: String,
     pub username: String,
@@ -17,6 +28,8 @@ pub struct Player {
 
     pub yaw: f32,
     pub pitch: f32,
+
+    pub movement: PlayerMovement,
 
     pub initial_sync_done: bool,
     pub chat_index: i32,
@@ -42,6 +55,16 @@ impl Player {
 
             yaw: 0.0,
             pitch: 0.0,
+
+            movement: PlayerMovement {
+                foward: false,
+                backward: false,
+                left: false,
+                right: false,
+                jumping: false,
+                sneaking: false,
+                sprinting: false,
+            },
 
             initial_sync_done: false,
             chat_index: -1,

@@ -10,12 +10,32 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
     let mut interval = time::interval(Duration::from_millis(50)); // 20 tps
     let mut ticks_until_autosave = 100; // so it autosaves 5 seconds after start
 
+    let mut last_tps_check = std::time::Instant::now();
+    let mut ticks = 0;
+
     loop {
         if ticks_until_autosave == 0 {
             ticks_until_autosave = 6000; // 5 mins
             save().await;
         } else {
             ticks_until_autosave -= 1;
+        }
+
+        ticks += 1;
+        if last_tps_check.elapsed().as_secs() >= 5 {
+            let elapsed = last_tps_check.elapsed().as_secs_f64();
+            let tps = ticks as f64 / elapsed;
+            crate::log::log(LogLevel::Debug, &format!("TPS (last 5s): {:.2}", tps));
+            last_tps_check = std::time::Instant::now();
+            ticks = 0;
+        }
+
+        for player in crate::server::state::play::PLAYERS.read().await.values() {
+            let player_lock = player.lock().await;
+
+            if player_lock.movement.foward {
+                
+            }
         }
 
         interval.tick().await;

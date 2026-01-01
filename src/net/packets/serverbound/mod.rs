@@ -8,3 +8,5 @@ pub mod player_action;
 pub mod use_item_on;
 pub mod chat_message;
 pub mod set_player_position_and_rotation;
+pub mod player_input;
+pub mod set_player_rotation;
