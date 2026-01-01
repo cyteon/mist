@@ -25,17 +25,14 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
         if last_tps_check.elapsed().as_secs() >= 5 {
             let elapsed = last_tps_check.elapsed().as_secs_f64();
             let tps = ticks as f64 / elapsed;
-            crate::log::log(LogLevel::Debug, &format!("TPS (last 5s): {:.2}", tps));
+            crate::log::log(LogLevel::Debug , &format!("TPS (last 5s): {:.2}", tps));
             last_tps_check = std::time::Instant::now();
             ticks = 0;
         }
 
         for player in crate::server::state::play::PLAYERS.read().await.values() {
             let player_lock = player.lock().await;
-
-            if player_lock.movement.foward {
-                
-            }
+            player_lock.tick().await;
         }
 
         interval.tick().await;

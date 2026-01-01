@@ -70,4 +70,8 @@ impl Player {
             chat_index: -1,
         }
     }
+
+    pub async fn tick(&self) {
+        
+    }
 }
