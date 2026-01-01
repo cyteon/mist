@@ -8,7 +8,7 @@ pub async fn send_status_response<W: tokio::io::AsyncWriteExt + Unpin>(stream: &
         }},
         "players": {{
             "max": {},
-            "online": 0
+            "online": {}
         }},
         "description": {{
             "text": "{}"
@@ -17,6 +17,7 @@ pub async fn send_status_response<W: tokio::io::AsyncWriteExt + Unpin>(stream: &
         crate::SERVER_VERSION,
         crate::SERVER_PROTOCOL_VERSION,
         crate::config::SERVER_CONFIG.max_players,
+        crate::server::state::play::PLAYERS.read().await.len(),
         crate::config::SERVER_CONFIG.motd
     );
 

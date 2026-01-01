@@ -20,8 +20,8 @@ pub static RSA_PUBLIC_KEY: Lazy<rsa::RsaPublicKey> = Lazy::new(|| {
     rsa::RsaPublicKey::from(&*RSA_PRIVATE_KEY)
 });
 
-pub static SERVER_PROTOCOL_VERSION: i32 = 773;
-pub static SERVER_VERSION: &str = "1.21.10";
+pub static SERVER_PROTOCOL_VERSION: i32 = 774;
+pub static SERVER_VERSION: &str = "1.21.11";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

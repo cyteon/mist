@@ -34,9 +34,10 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
         send_disconnect_login(
             &mut socket, 
             format!(
-                "Incompatible minecraft version. Server is running {} (protocol {})", 
+                "Incompatible minecraft version. Server is running {} (protocol {})\nYou connected with protocol version {}", 
                 crate::SERVER_VERSION,
-                crate::SERVER_PROTOCOL_VERSION
+                crate::SERVER_PROTOCOL_VERSION,
+                handshake.protocol_version
             ).as_str()
         ).await?;
     }
