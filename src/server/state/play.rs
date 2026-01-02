@@ -2,7 +2,7 @@ use std::{collections::HashMap, time::Duration};
 
 use fancy_log::LogLevel;
 use once_cell::sync::Lazy;
-use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync::{Mutex, RwLock}, time::{self, timeout}};
+use tokio::{io::AsyncWriteExt, net::TcpStream, sync::{Mutex, RwLock}, time::{self, timeout}};
 use std::sync::Arc;
 
 use crate::{
@@ -23,7 +23,7 @@ use crate::{
     }, 
     
     server::{conn::PLAYER_SOCKET_MAP, encryption::EncryptedStream},
-    types::player::Player
+    types::player::Player, world::worldgen::get_region
 };
 
 pub static PLAYERS: Lazy<RwLock<HashMap<String, Arc<Mutex<Player>>>>> =
@@ -135,20 +135,17 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         let player_name = player.lock().await.username.clone();
         let view_distance = crate::config::SERVER_CONFIG.view_distance as i32;
         let chunk_loading_width = view_distance * 2 + 7;
-
-        let regions_lock = crate::world::worldgen::REGIONS.lock().await;
         
         let mut chunks_to_send = Vec::new();
         for cx in -chunk_loading_width/2..=chunk_loading_width/2 {
             for cz in -chunk_loading_width/2..=chunk_loading_width/2 {
-                if let Some(region) = regions_lock.get(&(cx >> 5, cz >> 5)) {
+                if let Some(region) = get_region(cx >> 5, cz >> 5).await {
                     if let Some(chunk) = region.chunks.iter().find(|chunk| chunk.x == cx && chunk.z == cz) {
                         chunks_to_send.push(chunk.clone());
                     }
                 }
             }
         }
-        drop(regions_lock);
 
         // sort so chunk loading starts at 0,0
         chunks_to_send.sort_by_key(|chunk| {

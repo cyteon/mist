@@ -32,3 +32,25 @@ pub async fn initial_gen() {
     let duration = start_time.elapsed();
     crate::log::log(fancy_log::LogLevel::Info, format!("World generated in {:.2?}", duration).as_str());
 }
+
+// only loading into memory once needed helps reduce memory usage, we will also unload later on
+pub async fn get_region(x: i32, z: i32) -> Option<Region> {
+    let mut regions = REGIONS.lock().await;
+    let region = regions.get(&(x, z));
+
+    match region {
+        Some(r) => Some(r.clone()),
+        None => {
+            let region_file_path = format!("world/regions/{}_{}.mist_region", x, z);
+            if std::path::Path::new(&region_file_path).exists() {
+                let region = Region::load(x, z).await.ok()?;
+                regions.insert((x, z), region.clone());
+
+                Some(region)
+            } else {
+                // todo: generate region
+                None
+            }
+        },
+    }
+}
