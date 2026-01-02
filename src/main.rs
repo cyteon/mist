@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
     #[cfg(feature = "console")]
     console_subscriber::init();
 
-    set_log_level(LogLevel::Debug);
+    set_log_level(LogLevel::Info);
     log::log(LogLevel::Info, format!("Starting mist for minecraft {}/{}", SERVER_VERSION, SERVER_PROTOCOL_VERSION).as_str());
 
     // just to ensure that config has loaded
@@ -39,8 +39,8 @@ async fn main() -> anyhow::Result<()> {
         tokio::signal::ctrl_c().await.ok();
         log::log(LogLevel::Info, "Received shutdown signal, stopping server...");
         
-        match timeout(Duration::from_secs(10), crate::server::save::save()).await {
-            Err(_) => log::log(LogLevel::Error, "Timeout while saving server."),
+        match timeout(Duration::from_secs(5), crate::server::save::save()).await {
+            Err(_) => log::log(LogLevel::Error, "Timeout while saving server :("),
 
             _ => {}
         }

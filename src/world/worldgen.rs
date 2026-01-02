@@ -34,22 +34,30 @@ pub async fn initial_gen() {
 }
 
 // only loading into memory once needed helps reduce memory usage, we will also unload later on
-pub async fn get_region(x: i32, z: i32) -> Option<Region> {
+pub async fn get_region(x: i32, z: i32) -> Region {
     let mut regions = REGIONS.lock().await;
     let region = regions.get(&(x, z));
 
     match region {
-        Some(r) => Some(r.clone()),
+        Some(r) => r.clone(),
         None => {
             let region_file_path = format!("world/regions/{}_{}.mist_region", x, z);
             if std::path::Path::new(&region_file_path).exists() {
-                let region = Region::load(x, z).await.ok()?;
+                let region = Region::load(x, z).await.ok().unwrap();
                 regions.insert((x, z), region.clone());
 
-                Some(region)
+                region
             } else {
-                // todo: generate region
-                None
+                let mut region = Region::new(x, z);
+
+                for cx in 0..32 {
+                    for cz in 0..32 {
+                        region.chunks.push(Chunk::generate((x << 5) + cx, (z << 5) + cz));
+                    }
+                }
+
+                regions.insert((x, z), region.clone());
+                region
             }
         },
     }
