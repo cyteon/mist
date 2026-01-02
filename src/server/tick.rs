@@ -31,8 +31,10 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
         }
 
         for player in crate::server::state::play::PLAYERS.read().await.values() {
-            let player_lock = player.lock().await;
+            let mut player_lock = player.lock().await;
             player_lock.tick().await;
+
+            dbg!(player_lock.x, player_lock.y, player_lock.z);
         }
 
         interval.tick().await;

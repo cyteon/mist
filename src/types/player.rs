@@ -1,6 +1,6 @@
 #[derive(Clone)]
 pub struct PlayerMovement {
-    pub foward: bool,
+    pub forward: bool,
     pub backward: bool,
     pub left: bool,
     pub right: bool,
@@ -57,7 +57,7 @@ impl Player {
             pitch: 0.0,
 
             movement: PlayerMovement {
-                foward: false,
+                forward: false,
                 backward: false,
                 left: false,
                 right: false,
@@ -71,7 +71,53 @@ impl Player {
         }
     }
 
-    pub async fn tick(&self) {
-        
+    pub async fn tick(&mut self) {
+        let mut move_x = 0.0;
+        let mut move_z = 0.0;
+
+        dbg!(&self.movement.forward, &self.movement.backward, &self.movement.left, &self.movement.right);
+
+        if self.movement.forward {
+            move_z += 1.0;
+        }
+
+        if self.movement.backward {
+            move_z -= 1.0;
+        }
+
+        if self.movement.left {
+            move_x += 1.0;
+        }
+
+        if self.movement.right {
+            move_x -= 1.0;
+        }
+
+        if move_x != 0.0 || move_z != 0.0 {
+            let length = ((move_x * move_x + move_z * move_z) as f64).sqrt();
+            move_x /= length;
+            move_z /= length;
+
+            let speed = if self.movement.sprinting { 0.28 } else { 0.216 };
+
+            if self.movement.sneaking {
+                move_x *= 0.3;
+                move_z *= 0.3;
+            }
+
+            let yaw_rad = (self.yaw as f64).to_radians();
+
+            self.vx = move_x * yaw_rad.cos() - move_z * yaw_rad.sin();
+            self.vz = move_x * yaw_rad.sin() + move_z * yaw_rad.cos();
+
+            self.vx *= speed;
+            self.vz *= speed;
+        } else {
+            self.vx = 0.0;
+            self.vz = 0.0;
+        }
+
+        self.x += self.vx;
+        self.z += self.vz;
     }
 }
