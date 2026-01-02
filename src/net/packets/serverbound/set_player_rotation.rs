@@ -10,7 +10,5 @@ pub async fn read_set_player_rotation<R: AsyncReadExt + Unpin>(
     player.yaw = yaw;
     player.pitch = pitch;
 
-    dbg!(yaw, pitch);
-
     Ok(())
 }

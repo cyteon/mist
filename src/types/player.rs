@@ -75,8 +75,6 @@ impl Player {
         let mut move_x = 0.0;
         let mut move_z = 0.0;
 
-        dbg!(&self.movement.forward, &self.movement.backward, &self.movement.left, &self.movement.right);
-
         if self.movement.forward {
             move_z += 1.0;
         }
