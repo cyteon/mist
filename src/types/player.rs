@@ -180,7 +180,7 @@ impl Player {
             let username_clone = self.username.clone();
 
             tokio::spawn(async move {
-                for batch in chunks_to_send.chunks(16) {
+                for batch in chunks_to_send.chunks(8) {
                     let mut failed_in_batch = 0;
 
                     for (cx, cz) in batch {
