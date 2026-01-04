@@ -64,14 +64,11 @@ pub async fn save() {
         std::fs::write(player_path, player_json).unwrap();
     }
 
+    dbg!(&crate::world::worldgen::REGIONS.lock().await.len());
+
     for region in crate::world::worldgen::REGIONS.lock().await.values() {
-        if region.save().await.is_err() {
-            crate::log::log(LogLevel::Error, format!(
-                "Failed to save region {}, {}", 
-                region.x, 
-                region.z
-            ).as_str());
-        }
+        let region = region.lock().await;
+        region.save().await.unwrap();
     }
 
     let duration = start.elapsed();

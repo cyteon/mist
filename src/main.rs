@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
     #[cfg(feature = "console")]
     console_subscriber::init();
 
-    set_log_level(LogLevel::Info);
+    set_log_level(LogLevel::Debug);
     log::log(LogLevel::Info, format!("Starting mist for minecraft {}/{}", SERVER_VERSION, SERVER_PROTOCOL_VERSION).as_str());
 
     // just to ensure that config has loaded

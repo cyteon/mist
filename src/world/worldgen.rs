@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use once_cell::sync::Lazy;
 use tokio::sync::Mutex;
@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 use crate::world::chunks::{Chunk, Region};
 
 // world variable accessible everywhere
-pub static REGIONS: Lazy<Mutex<HashMap<(i32, i32), Region>>> = Lazy::new(|| {
+pub static REGIONS: Lazy<Mutex<HashMap<(i32, i32), Arc<Mutex<Region>>>>> = Lazy::new(|| {
     Mutex::new(HashMap::new())
 });
 
@@ -25,7 +25,7 @@ pub async fn initial_gen() {
             }
 
             let mut regions = REGIONS.lock().await;
-            regions.insert((x, z), region);
+            regions.insert((x, z), Arc::new(Mutex::new(region)));
         }
     }
 
@@ -34,19 +34,22 @@ pub async fn initial_gen() {
 }
 
 // only loading into memory once needed helps reduce memory usage, we will also unload later on
-pub async fn get_region(x: i32, z: i32) -> Region {
+pub async fn get_region(x: i32, z: i32) -> Arc<Mutex<Region>> {
     let mut regions = REGIONS.lock().await;
     let region = regions.get(&(x, z));
 
     match region {
-        Some(r) => r.clone(),
+        Some(r) => Arc::clone(r),
+
         None => {
             let region_file_path = format!("world/regions/{}_{}.mist_region", x, z);
+            
             if std::path::Path::new(&region_file_path).exists() {
                 let region = Region::load(x, z).await.ok().unwrap();
-                regions.insert((x, z), region.clone());
+                let region_arc = Arc::new(Mutex::new(region));
+                regions.insert((x, z), Arc::clone(&region_arc));
 
-                region
+                region_arc
             } else {
                 let mut region = Region::new(x, z);
 
@@ -56,8 +59,12 @@ pub async fn get_region(x: i32, z: i32) -> Region {
                     }
                 }
 
-                regions.insert((x, z), region.clone());
-                region
+                dbg!("Generated new region {}, {}", x, z);
+
+                let region_arc = Arc::new(Mutex::new(region));
+                regions.insert((x, z), Arc::clone(&region_arc));
+
+                region_arc
             }
         },
     }

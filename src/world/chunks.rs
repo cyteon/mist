@@ -31,7 +31,7 @@ impl Region {
             self.x,
             self.z
         );
-
+        
         let serialized = postcard::to_allocvec(self)
             .context("Failed to serialize region")?;
     
@@ -98,7 +98,7 @@ impl Chunk {
                 chunk.sections[0].set_block(
                     x, 0, z, 
                     crate::types::blocks::get("minecraft:grass_block").unwrap().id
-                ); // should be grass
+                );
             }
         }
 

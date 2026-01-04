@@ -1,6 +1,6 @@
 use tokio::io::AsyncReadExt;
 
-use crate::{net::codec::{read_position, read_var}, types::player::Player};
+use crate::{net::codec::{read_position, read_var}, types::player::Player, world::worldgen::get_region};
 
 pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, player: &mut Player) -> anyhow::Result<()> {
     let hand = read_var(stream).await?;
@@ -36,12 +36,12 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, player: &
 
     let section_y = by.div_euclid(16) + 4; // cause section 0 is -64
 
-    let mut regions_lock = crate::world::worldgen::REGIONS.lock().await;
-    if let Some(region) = regions_lock.get_mut(&region_pos) {
-        if let Some(chunk) = region.chunks.iter_mut().find(|chunk| chunk.x == chunk_pos.0 && chunk.z == chunk_pos.1) {
-            if let Some(section) = chunk.sections.iter_mut().find(|section| section.y == section_y) {
-                section.set_block((bx & 15) as u8, (by & 15) as u8, (bz & 15) as u8, block_id);
-            }
+    let region = get_region(region_pos.0, region_pos.1).await;
+    let mut region_lock = region.lock().await;
+
+    if let Some(chunk) = region_lock.chunks.iter_mut().find(|chunk| chunk.x == chunk_pos.0 && chunk.z == chunk_pos.1) {
+        if let Some(section) = chunk.sections.iter_mut().find(|section| section.y == section_y) {
+            section.set_block((bx & 15) as u8, (by & 15) as u8, (bz & 15) as u8, block_id);
         }
     }
 

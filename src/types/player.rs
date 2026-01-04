@@ -129,7 +129,7 @@ impl Player {
         self.x += self.vx;
         self.z += self.vz;
 
-        dbg!(format!("Player {} is at chunk area center: {}, {}", self.username, (self.x as i32) >> 4, (self.z as i32) >> 4));
+        crate::log::log(fancy_log::LogLevel::Debug, &format!("Player in chunk area center: {}, {}", (self.x as i32) >> 4, (self.z as i32) >> 4));
 
         if !self.chunks_loaded {
             return Ok(());
@@ -150,7 +150,7 @@ impl Player {
                 current_chunk_area_center_z
             ).await?;
 
-            dbg!(format!("Player {} moved to new chunk area center: {}, {}", self.username, current_chunk_area_center_x, current_chunk_area_center_z));
+            crate::log::log(fancy_log::LogLevel::Debug, &format!("Player {} moved to new chunk area center: {}, {}", self.username, current_chunk_area_center_x, current_chunk_area_center_z));
 
             let view_distance = crate::config::SERVER_CONFIG.view_distance as i32;
             let chunk_loading_width = view_distance * 2 + 7;
@@ -178,21 +178,14 @@ impl Player {
                 dx * dx + dz * dz
             });
 
-            dbg!(format!("Sending {} new chunks to player {}", chunks_to_send.len(), self.username));
+            crate::log::log(fancy_log::LogLevel::Debug, &format!("Player {} needs {} new chunks", self.username, chunks_to_send.len()));
 
             for (cx, cz) in chunks_to_send {
-                let region: crate::world::chunks::Region = get_region(cx >> 5, cz >> 5).await;
+                let region: crate::world::chunks::Region = get_region(cx >> 5, cz >> 5).await.lock().await.clone();
                 let chunk = region.chunks.iter().find(|chunk| chunk.x == cx && chunk.z == cz).unwrap();
 
-                dbg!(format!("Preparing to send chunk {}, {} to player {}", cx, cz, self.username));                
-
                 let mut socket = socket.lock().await;
-
-                dbg!(format!("Sending chunk {}, {} to player {}", cx, cz, self.username));
-
                 send_chunk_data_with_light(&mut *socket, &chunk).await?;
-
-                dbg!(format!("Sent chunk {}, {} to player {}", cx, cz, self.username));
             }
 
             self.last_x = self.x;

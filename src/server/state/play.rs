@@ -158,7 +158,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         let mut chunks_to_send = Vec::new();
         for cx in -chunk_loading_width/2..=chunk_loading_width/2 {
             for cz in -chunk_loading_width/2..=chunk_loading_width/2 {
-                let region = get_region(cx >> 5, cz >> 5).await;
+                let region = get_region(cx >> 5, cz >> 5).await.lock().await.clone();
 
                 if let Some(chunk) = region.chunks.iter().find(|chunk| chunk.x == cx && chunk.z == cz) {
                     chunks_to_send.push(chunk.clone());
