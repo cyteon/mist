@@ -177,15 +177,34 @@ impl Player {
                 dx * dx + dz * dz
             });
 
-            for (cx, cz) in chunks_to_send {
-                let region: crate::world::chunks::Region = get_region(cx >> 5, cz >> 5).await.lock().await.clone();
-                let chunk = region.chunks.iter().find(|chunk| chunk.x == cx && chunk.z == cz).unwrap();
+            let username_clone = self.username.clone();
 
-                let mut socket = socket.lock().await;
-                send_chunk_data_with_light(&mut *socket, &chunk).await?;
+            tokio::spawn(async move {
+                for batch in chunks_to_send.chunks(16) {
+                    let mut failed_in_batch = 0;
 
-                crate::log::log(fancy_log::LogLevel::Debug, &format!("Sent chunk {}, {} to player {}", cx, cz, self.username));
-            }
+                    for (cx, cz) in batch {
+                        let region: crate::world::chunks::Region = get_region(cx >> 5, cz >> 5).await.lock().await.clone();
+                        let chunk = region.chunks.iter().find(|chunk| chunk.x == *cx && chunk.z == *cz).unwrap();
+
+                        let mut socket = socket.lock().await;
+                        let result = send_chunk_data_with_light(&mut *socket, &chunk).await;
+
+                        if result.is_ok() {
+                            crate::log::log(fancy_log::LogLevel::Debug, &format!("Sent chunk {}, {} to player {}", cx, cz, username_clone));
+                        } else {
+                            crate::log::log(fancy_log::LogLevel::Warn, &format!("Failed to send chunk {}, {} to player {}: {:?}", cx, cz, username_clone, result.err().unwrap()));
+                            failed_in_batch += 1;
+                        }
+                    }
+
+                    // if 4 fails i doubt the rest will work
+                    if failed_in_batch > 4 {
+                        crate::log::log(fancy_log::LogLevel::Warn, &format!("Failed to send chunks in batch to player {}", username_clone));
+                        break;
+                    }
+                }
+            });
 
             self.last_x = self.x;
             self.last_z = self.z;
