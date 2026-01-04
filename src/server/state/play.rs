@@ -172,7 +172,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         });
 
         tokio::spawn(async move {            
-            for batch in chunks_to_send.chunks(8) {
+            for batch in chunks_to_send.chunks(16) {
                 let mut encoding_tasks = Vec::new();
                 for chunk in batch {
                     let chunk = chunk.clone();

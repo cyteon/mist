@@ -59,8 +59,6 @@ pub async fn get_region(x: i32, z: i32) -> Arc<Mutex<Region>> {
                     }
                 }
 
-                dbg!("Generated new region {}, {}", x, z);
-
                 let region_arc = Arc::new(Mutex::new(region));
                 regions.insert((x, z), Arc::clone(&region_arc));
 

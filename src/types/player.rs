@@ -129,8 +129,8 @@ impl Player {
         self.x += self.vx;
         self.z += self.vz;
 
-        crate::log::log(fancy_log::LogLevel::Debug, &format!("Player in chunk area center: {}, {}", (self.x as i32) >> 4, (self.z as i32) >> 4));
-        crate::log::log(fancy_log::LogLevel::Debug, &format!("Player position: {:.2}, {:.2}, {:.2}", self.x, self.y, self.z));
+        //crate::log::log(fancy_log::LogLevel::Debug, &format!("Player in chunk area center: {}, {}", (self.x as i32) >> 4, (self.z as i32) >> 4));
+        //crate::log::log(fancy_log::LogLevel::Debug, &format!("Player position: {:.2}, {:.2}, {:.2}", self.x, self.y, self.z));
 
         if !self.chunks_loaded {
             return Ok(());
@@ -150,8 +150,6 @@ impl Player {
                 current_chunk_area_center_x,
                 current_chunk_area_center_z
             ).await?;
-
-            crate::log::log(fancy_log::LogLevel::Debug, &format!("Player {} moved to new chunk area center: {}, {}", self.username, current_chunk_area_center_x, current_chunk_area_center_z));
 
             let view_distance = crate::config::SERVER_CONFIG.view_distance as i32;
             let chunk_loading_width = view_distance * 2 + 7;
@@ -179,14 +177,14 @@ impl Player {
                 dx * dx + dz * dz
             });
 
-            crate::log::log(fancy_log::LogLevel::Debug, &format!("Player {} needs {} new chunks", self.username, chunks_to_send.len()));
-
             for (cx, cz) in chunks_to_send {
                 let region: crate::world::chunks::Region = get_region(cx >> 5, cz >> 5).await.lock().await.clone();
                 let chunk = region.chunks.iter().find(|chunk| chunk.x == cx && chunk.z == cz).unwrap();
 
                 let mut socket = socket.lock().await;
                 send_chunk_data_with_light(&mut *socket, &chunk).await?;
+
+                crate::log::log(fancy_log::LogLevel::Debug, &format!("Sent chunk {}, {} to player {}", cx, cz, self.username));
             }
 
             self.last_x = self.x;
