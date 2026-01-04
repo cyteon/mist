@@ -3,7 +3,7 @@ use tokio::io::AsyncReadExt;
 use crate::net::codec::read_var;
 
 pub struct LoginStartPacket {
-    pub name: String,
+    pub username: String,
     pub uuid: String
 }
 
@@ -15,10 +15,10 @@ pub async fn read_login_start<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow
         anyhow::bail!("Expected login start packet ID 0x00, got {}", packet_id);
     }
 
-    let name_len = read_var(stream).await? as usize;
-    let mut name_buf = vec![0u8; name_len];
-    stream.read_exact(&mut name_buf).await?;
-    let name = String::from_utf8(name_buf)?;
+    let username_len = read_var(stream).await? as usize;
+    let mut username_buf = vec![0u8; username_len];
+    stream.read_exact(&mut username_buf).await?;
+    let username = String::from_utf8(username_buf)?;
 
     let uuid_encoded = stream.read_i128().await?;
     let uuid = format!("{:08x}-{:04x}-{:04x}-{:04x}-{:012x}",
@@ -30,7 +30,7 @@ pub async fn read_login_start<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow
     );
 
     Ok(LoginStartPacket {
-        name,
+        username,
         uuid
     })
 }

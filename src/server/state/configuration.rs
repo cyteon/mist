@@ -7,20 +7,26 @@ use crate::{
     net::{
         packet::{
             ClientPacket, ProtocolState, read_packet
-        }, 
+        },
         
         packets::{
             clientbound::{
-                finish_configuration::send_finish_configuration, known_packs::send_known_packs, login_play::send_login_play, plugin_message::send_plugin_message, registry_data::send_all_registers
-            }, 
+                finish_configuration::send_finish_configuration,
+                known_packs::send_known_packs,
+                login_play::send_login_play,
+                plugin_message::send_plugin_message,
+                registry_data::send_all_registers
+            },
             
             serverbound::known_packs::read_known_packs
         }
-    }, 
+    },
     
     server::{
         encryption::EncryptedStream, state::play
-    }, types::player::Player
+    },
+    
+    types::player::Player
 };
 
 pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Player) -> anyhow::Result<()> {

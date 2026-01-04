@@ -43,6 +43,7 @@ pub static PLAYERS: Lazy<RwLock<HashMap<String, Arc<Mutex<Player>>>>> =
 
 pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow::Result<()> {
     crate::log::log(LogLevel::Debug, format!("{} has entered the play state", player.username).as_str());
+    crate::log::log(LogLevel::Info, format!("{} ({}) joined the server", player.username, player.uuid).as_str());
 
     let uuid = player.uuid.clone();
     let username = player.username.clone();
@@ -305,20 +306,6 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                     format!("{} has timed out during play state: {}", username, e).as_str()
                 );
 
-                PLAYER_SOCKET_MAP.write().await.remove(&uuid);
-                PLAYERS.write().await.remove(&uuid);
-
-                let mut write_guard = write.lock().await;
-                write_guard.shutdown().await?;
-
-                keep_alive_future.abort();
-                chunk_sender_task.abort();
-
-                for other_player in PLAYER_SOCKET_MAP.read().await.values().into_iter() {
-                    let socket_lock = &mut *other_player.lock().await;
-                    send_player_info_remove(socket_lock, vec![&uuid]).await?;
-                }
-
                 break; 
             }
                 
@@ -328,24 +315,39 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                     format!("Error while reading packet from {} during play state: {}", username, e).as_str()
                 );
 
-                PLAYER_SOCKET_MAP.write().await.remove(&uuid);
-                PLAYERS.write().await.remove(&uuid);
-
-                let mut write_guard = write.lock().await;
-                write_guard.shutdown().await?;
-
-                keep_alive_future.abort();
-                chunk_sender_task.abort();
-
-                for other_player in PLAYER_SOCKET_MAP.read().await.values().into_iter() {
-                    let socket_lock = &mut *other_player.lock().await;
-                    send_player_info_remove(socket_lock, vec![&uuid]).await?;
-                }
-
                 break; 
             }
         }
     }
+
+    PLAYER_SOCKET_MAP.write().await.remove(&uuid);
+    PLAYERS.write().await.remove(&uuid);
+
+    let mut write_guard = write.lock().await;
+    write_guard.shutdown().await?;
+
+    keep_alive_future.abort();
+    chunk_sender_task.abort();
+
+    if PLAYERS.read().await.is_empty() {
+        crate::log::log(
+            LogLevel::Debug, 
+            "No players online, saving and clearing regions from memory"
+        );
+
+        crate::server::save::save().await;
+        crate::world::worldgen::REGIONS.lock().await.clear(); // unnecesary having all regions loaded in while nobody is playing
+    } else {
+        for other_player in PLAYER_SOCKET_MAP.read().await.values().into_iter() {
+            let socket_lock = &mut *other_player.lock().await;
+            send_player_info_remove(socket_lock, vec![&uuid]).await?;
+        }
+    }
+
+    crate::log::log(
+        LogLevel::Info, 
+        format!("{} ({}) left the server", username, uuid).as_str()
+    );
 
     Ok(())
 }

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use once_cell::sync::Lazy;
 
 pub struct Block {
-    pub key: String,
     pub id: u16,
 }
 
@@ -23,7 +22,6 @@ pub static BLOCKS: Lazy<HashMap<String, Block>> = Lazy::new(|| {
         hasmap.insert(
             key.clone(),
             Block {
-                key,
                 id: default_state.id,
             },
         );

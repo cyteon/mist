@@ -9,7 +9,7 @@ use crate::{
             disconnect::send_disconnect_login, 
             encryption_request::send_encryption_request, 
             login_success::send_login_success
-        }, 
+        },
         
         serverbound::{
             encryption_response::read_encryption_response, 
@@ -17,12 +17,12 @@ use crate::{
             login_acknowledged::read_login_acknowledged, 
             login_start::read_login_start
         }
-    }, 
+    },
     
     server::{
         auth::authenticate_player, 
         encryption::EncryptedStream, state::configuration
-    }, 
+    },
     
     types::player::Player
 };
@@ -53,11 +53,10 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
     }
 
     let login_start = read_login_start(&mut socket).await?;
-    crate::log::log(LogLevel::Info, format!("{} ({}) is connecting", login_start.name, login_start.uuid).as_str());
 
     player = Some(Player::new(
         login_start.uuid.clone(),
-        login_start.name.clone()
+        login_start.username.clone()
     ));
 
     send_encryption_request(&mut socket).await?;
