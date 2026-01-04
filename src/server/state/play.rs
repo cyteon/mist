@@ -47,11 +47,15 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
     let uuid = player.uuid.clone();
     let username = player.username.clone();
 
-    let socket = Arc::new(Mutex::new(socket));
+    let (read, write) = socket.into_split();
+
+    let read = Arc::new(Mutex::new(read));
+    let write = Arc::new(Mutex::new(write));
+
     let player = Arc::new(Mutex::new(player));
 
     let keep_alive_future ={
-        let socket = Arc::clone(&socket);
+        let write_socket = Arc::clone(&write);
 
         tokio::spawn(async move {
             let mut interval = time::interval(Duration::from_secs(15));
@@ -59,13 +63,13 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
             loop {
                 interval.tick().await;
 
-                let mut socket = socket.lock().await;
+                let mut socket = write_socket.lock().await;
                 send_keep_alive(&mut *socket).await.unwrap();
             }
         })
     };
 
-    send_sync_player_position(&mut *socket.lock().await, &*player.lock().await).await?;
+    send_sync_player_position(&mut *write.lock().await, &*player.lock().await).await?;
 
     crate::log::log(
         LogLevel::Debug, 
@@ -74,7 +78,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
 
     PLAYER_SOCKET_MAP.write().await.insert(
         player.lock().await.uuid.clone(),
-        Arc::clone(&socket)
+        Arc::clone(&write)
     );
 
     PLAYERS.write().await.insert(
@@ -108,7 +112,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         }
 
         if !other_players_owned.is_empty() {
-            let mut socket_guard = socket.lock().await;
+            let mut socket_guard = write.lock().await;
 
             send_player_info_update(
                 &mut *socket_guard, 
@@ -123,7 +127,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         let player_clone = player_guard.clone();
         drop(player_guard);
 
-        let mut socket_guard: tokio::sync::MutexGuard<'_, EncryptedStream<TcpStream>> = player_socket.lock().await;
+        let mut socket_guard = player_socket.lock().await;
 
         send_player_info_update(
             &mut *socket_guard, 
@@ -137,8 +141,8 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
         format!("Sent player info updates for {}", player.lock().await.username).as_str()
     );
 
-    send_game_event(&mut *socket.lock().await, 13, 0.0).await?;
-    send_set_center_chunk(&mut *socket.lock().await, 0, 0).await?;
+    send_game_event(&mut *write.lock().await, 13, 0.0).await?;
+    send_set_center_chunk(&mut *write.lock().await, 0, 0).await?;
 
     crate::log::log(
         LogLevel::Debug, 
@@ -146,7 +150,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
     );
 
     let chunk_sender_task = {
-        let socket = Arc::clone(&socket);
+        let socket = Arc::clone(&write);
         let player_name = player.lock().await.username.clone();
         let view_distance = crate::config::SERVER_CONFIG.view_distance as i32;
         let chunk_loading_width = view_distance * 2 + 7;
@@ -212,7 +216,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
     };
 
     loop {
-        let mut socket_guard = socket.lock().await;
+        let mut socket_guard = read.lock().await;
 
         match timeout(Duration::from_secs(30), read_packet(&mut *socket_guard, &ProtocolState::Play)).await {
             Ok(Ok(Some(packet))) => {
@@ -304,7 +308,9 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                 PLAYER_SOCKET_MAP.write().await.remove(&uuid);
                 PLAYERS.write().await.remove(&uuid);
 
-                socket_guard.shutdown().await?;
+                let mut write_guard = write.lock().await;
+                write_guard.shutdown().await?;
+
                 keep_alive_future.abort();
                 chunk_sender_task.abort();
 
@@ -325,7 +331,9 @@ pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> any
                 PLAYER_SOCKET_MAP.write().await.remove(&uuid);
                 PLAYERS.write().await.remove(&uuid);
 
-                socket_guard.shutdown().await?;
+                let mut write_guard = write.lock().await;
+                write_guard.shutdown().await?;
+
                 keep_alive_future.abort();
                 chunk_sender_task.abort();
 
