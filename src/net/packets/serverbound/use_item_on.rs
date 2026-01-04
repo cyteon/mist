@@ -3,18 +3,18 @@ use tokio::io::AsyncReadExt;
 use crate::{net::codec::{read_position, read_var}, types::player::Player, world::worldgen::get_region};
 
 pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, player: &mut Player) -> anyhow::Result<()> {
-    let hand = read_var(stream).await?;
+    let _hand = read_var(stream).await?;
     let (x, y, z) = read_position(stream).await?;
 
     let face = stream.read_u8().await?;
 
-    let cursor_x = stream.read_f32().await?;
-    let cursor_y = stream.read_f32().await?;
-    let cursor_z = stream.read_f32().await?;
+    let _cursor_x = stream.read_f32().await?;
+    let _cursor_y = stream.read_f32().await?;
+    let _cursor_z = stream.read_f32().await?;
     
-    let inside_block = stream.read_u8().await?;
-    let world_border_hit = stream.read_u8().await?;
-    let sequence = read_var(stream).await?;
+    let _inside_block = stream.read_u8().await?;
+    let _world_border_hit = stream.read_u8().await?;
+    let _sequence = read_var(stream).await?;
 
     let (mut bx, mut by, mut bz) = (x, y, z);
 

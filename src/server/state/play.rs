@@ -41,7 +41,7 @@ use crate::{
 pub static PLAYERS: Lazy<RwLock<HashMap<String, Arc<Mutex<Player>>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
-pub async fn play(socket: EncryptedStream<TcpStream>, mut player: Player) -> anyhow::Result<()> {
+pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow::Result<()> {
     crate::log::log(LogLevel::Debug, format!("{} has entered the play state", player.username).as_str());
 
     let uuid = player.uuid.clone();

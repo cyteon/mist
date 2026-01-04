@@ -7,8 +7,8 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyh
 
     let (x, y, z) = read_position(stream).await?;
 
-    let face = stream.read_u8().await?;
-    let sequence = read_var(stream).await?;
+    let _face = stream.read_u8().await?;
+    let _sequence = read_var(stream).await?;
 
     if status == 0 || status == 2 {
         let chunk_pos = (x.div_euclid(16), z.div_euclid(16));

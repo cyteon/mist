@@ -64,8 +64,6 @@ pub async fn save() {
         std::fs::write(player_path, player_json).unwrap();
     }
 
-    dbg!(&crate::world::worldgen::REGIONS.lock().await.len());
-
     for region in crate::world::worldgen::REGIONS.lock().await.values() {
         let region = region.lock().await;
         region.save().await.unwrap();

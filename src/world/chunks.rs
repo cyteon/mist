@@ -4,7 +4,6 @@ use anyhow::Context;
 use flate2::write::ZlibEncoder;
 use flate2::read::ZlibDecoder;
 use flate2::Compression;
-use tokio::io::AsyncWriteExt;
 
 use crate::net::codec::write_var;
 
@@ -82,7 +81,7 @@ pub struct Chunk {
 impl Chunk {
     pub fn generate(x: i32, z: i32) -> Self {
         // we will use this when proper generation
-        let seed = crate::config::SERVER_CONFIG.world_seed as u64;
+        let _seed = crate::config::SERVER_CONFIG.world_seed as u64;
 
         // TODO: actual generation
 

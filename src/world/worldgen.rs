@@ -24,8 +24,8 @@ pub async fn initial_gen() {
                 }
             }
 
-            let mut regions = REGIONS.lock().await;
-            regions.insert((x, z), Arc::new(Mutex::new(region)));
+            region.save().await.unwrap();
+            crate::log::log(fancy_log::LogLevel::Info, &format!("Generated region {}, {}", x, z));
         }
     }
 

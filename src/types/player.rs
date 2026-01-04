@@ -130,6 +130,7 @@ impl Player {
         self.z += self.vz;
 
         crate::log::log(fancy_log::LogLevel::Debug, &format!("Player in chunk area center: {}, {}", (self.x as i32) >> 4, (self.z as i32) >> 4));
+        crate::log::log(fancy_log::LogLevel::Debug, &format!("Player position: {:.2}, {:.2}, {:.2}", self.x, self.y, self.z));
 
         if !self.chunks_loaded {
             return Ok(());

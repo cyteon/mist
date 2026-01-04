@@ -5,7 +5,7 @@ use num_bigint::BigInt;
 use crate::RSA_PUBLIC_KEY;
 
 pub struct PlayerData {
-    pub name: String,
+    pub username: String,
     pub textures: String,
     pub texture_signature: String,
 }
@@ -36,11 +36,11 @@ pub async fn authenticate_player(username: &str, shared_secret: Vec<u8>) -> anyh
     if resp.status().is_success() {
         let json: serde_json::Value = resp.json().await?;
         
-        let name = json["name"].as_str().unwrap_or("").to_string();
+        let username = json["name"].as_str().unwrap_or("").to_string();
         let textures = json["properties"][0]["value"].as_str().unwrap_or("").to_string();
         let texture_signature = json["properties"][0]["signature"].as_str().unwrap_or("").to_string();
 
-        Ok(PlayerData { name, textures, texture_signature })
+        Ok(PlayerData { username, textures, texture_signature })
     } else {
         anyhow::bail!("Failed to authenticate player: HTTP {}", resp.status());
     }

@@ -9,7 +9,7 @@ use crate::{
     }, 
 
     server::{
-        encryption::{EncryptedStream, EncryptedWriter}, 
+        encryption::EncryptedWriter, 
         state
     }
 };
