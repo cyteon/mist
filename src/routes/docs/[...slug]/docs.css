@@ -4,12 +4,12 @@
     @apply text-neutral-200;
 }
 
-h1 {
+h1, h3 {
     margin-bottom: 0 !important;
 }
 
 h2 {
-    margin-top: 1.0666667em !important;
+    margin-top: 0.5em !important;
 }
 
 pre {
@@ -18,5 +18,15 @@ pre {
 }
 
 code {
-    font-size: 1.2rem !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+
+    padding: 0.2rem 0.4rem !important;
+    border-radius: 0.25rem !important;
+
+    @apply bg-neutral-800;
+}
+
+code::before, code::after {
+    content: "" !important;
 }
