@@ -1,9 +1,9 @@
-import { Home, ArrowDownToLine } from "lucide-svelte";
+import { Home, ArrowDownToLine, Settings } from "lucide-svelte";
 
 export default {
     pages: [
         {
-            "slug": "introduction",
+            "slug": "intro",
             "title": "Introduction",
             "icon": Home,
         },
@@ -11,6 +11,11 @@ export default {
             "slug": "setup",
             "title": "Setup",
             "icon": ArrowDownToLine,
+        },
+        {
+            "slug": "config",
+            "title": "Configuration",
+            "icon": Settings,
         }
     ]
 }
