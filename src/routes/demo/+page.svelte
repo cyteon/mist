@@ -3,7 +3,7 @@
     <a href="/" class="text-green-300 underline">View site</a>
     <p class="mt-4 text-lg">
         You can view a demo video 
-        <a href="https://youtu.be/4ie10wYYcss" class="text-green-300 underline">here</a> 
+        <a href="https://youtu.be/mOHG03tqhy4" class="text-green-300 underline">here</a> 
         or connect to 45.8.201.37:25565 with minecraft 1.21.11.
     </p>
     <p>If you get an error trying to connect, make sure you are on vanilla 1.12.11 and try to connect a couple more times</p>
