@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+* {
+    @apply text-neutral-200;
+}
+
+h1 {
+    margin-bottom: 0 !important;
+}
+
+h2 {
+    margin-top: 1.0666667em !important;
+}
+
+pre {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+code {
+    font-size: 1.2rem !important;
+}
