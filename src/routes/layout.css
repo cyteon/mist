@@ -3,3 +3,7 @@
 body {
     @apply bg-neutral-900 text-neutral-200;
 }
+
+* {
+    transition: color 0.3s;
+}
