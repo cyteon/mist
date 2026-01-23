@@ -12,6 +12,15 @@ h2 {
     margin-top: 0.5em !important;
 }
 
+a {
+    text-decoration: none;
+    @apply text-green-200;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
 pre {
     margin-top: 0 !important;
     margin-bottom: 0 !important;
