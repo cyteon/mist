@@ -155,15 +155,21 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         let player_name = player.lock().await.username.clone();
         let view_distance = crate::config::SERVER_CONFIG.view_distance as i32;
         let chunk_loading_width = view_distance * 2 + 7;
+
+        let mut by_region: HashMap<(i32, i32), Vec<(i32, i32)>> = HashMap::new();
+        for cx in -chunk_loading_width..=chunk_loading_width {
+            for cz in -chunk_loading_width..=chunk_loading_width {
+                by_region.entry((cx >> 5, cz >> 5)).or_default().push((cx, cz));
+            }
+        }
         
         let mut chunks_to_send = Vec::new();
-        for cx in -chunk_loading_width/2..=chunk_loading_width/2 {
-            for cz in -chunk_loading_width/2..=chunk_loading_width/2 {
-                let region = get_region(cx >> 5, cz >> 5).await.lock().await.clone();
+        for ((rx, rz), coords) in by_region {
+            let region = get_region(rx, rz).await.lock().await.clone();
 
-                if let Some(chunk) = region.chunks.iter().find(|chunk| chunk.x == cx && chunk.z == cz) {
-                    chunks_to_send.push(chunk.clone());
-                }
+            for (cx, cz) in coords {
+                let chunk = region.chunks.iter().find(|chunk| chunk.x == cx && chunk.z == cz).unwrap();
+                chunks_to_send.push(chunk.clone());
             }
         }
 
@@ -173,36 +179,25 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         });
 
         tokio::spawn(async move {            
-            for batch in chunks_to_send.chunks(16) {
-                let mut encoding_tasks = Vec::new();
-                for chunk in batch {
-                    let chunk = chunk.clone();
-                    encoding_tasks.push(tokio::spawn(async move {
-                        let mut buffer = Vec::new();
-                        send_chunk_data_with_light(&mut buffer, &chunk).await?;
-                        Ok::<Vec<u8>, anyhow::Error>(buffer)
-                    }));
-                }
+            let tasks: Vec<_> = chunks_to_send.into_iter().map(|chunk| {
+                tokio::spawn(async move {
+                    let mut buffer = Vec::new();
+                    send_chunk_data_with_light(&mut buffer, &chunk).await?;
 
-                let results = futures::future::join_all(encoding_tasks).await;
-                
-                {
-                    let mut socket = socket.lock().await;
-                    for result in results {
-                        if let Ok(Ok(packet)) = result {
-                            if socket.write_all(&packet).await.is_err() {
-                                return;
-                            }
-                        }
-                    }
+                    Ok::<Vec<u8>, anyhow::Error>(buffer)
+                })
+            }).collect();
 
-                    if socket.flush().await.is_err() {
-                        return;
-                    }
-                }
-                
-                tokio::task::yield_now().await;
+            let results: Vec<_> = futures::future::join_all(tasks).await;
+            let mut socket = socket.lock().await;
+
+            for result in results {
+                if let Ok(Ok(pkt)) = result {
+                    socket.write_all(&pkt).await.unwrap();
+                } 
             }
+
+            socket.flush().await.unwrap();
 
             crate::log::log(
                 LogLevel::Debug, 

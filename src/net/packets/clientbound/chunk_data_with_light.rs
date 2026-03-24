@@ -2,6 +2,12 @@ use crate::net::codec::write_var;
 use crate::world::chunks::Chunk;
 use byteorder::{WriteBytesExt, BigEndian};
 
+const FULLBRIGHT_ENTRY: [u8; 2048] = {
+    let mut arr = [0xFFu8; 2048];
+
+    arr
+};
+
 // https://minecraft.wiki/w/Java_Edition_protocol/Packets#Chunk_Data_and_Update_Light
 pub async fn send_chunk_data_with_light<W: tokio::io::AsyncWriteExt + Unpin>(
     stream: &mut W,
@@ -17,13 +23,12 @@ pub async fn send_chunk_data_with_light<W: tokio::io::AsyncWriteExt + Unpin>(
     
     let mut data_section = Vec::new();
     for section in &chunk.sections {
-        let block_count = section.block_count();
-        data_section.write_i16::<BigEndian>(block_count)?;
+        data_section.write_i16::<BigEndian>(section.block_count)?;
         
         section.blocks.write_paletted_container(&mut data_section)?;
         
         data_section.write_u8(0)?; // 0 bpe
-        data_section.write_u8(1)?; // plains biome
+        data_section.write_u8(1)?;
     }
     
     write_var(&mut packet_data, data_section.len() as i32)?;
@@ -55,14 +60,14 @@ pub async fn send_chunk_data_with_light<W: tokio::io::AsyncWriteExt + Unpin>(
     write_var(&mut packet_data, section_count as i32)?;
     for _ in 0..section_count {
         write_var(&mut packet_data, 2048)?;
-        packet_data.extend_from_slice(&[0xFF; 2048]);
+        packet_data.extend_from_slice(&FULLBRIGHT_ENTRY);
     }
 
     // block light arry
     write_var(&mut packet_data, section_count as i32)?;
     for _ in 0..section_count {
         write_var(&mut packet_data, 2048)?;
-        packet_data.extend_from_slice(&[0xFF; 2048]);
+        packet_data.extend_from_slice(&FULLBRIGHT_ENTRY);
     }
     
     let mut len_prefix = Vec::with_capacity(5);

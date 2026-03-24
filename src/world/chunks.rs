@@ -109,6 +109,7 @@ impl Chunk {
 pub struct Section {
     pub y: i32,
     pub blocks: BlockStorage,
+    pub block_count: i16,
 }
 
 impl Section {
@@ -116,14 +117,22 @@ impl Section {
         Section {
             y,
             blocks: BlockStorage::new(),
+            block_count: 0,
         }
     }
 
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block_id: u16) {
         let idx = (y as usize * 16 * 16) + (z as usize * 16) + (x as usize);
-        
+        let old_palette_idx = self.blocks.get_palette_index(idx, self.blocks.bits_per_block as usize);
+        let old_block = self.blocks.palette.get(old_palette_idx as usize).copied().unwrap_or(0);
         let mut palette_index = self.blocks.palette.iter().position(|&id| id == block_id);
         
+        if old_block == 0 && block_id != 0 {
+            self.block_count += 1; 
+        } else if old_block != 0 && block_id == 0 {
+            self.block_count -= 1;
+        }
+
         if palette_index.is_none() {
             self.blocks.palette.push(block_id);
             palette_index = Some(self.blocks.palette.len() - 1);
@@ -151,20 +160,6 @@ impl Section {
             4..=8 => bits,
             _ => 15, 
         }
-    }
-
-    pub fn block_count(&self) -> i16 {
-        let mut count = 0i16;
-        
-        for i in 0..4096 {
-            let palette_idx = self.blocks.get_palette_index(i, self.blocks.bits_per_block as usize);
-            if let Some(&block_id) = self.blocks.palette.get(palette_idx as usize) {
-                if block_id != 0 {
-                    count += 1;
-                }
-            }
-        }
-        count
     }
 }
 
