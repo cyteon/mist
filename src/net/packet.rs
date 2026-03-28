@@ -1,4 +1,6 @@
 use tokio::io::AsyncReadExt;
+use std::collections::HashMap;
+use once_cell::sync::Lazy;
 
 use crate::net::codec::read_var;
 
@@ -33,6 +35,61 @@ pub enum ProtocolState {
     Configuration,
     Play
 }
+
+pub static PACKETS: Lazy<HashMap<String, i64>> = Lazy::new(|| {
+    let bytes = include_bytes!("../assets/packets.json");
+    let json: HashMap<String, serde_json::Value> =
+        serde_json::from_slice(bytes).expect("Failed to parse packets.json");
+    
+    let mut hashmap = HashMap::new();
+
+    for key in json["handshake"]["serverbound"].as_object().unwrap().keys() {
+        let value = json["handshake"]["serverbound"][key]["protocol_id"].as_i64().unwrap();
+        hashmap.insert("handshake:serverbound:".to_string() + key, value);
+    }
+
+    for key in json["configuration"]["clientbound"].as_object().unwrap().keys() {
+        let value = json["configuration"]["clientbound"][key]["protocol_id"].as_i64().unwrap();
+        hashmap.insert("configuration:clientbound:".to_string() + key, value);
+    }
+
+    for key in json["configuration"]["serverbound"].as_object().unwrap().keys() {
+        let value = json["configuration"]["serverbound"][key]["protocol_id"].as_i64().unwrap();
+        hashmap.insert("configuration:serverbound:".to_string() + key, value);
+    }
+
+    for key in json["login"]["clientbound"].as_object().unwrap().keys() {
+        let value = json["login"]["clientbound"][key]["protocol_id"].as_i64().unwrap();
+        hashmap.insert("login:clientbound:".to_string() + key, value);
+    }
+
+    for key in json["login"]["serverbound"].as_object().unwrap().keys() {
+        let value = json["login"]["serverbound"][key]["protocol_id"].as_i64().unwrap();
+        hashmap.insert("login:serverbound:".to_string() + key, value);
+    }
+
+    for key in json["play"]["clientbound"].as_object().unwrap().keys() {
+        let value = json["play"]["clientbound"][key]["protocol_id"].as_i64().unwrap();
+        hashmap.insert("play:clientbound:".to_string() + key, value);
+    }
+
+    for key in json["play"]["serverbound"].as_object().unwrap().keys() {
+        let value = json["play"]["serverbound"][key]["protocol_id"].as_i64().unwrap();
+        hashmap.insert("play:serverbound:".to_string() + key, value);
+    }
+
+    for key in json["status"]["clientbound"].as_object().unwrap().keys() {
+        let value = json["status"]["clientbound"][key]["protocol_id"].as_i64().unwrap();
+        hashmap.insert("status:clientbound:".to_string() + key, value);
+    }
+
+    for key in json["status"]["serverbound"].as_object().unwrap().keys() {
+        let value = json["status"]["serverbound"][key]["protocol_id"].as_i64().unwrap();
+        hashmap.insert("status:serverbound:".to_string() + key, value);
+    }
+
+    hashmap
+});
 
 pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &ProtocolState) -> anyhow::Result<Option<ClientPacket>> {
     let packet_len = read_var(stream).await?;
