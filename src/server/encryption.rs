@@ -19,8 +19,9 @@ pub struct EncryptedReader<R> {
 pub struct EncryptedWriter<W> {
     pub stream: W,
     pub encryptor: Encryptor<Aes128>,
+    pending: Vec<u8>,
+    pending_pos: usize,
 }
-
 
 impl<S> EncryptedStream<S> {
     pub fn new(stream: S, secret: &[u8]) -> Self {
@@ -48,6 +49,8 @@ impl EncryptedStream<tokio::net::TcpStream> {
             EncryptedWriter {
                 stream: write,
                 encryptor: self.encryptor,
+                pending: Vec::new(),
+                pending_pos: 0,
             }
         )
     }
@@ -85,27 +88,63 @@ impl<W: AsyncWrite + Unpin> AsyncWrite for EncryptedWriter<W> {
         cx: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> std::task::Poll<std::io::Result<usize>> {
-        let mut encrypted_buf = buf.to_vec();
         let this = self.as_mut().get_mut();
-        
-        for byte in encrypted_buf.iter_mut() {
+
+        while this.pending_pos < this.pending.len() {
+            let n = ready!(std::pin::Pin::new(&mut this.stream)
+                .poll_write(cx, &this.pending[this.pending_pos..]))?;
+            if n == 0 {
+                return std::task::Poll::Ready(Err(std::io::Error::new(
+                    std::io::ErrorKind::WriteZero,
+                    "write returned 0 bytes",
+                )));
+            }
+            this.pending_pos += n;
+        }
+
+        this.pending.clear();
+        this.pending_pos = 0;
+
+        this.pending.extend_from_slice(buf);
+        for byte in this.pending.iter_mut() {
             let block = GenericArray::from_mut_slice(std::slice::from_mut(byte));
             this.encryptor.encrypt_block_mut(block);
         }
-        
-        let n = ready!(std::pin::Pin::new(&mut this.stream).poll_write(cx, &encrypted_buf))?;
-        std::task::Poll::Ready(Ok(n))
+
+        match std::pin::Pin::new(&mut this.stream).poll_write(cx, &this.pending) {
+            std::task::Poll::Ready(Ok(n)) => { this.pending_pos = n; }
+            std::task::Poll::Ready(Err(e)) => return std::task::Poll::Ready(Err(e)),
+            std::task::Poll::Pending => {}
+        }
+
+        std::task::Poll::Ready(Ok(buf.len()))
     }
 
     fn poll_flush(
-        self: std::pin::Pin<&mut Self>, 
+        mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>
     ) -> std::task::Poll<Result<(), std::io::Error>> {
-        std::pin::Pin::new(&mut self.get_mut().stream).poll_flush(cx)
+        let this = self.as_mut().get_mut();
+
+        while this.pending_pos < this.pending.len() {
+            let n = ready!(std::pin::Pin::new(&mut this.stream)
+                .poll_write(cx, &this.pending[this.pending_pos..]))?;
+            if n == 0 {
+                return std::task::Poll::Ready(Err(std::io::Error::new(
+                    std::io::ErrorKind::WriteZero,
+                    "write returned 0 bytes",
+                )));
+            }
+            this.pending_pos += n;
+        }
+        this.pending.clear();
+        this.pending_pos = 0;
+
+        std::pin::Pin::new(&mut this.stream).poll_flush(cx)
     }
 
     fn poll_shutdown(
-        self: std::pin::Pin<&mut Self>, 
+        self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>
     ) -> std::task::Poll<Result<(), std::io::Error>> {
         std::pin::Pin::new(&mut self.get_mut().stream).poll_shutdown(cx)
@@ -157,14 +196,14 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for EncryptedStream<S> {
     }
 
     fn poll_flush(
-        self: std::pin::Pin<&mut Self>, 
+        self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>
     ) -> std::task::Poll<Result<(), std::io::Error>> {
         std::pin::Pin::new(&mut self.get_mut().stream).poll_flush(cx)
     }
 
     fn poll_shutdown(
-        self: std::pin::Pin<&mut Self>, 
+        self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>
     ) -> std::task::Poll<Result<(), std::io::Error>> {
         std::pin::Pin::new(&mut self.get_mut().stream).poll_shutdown(cx)
