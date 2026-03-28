@@ -1,7 +1,7 @@
 use crate::net::codec::write_var;
 
 pub async fn send_player_info_remove<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, uuids: Vec<&String>) -> anyhow::Result<()> {
-    let mut packet_data = vec![0x43];
+    let mut packet_data = vec![crate::net::packet::play::clientbound::PLAYER_INFO_REMOVE as u8];
 
     write_var(&mut packet_data, uuids.len() as i32)?;
     for uuid in uuids {

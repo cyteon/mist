@@ -13,7 +13,7 @@ pub async fn send_chunk_data_with_light<W: tokio::io::AsyncWriteExt + Unpin>(
     stream: &mut W,
     chunk: &Chunk,
 ) -> anyhow::Result<()> {
-    let mut packet_data = vec![0x2C];
+    let mut packet_data = vec![crate::net::packet::play::clientbound::LEVEL_CHUNK_WITH_LIGHT as u8];
     
     packet_data.write_i32::<BigEndian>(chunk.x)?;
     packet_data.write_i32::<BigEndian>(chunk.z)?;

@@ -1,3 +1,5 @@
+include!(concat!(env!("OUT_DIR"), "/packets.rs"));
+
 use tokio::io::AsyncReadExt;
 use std::collections::HashMap;
 use once_cell::sync::Lazy;
@@ -36,61 +38,6 @@ pub enum ProtocolState {
     Play
 }
 
-pub static PACKETS: Lazy<HashMap<String, i64>> = Lazy::new(|| {
-    let bytes = include_bytes!("../assets/packets.json");
-    let json: HashMap<String, serde_json::Value> =
-        serde_json::from_slice(bytes).expect("Failed to parse packets.json");
-    
-    let mut hashmap = HashMap::new();
-
-    for key in json["handshake"]["serverbound"].as_object().unwrap().keys() {
-        let value = json["handshake"]["serverbound"][key]["protocol_id"].as_i64().unwrap();
-        hashmap.insert("handshake:serverbound:".to_string() + key, value);
-    }
-
-    for key in json["configuration"]["clientbound"].as_object().unwrap().keys() {
-        let value = json["configuration"]["clientbound"][key]["protocol_id"].as_i64().unwrap();
-        hashmap.insert("configuration:clientbound:".to_string() + key, value);
-    }
-
-    for key in json["configuration"]["serverbound"].as_object().unwrap().keys() {
-        let value = json["configuration"]["serverbound"][key]["protocol_id"].as_i64().unwrap();
-        hashmap.insert("configuration:serverbound:".to_string() + key, value);
-    }
-
-    for key in json["login"]["clientbound"].as_object().unwrap().keys() {
-        let value = json["login"]["clientbound"][key]["protocol_id"].as_i64().unwrap();
-        hashmap.insert("login:clientbound:".to_string() + key, value);
-    }
-
-    for key in json["login"]["serverbound"].as_object().unwrap().keys() {
-        let value = json["login"]["serverbound"][key]["protocol_id"].as_i64().unwrap();
-        hashmap.insert("login:serverbound:".to_string() + key, value);
-    }
-
-    for key in json["play"]["clientbound"].as_object().unwrap().keys() {
-        let value = json["play"]["clientbound"][key]["protocol_id"].as_i64().unwrap();
-        hashmap.insert("play:clientbound:".to_string() + key, value);
-    }
-
-    for key in json["play"]["serverbound"].as_object().unwrap().keys() {
-        let value = json["play"]["serverbound"][key]["protocol_id"].as_i64().unwrap();
-        hashmap.insert("play:serverbound:".to_string() + key, value);
-    }
-
-    for key in json["status"]["clientbound"].as_object().unwrap().keys() {
-        let value = json["status"]["clientbound"][key]["protocol_id"].as_i64().unwrap();
-        hashmap.insert("status:clientbound:".to_string() + key, value);
-    }
-
-    for key in json["status"]["serverbound"].as_object().unwrap().keys() {
-        let value = json["status"]["serverbound"][key]["protocol_id"].as_i64().unwrap();
-        hashmap.insert("status:serverbound:".to_string() + key, value);
-    }
-
-    hashmap
-});
-
 pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &ProtocolState) -> anyhow::Result<Option<ClientPacket>> {
     let packet_len = read_var(stream).await?;
 
@@ -110,7 +57,7 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
     match state {
         ProtocolState::Status => {
             match packet_id {
-                0x01 => {
+                status::serverbound::PING_REQUEST => {
                     Ok(Some(ClientPacket::Ping))
                 },
                 
@@ -120,11 +67,11 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
 
         ProtocolState::Configuration => {
             match packet_id {
-                0x03 => {
+                configuration::serverbound::FINISH_CONFIGURATION => {
                     Ok(Some(ClientPacket::AcknowledgeFinishConfiguration))
                 },
 
-                0x07 => {
+                configuration::serverbound::SELECT_KNOWN_PACKS => {
                     Ok(Some(ClientPacket::KnownPacks(cursor)))
                 },
                 
@@ -136,31 +83,31 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
 
         ProtocolState::Play => {
             match packet_id {
-                0x00 => {
+                play::serverbound::ACCEPT_TELEPORTATION => {
                     Ok(Some(ClientPacket::ConfirmTeleprortion(cursor)))
                 },
 
-                0x08 => {
+                play::serverbound::CHAT => {
                     Ok(Some(ClientPacket::ChatMessage(cursor)))
                 },
 
-                0x28 => {
+                play::serverbound::PLAYER_ACTION => {
                     Ok(Some(ClientPacket::PlayerAction(cursor)))
                 },
 
-                0x3F => {
+                play::serverbound::USE_ITEM_ON => {
                     Ok(Some(ClientPacket::UseItemOn(cursor)))
                 },
 
-                0x1E => {
+                play::serverbound::MOVE_PLAYER_POS => {
                     Ok(Some(ClientPacket::SetPlayerPositionAndRotation(cursor)))
                 },
 
-                0x2A => {
+                play::serverbound::PLAYER_INPUT => {
                     Ok(Some(ClientPacket::PlayerInput(cursor)))
                 },
 
-                0x1F => {
+                play::serverbound::MOVE_PLAYER_ROT => {
                     Ok(Some(ClientPacket::SetPlayerRotation(cursor)))
                 },
                 

@@ -21,7 +21,7 @@ pub async fn send_status_response<W: tokio::io::AsyncWriteExt + Unpin>(stream: &
         crate::config::SERVER_CONFIG.motd
     );
 
-    let mut packet_data = vec![0x00];
+    let mut packet_data = vec![crate::net::packet::status::clientbound::STATUS_RESPONSE as u8];
 
     write_var(&mut packet_data, json.len() as i32)?;
     packet_data.extend_from_slice(json.as_bytes());

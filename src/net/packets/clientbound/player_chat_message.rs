@@ -15,7 +15,7 @@ pub async fn send_player_chat_message<W: tokio::io::AsyncWriteExt + Unpin>(
     target: &mut Player,
     message: &Message
 ) -> anyhow::Result<()> {
-    let mut packet_data = vec![0x3F];
+    let mut packet_data = vec![crate::net::packet::play::clientbound::PLAYER_CHAT as u8];
 
     // sector: header
 

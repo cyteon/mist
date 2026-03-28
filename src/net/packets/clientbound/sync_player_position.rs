@@ -3,7 +3,7 @@ use byteorder::{BigEndian, WriteBytesExt};
 use crate::{net::codec::write_var, types::player::Player};
 
 pub async fn send_sync_player_position<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, player: &Player) -> anyhow::Result<()> {    
-    let mut packet_data = vec![0x46];
+    let mut packet_data = vec![crate::net::packet::play::clientbound::PLAYER_POSITION as u8];
 
     write_var(&mut packet_data, 1)?; // teleport id
     

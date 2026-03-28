@@ -1,7 +1,7 @@
 use crate::net::codec::write_var;
 
 pub async fn send_plugin_message<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
-    let mut packet_data = vec![0x01];
+    let mut packet_data = vec![crate::net::packet::configuration::clientbound::CUSTOM_PAYLOAD as u8];
 
     let channel = b"minecraft:brand";
     let chan_len = channel.len() as i32;

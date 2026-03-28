@@ -31,7 +31,7 @@ pub async fn send_player_info_update<W: tokio::io::AsyncWriteExt + Unpin>(
 	players: Vec<&Player>,
 	actions: Vec<PlayerAction>,
 ) -> anyhow::Result<()> {
-	let mut packet_data = vec![0x44];
+	let mut packet_data = vec![crate::net::packet::play::clientbound::PLAYER_INFO_UPDATE as u8];
 
 	let actions_byte = actions.iter().fold(0u8, |acc, action| acc | action.mask());
 	packet_data.push(actions_byte);

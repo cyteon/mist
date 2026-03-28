@@ -58,7 +58,7 @@ pub async fn send_all_registers<W: AsyncWriteExt + Unpin>(
     stream: &mut W,
 ) -> anyhow::Result<()> {
     for packet in REGISTRY_PACKETS.iter() {
-        let mut packet_data = vec![0x07];
+        let mut packet_data = vec![crate::net::packet::configuration::clientbound::REGISTRY_DATA as u8];
         write_var(&mut packet_data, packet.registry_id.len() as i32)?;
         packet_data.extend_from_slice(packet.registry_id.as_bytes());
         write_var(&mut packet_data, packet.entries.len() as i32)?;

@@ -5,7 +5,7 @@ pub async fn send_disconnect_login<W: tokio::io::AsyncWriteExt + Unpin>(stream: 
         "text": "{}"
     }}"#, reason);
 
-    let mut packet_data = vec![0x00];
+    let mut packet_data = vec![crate::net::packet::login::clientbound::LOGIN_DISCONNECT as u8];
 
     write_var(&mut packet_data, json.len() as i32)?;
     packet_data.extend_from_slice(json.as_bytes());

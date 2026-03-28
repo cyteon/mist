@@ -3,7 +3,7 @@ use byteorder::{WriteBytesExt, BigEndian};
 use crate::{config::SERVER_CONFIG, net::codec::write_var};
 
 pub async fn send_login_play<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
-    let mut packet_data = vec![0x30];
+    let mut packet_data = vec![crate::net::packet::play::clientbound::LOGIN as u8];
 
     packet_data.write_i32::<BigEndian>(1)?; // palceholder for entity id
     packet_data.push(false as u8); // is hardcore
