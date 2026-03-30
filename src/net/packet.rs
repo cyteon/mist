@@ -36,13 +36,13 @@ pub enum ProtocolState {
 }
 
 pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &ProtocolState) -> anyhow::Result<Option<ClientPacket>> {
-    let packet_len = read_var(stream).await?;
+    let packet_len = read_var(stream).await.map_err(|e| anyhow::anyhow!("Failed to read packet length: {}", e))?;
 
     let mut packet_buf = vec![0u8; packet_len as usize];
-    stream.read_exact(&mut packet_buf).await?;
+    stream.read_exact(&mut packet_buf).await.map_err(|e| anyhow::anyhow!("Failed to read packet data: {}", e))?;
 
     let mut cursor = std::io::Cursor::new(packet_buf);
-    let packet_id = read_var(&mut cursor).await?;
+    let packet_id = read_var(&mut cursor).await.map_err(|e| anyhow::anyhow!("Failed to read packet ID: {}", e))?;
 
     if packet_id != 0x0C && packet_id != 0x1D { // these packets are spammy
         crate::log::log(
@@ -96,7 +96,7 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
                     Ok(Some(ClientPacket::UseItemOn(cursor)))
                 },
 
-                play::serverbound::MOVE_PLAYER_POS => {
+                play::serverbound::MOVE_PLAYER_POS_ROT => {
                     Ok(Some(ClientPacket::SetPlayerPositionAndRotation(cursor)))
                 },
 

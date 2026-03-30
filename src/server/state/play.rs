@@ -181,7 +181,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
             let region = get_region(rx, rz).await.lock().await.clone();
 
             for (cx, cz) in coords {
-                let chunk = region.chunks.iter().find(|chunk| chunk.x == cx && chunk.z == cz).unwrap();
+                let chunk = region.get_chunk(cx, cz).unwrap();
                 chunks_to_send.push(chunk.clone());
             }
         }
@@ -264,18 +264,27 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                         for player in PLAYERS.read().await.values() {
                             let mut target_player_guard = player.lock().await;
 
-                            let target_player_socket = PLAYER_SOCKET_MAP.read().await;
-                            let target_player_socket = target_player_socket.get(&target_player_guard.uuid).unwrap();
-                            let mut socket_guard = target_player_socket.lock().await;
+                            if target_player_guard.uuid == uuid {
+                                send_player_chat_message(
+                                    &mut *write.lock().await,
+                                    &player_clone,
+                                    &mut *target_player_guard,
+                                    &message
+                                ).await?;
+                            } else {
+                                let target_player_socket = PLAYER_SOCKET_MAP.read().await;
+                                let target_player_socket = target_player_socket.get(&target_player_guard.uuid).unwrap();
+                                let mut socket_guard = target_player_socket.lock().await;
 
-                            send_player_chat_message(
-                                &mut *socket_guard,
-                                &player_clone,
-                                &mut *target_player_guard,
-                                &message
-                            ).await?;
-                            
-                            drop(socket_guard);
+                                send_player_chat_message(
+                                    &mut *socket_guard,
+                                    &player_clone,
+                                    &mut *target_player_guard,
+                                    &message
+                                ).await?;
+                                
+                                drop(socket_guard);
+                            }  
                         }
                         
                         continue;
