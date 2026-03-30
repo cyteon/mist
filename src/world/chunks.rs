@@ -78,6 +78,16 @@ pub struct Chunk {
     pub sections: Vec<Section>,
 }
 
+impl Chunk {
+    pub fn set_block(&mut self, x: u8, y: u8, z: u8, block_id: u16) {
+        let section_idx = (y as i32) / 16;
+        
+        if let Some(section) = self.sections.get_mut(section_idx as usize) {
+            section.set_block(x, y % 16, z, block_id);
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Section {
     pub y: i32,
