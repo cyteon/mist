@@ -1,5 +1,7 @@
 pub mod noise;
 
+use rayon::prelude::*;
+
 use super::chunks::{Chunk, Section, Region};
 
 const SEA_LEVEL: i32 = 62;
@@ -12,11 +14,15 @@ pub async fn initial_gen() {
         for z in -1..=0 {
             let mut region = Region::new(x, z);
 
-            for cx in 0..32 {
-                for cz in 0..32 {
-                    region.chunks.push(generate((x << 5) + cx, (z << 5) + cz));
-                }
-            }
+            region.chunks = (0..32 * 32)
+                .into_par_iter()
+                .map(|i| {
+                    let cx = i % 32;
+                    let cz = i / 32;
+
+                    generate((x << 5) + cx, (z << 5) + cz)
+                })
+                .collect();
 
             region.save().await.unwrap();
             crate::log::log(fancy_log::LogLevel::Info, &format!("Generated region {}, {}", x, z));
@@ -51,7 +57,7 @@ pub fn generate(x: i32, z: i32) -> Chunk {
 fn place_column(chunk: &mut Chunk, x: u8, z: u8, height: i32) {
     chunk.set_block(x, -64, z, crate::types::blocks::BEDROCK);
 
-    for y in -63..height {
+    for y in -63..=height {
         let block_id = match y {
             y if y >= SEA_LEVEL && y == height => crate::types::blocks::GRASS_BLOCK,
             y if y < SEA_LEVEL && y == height => crate::types::blocks::SAND,
@@ -64,7 +70,7 @@ fn place_column(chunk: &mut Chunk, x: u8, z: u8, height: i32) {
     }
 
     if height < SEA_LEVEL {
-        for y in height..SEA_LEVEL {
+        for y in (height + 1)..SEA_LEVEL {
             chunk.set_block(x, y, z, crate::types::blocks::WATER);
         }
     }
