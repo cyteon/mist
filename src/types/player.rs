@@ -53,7 +53,7 @@ impl Player {
             texture_signature: None,
 
             x: 0.0,
-            y: 60.0,
+            y: 0.0,
             z: 0.0,
 
             last_x: 0.0,

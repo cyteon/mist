@@ -55,7 +55,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
     let player = Arc::new(Mutex::new(player));
 
-    let keep_alive_future ={
+    let keep_alive_future = {
         let write_socket = Arc::clone(&write);
 
         tokio::spawn(async move {
@@ -69,6 +69,19 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
             }
         })
     };
+
+    let mut player_guard = player.lock().await;
+    
+    if player_guard.x == 0.0 && player_guard.y == 0.0 && player_guard.z == 0.0 {
+        let surface_y = 
+            get_region(player_guard.x as i32 >> 9, player_guard.z as i32 >> 9).await.lock().await
+            .get_chunk(player_guard.x as i32 >> 4, player_guard.z as i32 >> 4).unwrap()
+            .get_surface_y((player_guard.x as i32 & 15) as u8, (player_guard.z as i32 & 15) as u8);
+        
+        player_guard.y = surface_y as f64 + 1.0;
+    }
+    
+    drop(player_guard);
 
     send_sync_player_position(&mut *write.lock().await, &*player.lock().await).await?;
 

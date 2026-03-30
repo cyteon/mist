@@ -23,6 +23,10 @@ impl Region {
         }
     }
 
+    pub fn get_chunk(&self, x: i32, z: i32) -> Option<&Chunk> {
+        self.chunks.iter().find(|chunk| chunk.x == x && chunk.z == z)
+    }
+
     pub async fn save(&self) -> anyhow::Result<()> {
         let region_path = format!(
             "{}/regions/{}_{}.mist_region",
@@ -85,6 +89,22 @@ impl Chunk {
         if let Some(section) = self.sections.get_mut(section_idx as usize) {
             section.set_block(x, (y & 15) as u8, z, block_id);
         }
+    }
+
+    pub fn get_surface_y(&self, x: u8, z: u8) -> i32 {
+        for section in self.sections.iter().rev() {
+            for y in (0..16).rev() {
+                let idx = (y as usize * 16 * 16) + (z as usize * 16) + (x as usize);
+                let palette_idx = section.blocks.get_palette_index(idx, section.blocks.bits_per_block as usize);
+                let block_id = section.blocks.palette.get(palette_idx as usize).copied().unwrap_or(0);
+                
+                if block_id != 0 {
+                    return (section.y * 16) + y as i32 - 64;
+                }
+            }
+        }
+        
+        -64
     }
 }
 
