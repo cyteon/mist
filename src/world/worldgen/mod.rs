@@ -1,4 +1,5 @@
 pub mod noise;
+pub mod ores;
 
 use rayon::prelude::*;
 
@@ -50,6 +51,8 @@ pub fn generate(x: i32, z: i32) -> Chunk {
             place_column(&mut chunk, x as u8, z as u8, height);
         }
     }
+
+    ores::place_ores(&mut chunk);
 
     chunk
 }

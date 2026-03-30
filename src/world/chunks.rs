@@ -5,6 +5,9 @@ use flate2::write::ZlibEncoder;
 use flate2::read::ZlibDecoder;
 use flate2::Compression;
 
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
 use crate::net::codec::write_var;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -91,6 +94,18 @@ impl Chunk {
         }
     }
 
+    pub fn get_block(&self, x: u8, y: i32, z: u8) -> u16 {
+        let section_idx = y.div_euclid(16) + 4;
+        
+        if let Some(section) = self.sections.get(section_idx as usize) {
+            let idx = ((y & 15) as usize * 16 * 16) + (z as usize * 16) + (x as usize);
+            let palette_idx = section.blocks.get_palette_index(idx, section.blocks.bits_per_block as usize);
+            return section.blocks.palette.get(palette_idx as usize).copied().unwrap_or(0);
+        }
+        
+        0
+    }
+
     pub fn get_surface_y(&self, x: u8, z: u8) -> i32 {
         for section in self.sections.iter().rev() {
             for y in (0..16).rev() {
@@ -105,6 +120,17 @@ impl Chunk {
         }
         
         -64
+    }
+
+    pub fn chunk_seed(&self) -> u64 {
+        let seed = crate::config::SERVER_CONFIG.world_seed;
+        let mut hasher = DefaultHasher::new();
+
+        seed.hash(&mut hasher);
+        self.x.hash(&mut hasher);
+        self.z.hash(&mut hasher);
+        
+        hasher.finish()
     }
 }
 
