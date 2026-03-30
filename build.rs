@@ -4,6 +4,11 @@ use std::fs;
 use std::path::Path;
 
 fn main() {
+    load_packets();
+    load_blocks();
+}
+
+fn load_packets() {
     let manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
     let json_path = Path::new(&manifest).join("src/assets/packets.json");
     println!("cargo:rerun-if-changed={}", json_path.display());
@@ -62,5 +67,38 @@ fn main() {
     dbg!(tree);
 
     let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("packets.rs");
+    fs::write(out_path, out).unwrap();
+}
+
+fn load_blocks() {
+    let manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let json_path = Path::new(&manifest).join("src/assets/blocks.json");
+    println!("cargo:rerun-if-changed={}", json_path.display());
+
+    let bytes = fs::read(&json_path).expect("Failed to read blocks.json");
+
+    let json: HashMap<String, serde_json::Value> =
+        serde_json::from_slice(&bytes).expect("Failed to parse blocks.json");
+    
+    let mut out = String::new();
+
+    for (key, block) in json {
+        let default_state = block["states"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|state| state["default"].as_bool().unwrap_or(false))
+            .expect("Block is missing a default state");
+
+        out.push_str(
+            &format!(
+                "pub const {}: u16 = {};\n",
+                key.to_uppercase().replace("MINECRAFT:", "").replace("/", "_"),
+                default_state["id"].as_u64().unwrap()
+            )
+        );
+    } 
+
+    let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("blocks.rs");
     fs::write(out_path, out).unwrap();
 }

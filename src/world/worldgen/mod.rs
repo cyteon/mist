@@ -35,21 +35,19 @@ pub fn generate(x: i32, z: i32) -> Chunk {
         sections: (0..24).map(|y| Section::new(y)).collect(),
     };
 
-    let stone = crate::types::blocks::get("minecraft:stone").unwrap().id;
-
     for x in 0..16 {
         for z in 0..16 {
             let wx = (chunk.x << 4) + x;
             let wz = (chunk.z << 4) + z;
 
             let height = noise::get_height(&noise::PERLIN, wx as f64, wz as f64);
-            place_column(&mut chunk, x as u8, z as u8, height, stone);
+            place_column(&mut chunk, x as u8, z as u8, height);
         }
     }
 
     chunk
 }
 
-fn place_column(chunk: &mut Chunk, x: u8, z: u8, height: i32, block_id: u16) {
-    chunk.set_block(x, 0, z, crate::types::blocks::get("minecraft:bedrock").unwrap().id);
+fn place_column(chunk: &mut Chunk, x: u8, z: u8, height: i32) {
+    chunk.set_block(x, 0, z, crate::types::blocks::BEDROCK);
 }
