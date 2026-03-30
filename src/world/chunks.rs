@@ -79,11 +79,11 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    pub fn set_block(&mut self, x: u8, y: u8, z: u8, block_id: u16) {
-        let section_idx = (y as i32) / 16;
+    pub fn set_block(&mut self, x: u8, y: i32, z: u8, block_id: u16) {
+        let section_idx = y.div_euclid(16) + 4;
         
         if let Some(section) = self.sections.get_mut(section_idx as usize) {
-            section.set_block(x, y % 16, z, block_id);
+            section.set_block(x, (y & 15) as u8, z, block_id);
         }
     }
 }

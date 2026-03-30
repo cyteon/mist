@@ -49,5 +49,23 @@ pub fn generate(x: i32, z: i32) -> Chunk {
 }
 
 fn place_column(chunk: &mut Chunk, x: u8, z: u8, height: i32) {
-    chunk.set_block(x, 0, z, crate::types::blocks::BEDROCK);
+    chunk.set_block(x, -64, z, crate::types::blocks::BEDROCK);
+
+    for y in -63..height {
+        let block_id = match y {
+            y if y >= SEA_LEVEL && y == height => crate::types::blocks::GRASS_BLOCK,
+            y if y < SEA_LEVEL && y == height => crate::types::blocks::SAND,
+            y if y < SEA_LEVEL && y > height - 4 => crate::types::blocks::SAND,
+            y if y > height - 4 => crate::types::blocks::DIRT,
+            _ => crate::types::blocks::STONE,
+        };
+
+        chunk.set_block(x, y, z, block_id);
+    }
+
+    if height < SEA_LEVEL {
+        for y in height..SEA_LEVEL {
+            chunk.set_block(x, y, z, crate::types::blocks::WATER);
+        }
+    }
 }

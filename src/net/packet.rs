@@ -1,4 +1,9 @@
-include!(concat!(env!("OUT_DIR"), "/packets.rs"));
+pub use packets::*;
+
+#[allow(unused)]
+mod packets {
+    include!(concat!(env!("OUT_DIR"), "/packets.rs"));
+}
 
 use tokio::io::AsyncReadExt;
 use std::collections::HashMap;
