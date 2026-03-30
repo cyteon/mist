@@ -35,7 +35,7 @@ use crate::{
     }, 
     
     server::{conn::PLAYER_SOCKET_MAP, encryption::EncryptedStream},
-    types::player::Player, world::worldgen::get_region
+    types::player::Player, world::get_region
 };
 
 pub static PLAYERS: Lazy<RwLock<HashMap<String, Arc<Mutex<Player>>>>> =
@@ -331,7 +331,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         );
 
         crate::server::save::save().await;
-        crate::world::worldgen::REGIONS.lock().await.clear(); // unnecesary having all regions loaded in while nobody is playing
+        crate::world::REGIONS.lock().await.clear(); // unnecesary having all regions loaded in while nobody is playing
     } else {
         for other_player in PLAYER_SOCKET_MAP.read().await.values().into_iter() {
             let socket_lock = &mut *other_player.lock().await;

@@ -1,14 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
-
-use once_cell::sync::Lazy;
-use tokio::sync::Mutex;
-
-use crate::world::chunks::{Chunk, Region};
-
-// world variable accessible everywhere
-pub static REGIONS: Lazy<Mutex<HashMap<(i32, i32), Arc<Mutex<Region>>>>> = Lazy::new(|| {
-    Mutex::new(HashMap::new())
-});
+use super::chunks::{Chunk, Section, Region};
 
 pub async fn initial_gen() {
     let start_time = std::time::Instant::now();
@@ -20,7 +10,7 @@ pub async fn initial_gen() {
 
             for cx in 0..32 {
                 for cz in 0..32 {
-                    region.chunks.push(Chunk::generate((x << 5) + cx, (z << 5) + cz));
+                    region.chunks.push(generate((x << 5) + cx, (z << 5) + cz));
                 }
             }
 
@@ -33,37 +23,27 @@ pub async fn initial_gen() {
     crate::log::log(fancy_log::LogLevel::Info, format!("World generated in {:.2?}", duration).as_str());
 }
 
-// only loading into memory once needed helps reduce memory usage, we will also unload later on
-pub async fn get_region(x: i32, z: i32) -> Arc<Mutex<Region>> {
-    let mut regions = REGIONS.lock().await;
-    let region = regions.get(&(x, z));
+pub fn generate(x: i32, z: i32) -> Chunk {
+    // we will use this when proper generation
+    let _seed = crate::config::SERVER_CONFIG.world_seed as u64;
 
-    match region {
-        Some(r) => Arc::clone(r),
+    // TODO: actual generation
 
-        None => {
-            let region_file_path = format!("world/regions/{}_{}.mist_region", x, z);
-            
-            if std::path::Path::new(&region_file_path).exists() {
-                let region = Region::load(x, z).await.ok().unwrap();
-                let region_arc = Arc::new(Mutex::new(region));
-                regions.insert((x, z), Arc::clone(&region_arc));
+    let mut chunk = Chunk {
+        x,
+        z,
 
-                region_arc
-            } else {
-                let mut region = Region::new(x, z);
+        sections: (0..24).map(|y| Section::new(y)).collect(),
+    };
 
-                for cx in 0..32 {
-                    for cz in 0..32 {
-                        region.chunks.push(Chunk::generate((x << 5) + cx, (z << 5) + cz));
-                    }
-                }
-
-                let region_arc = Arc::new(Mutex::new(region));
-                regions.insert((x, z), Arc::clone(&region_arc));
-
-                region_arc
-            }
-        },
+    for x in 0..16 {
+        for z in 0..16 {
+            chunk.sections[0].set_block(
+                x, 0, z, 
+                crate::types::blocks::get("minecraft:grass_block").unwrap().id
+            );
+        }
     }
+
+    chunk
 }

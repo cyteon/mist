@@ -1,4 +1,4 @@
-use crate::{net::packets::clientbound::{chunk_data_with_light::send_chunk_data_with_light, set_center_chunk::send_set_center_chunk}, world::worldgen::get_region};
+use crate::{net::packets::clientbound::{chunk_data_with_light::send_chunk_data_with_light, set_center_chunk::send_set_center_chunk}, world::get_region};
 
 #[derive(Clone)]
 pub struct PlayerMovement {

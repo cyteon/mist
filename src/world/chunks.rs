@@ -78,33 +78,6 @@ pub struct Chunk {
     pub sections: Vec<Section>,
 }
 
-impl Chunk {
-    pub fn generate(x: i32, z: i32) -> Self {
-        // we will use this when proper generation
-        let _seed = crate::config::SERVER_CONFIG.world_seed as u64;
-
-        // TODO: actual generation
-
-        let mut chunk = Chunk {
-            x,
-            z,
-
-            sections: (0..24).map(|y| Section::new(y)).collect(),
-        };
-
-        for x in 0..16 {
-            for z in 0..16 {
-                chunk.sections[0].set_block(
-                    x, 0, z, 
-                    crate::types::blocks::get("minecraft:grass_block").unwrap().id
-                );
-            }
-        }
-
-        chunk
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Section {
     pub y: i32,

@@ -1,6 +1,6 @@
 use tokio::io::AsyncReadExt;
 
-use crate::{net::codec::{read_position, read_var}, world::worldgen::get_region};
+use crate::{net::codec::{read_position, read_var}, world::get_region};
 
 pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow::Result<()> {
     let status = read_var(stream).await?;
