@@ -168,10 +168,11 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         let player_name = player.lock().await.username.clone();
         let view_distance = crate::config::SERVER_CONFIG.view_distance as i32;
         let chunk_loading_width = view_distance * 2 + 7;
+        let radius = chunk_loading_width / 2;
 
         let mut by_region: HashMap<(i32, i32), Vec<(i32, i32)>> = HashMap::new();
-        for cx in -chunk_loading_width..=chunk_loading_width {
-            for cz in -chunk_loading_width..=chunk_loading_width {
+        for cx in -radius..=radius {
+            for cz in -radius..=radius {
                 by_region.entry((cx >> 5, cz >> 5)).or_default().push((cx, cz));
             }
         }
@@ -191,7 +192,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
             chunk.x * chunk.x + chunk.z * chunk.z
         });
 
-        tokio::spawn(async move {            
+        tokio::spawn(async move {
             let tasks: Vec<_> = chunks_to_send.into_iter().map(|chunk| {
                 tokio::spawn(async move {
                     let mut buffer = Vec::new();
@@ -202,15 +203,18 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
             }).collect();
 
             let results: Vec<_> = futures::future::join_all(tasks).await;
-            let mut socket = socket.lock().await;
 
-            for result in results {
-                if let Ok(Ok(pkt)) = result {
-                    socket.write_all(&pkt).await.unwrap();
-                } 
+            {
+                let mut socket = socket.lock().await;
+
+                for result in results {
+                    if let Ok(Ok(pkt)) = result {
+                        socket.write_all(&pkt).await.unwrap();
+                    }
+                }
+
+                socket.flush().await.unwrap();
             }
-
-            socket.flush().await.unwrap();
 
             crate::log::log(
                 LogLevel::Debug, 
