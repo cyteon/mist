@@ -2,11 +2,7 @@ use crate::net::codec::write_var;
 use crate::world::chunks::Chunk;
 use byteorder::{WriteBytesExt, BigEndian};
 
-const FULLBRIGHT_ENTRY: [u8; 2048] = {
-    let mut arr = [0xFFu8; 2048];
-
-    arr
-};
+const FULLBRIGHT_ENTRY: [u8; 2048] = [0xFFu8; 2048];
 
 // https://minecraft.wiki/w/Java_Edition_protocol/Packets#Chunk_Data_and_Update_Light
 pub async fn send_chunk_data_with_light<W: tokio::io::AsyncWriteExt + Unpin>(

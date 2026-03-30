@@ -6,18 +6,10 @@ mod packets {
 }
 
 use tokio::io::AsyncReadExt;
-use std::collections::HashMap;
-use once_cell::sync::Lazy;
 
 use crate::net::codec::read_var;
 
 pub enum ClientPacket {
-    Handshake,
-
-    // login state
-    LoginStart, // 0x00
-    EncryptionResponse, // 0x01
-
     // status state
     Ping, // 0x01 in status
 

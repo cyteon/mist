@@ -65,14 +65,14 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
 
     let mut socket = EncryptedStream::new(
         socket, 
-        encryption_response.shared_secret.clone().as_slice(), 
+        encryption_response.clone().as_slice()
     );
 
-    player.as_mut().unwrap().shared_secret = Some(encryption_response.shared_secret.clone());
+    player.as_mut().unwrap().shared_secret = Some(encryption_response.clone());
 
     if SERVER_CONFIG.online_mode {
         let player_name = player.as_ref().unwrap().username.clone();
-        let player_data = authenticate_player(&player_name, encryption_response.shared_secret.clone()).await?;
+        let player_data = authenticate_player(&player_name, encryption_response.clone()).await?;
 
         player.as_mut().unwrap().username = player_data.username; // we alr know username, but use mojang as an source of truth
         player.as_mut().unwrap().textures = Some(player_data.textures);

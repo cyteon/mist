@@ -2,7 +2,7 @@ use tokio::io::AsyncReadExt;
 
 use crate::{net::codec::{read_position, read_var}, types::player::Player, world::get_region};
 
-pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, player: &mut Player) -> anyhow::Result<()> {
+pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, _player: &mut Player) -> anyhow::Result<()> {
     let _hand = read_var(stream).await?;
     let (x, y, z) = read_position(stream).await?;
 
