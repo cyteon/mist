@@ -26,7 +26,9 @@ pub async fn read_var<R: AsyncReadExt + Unpin>(reader: &mut R) -> anyhow::Result
     Ok(result)
 }
 
-pub fn write_var<W: WriteBytesExt + Unpin>(stream: &mut W, mut value: i32) -> anyhow::Result<()> {
+pub fn write_var<W: WriteBytesExt + Unpin>(stream: &mut W, value: i32) -> anyhow::Result<()> {
+    let mut value = value as u32;
+    
     loop {
         let mut temp = (value & 0b01111111) as u8;
 
