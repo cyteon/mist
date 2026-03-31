@@ -7,6 +7,7 @@ fn main() {
     load_packets();
     load_blocks();
     load_items();
+    load_item_to_block();
 }
 
 fn load_packets() {
@@ -125,5 +126,49 @@ fn load_items() {
     }
 
     let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("items.rs");
+    fs::write(out_path, out).unwrap();
+}
+
+fn load_item_to_block() {
+    let manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let blocks_json_path = Path::new(&manifest).join("src/assets/blocks.json");
+    let items_json_path = Path::new(&manifest).join("src/assets/items.json");
+
+    let block_bytes = fs::read(&blocks_json_path).expect("Failed to read blocks.json");
+    let item_bytes = fs::read(&items_json_path).expect("Failed to read items.json");
+
+    let blocks: HashMap<String, serde_json::Value> =
+        serde_json::from_slice(&block_bytes).expect("Failed to parse blocks.json");
+    let items: HashMap<String, serde_json::Value> =
+        serde_json::from_slice(&item_bytes).expect("Failed to parse items.json");
+    
+    let mut out = String::new();
+    out.push_str("pub fn item_to_block(item_id: i32) -> Option<u16> {\n");
+    out.push_str("    match item_id {\n");
+
+    for (ik, iv) in items["entries"].as_object().unwrap() {
+        if let Some(block) = blocks.get(ik) {
+            let default_state = block["states"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|state| state["default"].as_bool().unwrap_or(false))
+                .expect("Block is missing a default state");
+
+            out.push_str(
+                &format!(
+                    "        {} => Some({}),\n",
+                    iv["protocol_id"].as_u64().unwrap(),
+                    default_state["id"].as_u64().unwrap()
+                )
+            );
+        }
+    }
+
+    out.push_str("        _ => None,\n");
+    out.push_str("    }\n");
+    out.push_str("}\n");
+
+    let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("item_to_block.rs");
     fs::write(out_path, out).unwrap();
 }

@@ -11,3 +11,4 @@ pub mod set_player_position_and_rotation;
 pub mod player_input;
 pub mod set_player_rotation;
 pub mod chat_command;
+pub mod set_carried_item;

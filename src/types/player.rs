@@ -31,6 +31,7 @@ pub struct Player {
     pub uuid: String,
     pub username: String,
     pub inventory: [Option<ItemStack>; 45],
+    pub current_slot: i16,
     
     pub shared_secret: Option<Vec<u8>>,
     pub textures: Option<String>,
@@ -64,6 +65,7 @@ impl Player {
             uuid,
             username: username.clone(),
             inventory: [None; 45],
+            current_slot: 0,
 
             shared_secret: None,
             textures: None,

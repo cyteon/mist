@@ -2,7 +2,7 @@ use tokio::io::AsyncReadExt;
 
 use crate::{net::codec::{read_position, read_var}, types::player::Player, world::get_region};
 
-pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, _player: &mut Player) -> anyhow::Result<()> {
+pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, player: &mut Player) -> anyhow::Result<()> {
     let _hand = read_var(stream).await?;
     let (x, y, z) = read_position(stream).await?;
 
@@ -28,8 +28,15 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, _player: 
         _ => {}
     }
 
-    // todo: replace stone placeholder
-    let block_id = crate::types::blocks::STONE;
+    let block_id = if let Some(Some(item_stack)) = player.inventory.get(player.current_slot as usize + 36) {
+        if let Some(block_id) = crate::types::items::item_to_block(item_stack.item_id) {
+            block_id
+        } else {
+            return Ok(());
+        }
+    } else {
+        return Ok(());
+    };
 
     let chunk_pos = (bx.div_euclid(16), bz.div_euclid(16));
     let region_pos = (chunk_pos.0.div_euclid(32), chunk_pos.1.div_euclid(32));
@@ -41,7 +48,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, _player: 
 
     if let Some(chunk) = region_lock.chunks.iter_mut().find(|chunk| chunk.x == chunk_pos.0 && chunk.z == chunk_pos.1) {
         if let Some(section) = chunk.sections.iter_mut().find(|section| section.y == section_y) {
-            section.set_block((bx & 15) as u8, (by & 15) as u8, (bz & 15) as u8, block_id);
+            section.set_block((bx & 15) as u8, (by & 15) as u8, (bz & 15) as u8, block_id as u16);
         }
     }
 

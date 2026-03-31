@@ -1,8 +1,7 @@
 use tokio::io::AsyncReadExt;
 use crate::types::player::Player;
 
-pub async fn read_player_input
-<R: AsyncReadExt + Unpin>(
+pub async fn read_player_input<R: AsyncReadExt + Unpin>(
     stream: &mut R, player: &mut Player
 ) -> anyhow::Result<()> {
     let flags = stream.read_u8().await?;
