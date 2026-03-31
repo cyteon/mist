@@ -25,7 +25,6 @@ pub static SERVER_VERSION: &str = "1.21.11";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    
     #[cfg(feature = "console")]
     console_subscriber::init();
 

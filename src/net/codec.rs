@@ -38,7 +38,7 @@ pub fn write_var<W: WriteBytesExt + Unpin>(stream: &mut W, mut value: i32) -> an
 
         stream.write_u8(temp)?;
 
-        if value <= 0 {
+        if value == 0 {
             break;
         }
     }
