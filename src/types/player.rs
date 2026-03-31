@@ -2,7 +2,8 @@ use crate::{
     net::packets::clientbound::{
         chunk_data_with_light::send_chunk_data_with_light,
         set_center_chunk::send_set_center_chunk,
-        system_chat_message::send_system_chat_message
+        system_chat_message::send_system_chat_message,
+        container_set_content::send_container_set_content
     },
     
     world::get_region
@@ -19,10 +20,17 @@ pub struct PlayerMovement {
     pub sprinting: bool,
 }
 
+#[derive(Clone, Copy)]
+pub struct ItemStack {
+    pub item_id: i32,
+    pub count: u8
+}
+
 #[derive(Clone)]
 pub struct Player {
     pub uuid: String,
     pub username: String,
+    pub inventory: [Option<ItemStack>; 45],
     
     pub shared_secret: Option<Vec<u8>>,
     pub textures: Option<String>,
@@ -46,8 +54,8 @@ pub struct Player {
     pub movement: PlayerMovement,
 
     pub initial_sync_done: bool,
-    pub chat_index: i32,
     pub chunks_loaded: bool,
+    pub chat_index: i32,
 }
 
 impl Player {
@@ -55,6 +63,7 @@ impl Player {
         let mut player = Player {
             uuid,
             username: username.clone(),
+            inventory: [None; 45],
 
             shared_secret: None,
             textures: None,
@@ -89,6 +98,10 @@ impl Player {
             chunks_loaded: false,
         };
 
+        player.inventory[36] = Some(ItemStack { item_id: super::items::GRASS_BLOCK, count: 64 });
+        player.inventory[37] = Some(ItemStack { item_id: super::items::DIRT, count: 64 });
+        player.inventory[38] = Some(ItemStack { item_id: super::items::STONE, count: 64 });
+
         let player_save = crate::server::save::load_player(&player.uuid);
 
         if let Some(player_save) = player_save {
@@ -115,6 +128,16 @@ impl Player {
         let mut buffer = Vec::new();
         send_system_chat_message(&mut buffer, message).await?;
 
+        let _ = tx.send(buffer);
+
+        Ok(())
+    }
+
+    pub async fn sync_player_inventory(&mut self) -> anyhow::Result<()> {
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+
+        let mut buffer = Vec::new();
+        send_container_set_content(&mut buffer, 0, &self.inventory).await?;
         let _ = tx.send(buffer);
 
         Ok(())

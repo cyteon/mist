@@ -6,6 +6,7 @@ use std::path::Path;
 fn main() {
     load_packets();
     load_blocks();
+    load_items();
 }
 
 fn load_packets() {
@@ -64,8 +65,6 @@ fn load_packets() {
         out.push_str("}\n");
     }
 
-    dbg!(tree);
-
     let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("packets.rs");
     fs::write(out_path, out).unwrap();
 }
@@ -100,5 +99,31 @@ fn load_blocks() {
     } 
 
     let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("blocks.rs");
+    fs::write(out_path, out).unwrap();
+}
+
+fn load_items() {
+    let manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let json_path = Path::new(&manifest).join("src/assets/items.json");
+    println!("cargo:rerun-if-changed={}", json_path.display());
+
+    let bytes = fs::read(&json_path).expect("Failed to read items.json");
+
+    let json: HashMap<String, serde_json::Value> =
+        serde_json::from_slice(&bytes).expect("Failed to parse items.json");
+
+    let mut out = String::new();
+
+    for (key, item) in json["entries"].as_object().unwrap() {
+        out.push_str(
+            &format!(
+                "pub const {}: i32 = {};\n",
+                key.to_uppercase().replace("MINECRAFT:", "").replace("/", "_"),
+                item["protocol_id"].as_u64().unwrap()
+            )
+        );
+    }
+
+    let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("items.rs");
     fs::write(out_path, out).unwrap();
 }

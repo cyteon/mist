@@ -19,3 +19,4 @@ pub mod player_chat_message;
 pub mod set_compression;
 pub mod commands;
 pub mod system_chat_message;
+pub mod container_set_content;

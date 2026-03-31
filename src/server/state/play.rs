@@ -141,6 +141,10 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         Arc::clone(&player)
     );
 
+    let mut player_guard = player.lock().await;
+    player_guard.sync_player_inventory().await?;
+    drop(player_guard);
+
     crate::log::log(
         LogLevel::Debug, 
         format!("Added {} to player list", player.lock().await.username).as_str()
