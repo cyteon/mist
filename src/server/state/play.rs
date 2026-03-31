@@ -23,7 +23,8 @@ use crate::{
                 player_info_remove::send_player_info_remove,
                 player_info_update::{PlayerAction, send_player_info_update},
                 set_center_chunk::send_set_center_chunk,
-                sync_player_position::send_sync_player_position
+                sync_player_position::send_sync_player_position,
+                commands::send_commands
             },
 
             serverbound::{
@@ -33,12 +34,13 @@ use crate::{
                 player_input::read_player_input,
                 set_player_position_and_rotation::read_set_player_position_and_rotation,
                 set_player_rotation::read_set_player_rotation,
-                use_item_on::read_use_item_on
+                use_item_on::read_use_item_on,
+                chat_command::read_chat_command
             }
         }
     }, 
     
-    server::{conn::PLAYER_SOCKET_MAP, encryption::EncryptedStream},
+    server::{conn::PLAYER_SOCKET_MAP, encryption::EncryptedStream, commands::handle_command},
     types::player::Player, world::get_region
 };
 
@@ -109,13 +111,16 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
     let mut buffer = Vec::new();
     send_sync_player_position(&mut buffer, &player).await?;
-
     let _ = tx.send(buffer);
 
     crate::log::log(
         LogLevel::Debug, 
         format!("Sent initial player position to {}", username).as_str()
     );
+
+    let mut buffer = Vec::new();
+    send_commands(&mut buffer).await?;
+    let _ = tx.send(buffer);
 
     let player = Arc::new(Mutex::new(player));
 
@@ -288,6 +293,19 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                         let players_locked = PLAYERS.read().await;
                         let mut player = players_locked.get(&uuid).unwrap().lock().await;
                         read_use_item_on(&mut cursor, &mut player).await?;
+                    }
+
+                    ClientPacket::ChatCommand(mut cursor) => {
+                        let command = read_chat_command(&mut cursor).await?;
+
+                        crate::log::log(
+                            LogLevel::Info, 
+                            format!("{} issued command /{}", username, command).as_str()
+                        );
+
+                        let players_locked = PLAYERS.read().await;
+                        let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                        handle_command(command, &mut player).await?;
                     }
 
                     ClientPacket::ChatMessage(mut cursor) => {

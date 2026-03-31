@@ -6,3 +6,4 @@ pub mod auth;
 pub mod encryption;
 pub mod state;
 pub mod save;
+pub mod commands;

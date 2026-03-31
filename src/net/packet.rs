@@ -20,6 +20,7 @@ pub enum ClientPacket {
 
     // play state
     ConfirmTeleprortion(std::io::Cursor<Vec<u8>>), // 0x00 in play
+    ChatCommand(std::io::Cursor<Vec<u8>>), // 0x06 in play
     ChatMessage(std::io::Cursor<Vec<u8>>), // 0x08 in play
     PlayerAction(std::io::Cursor<Vec<u8>>), // 0x28 in play
     UseItemOn(std::io::Cursor<Vec<u8>>), // 0x3F in play
@@ -128,6 +129,10 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
             match packet_id {
                 play::serverbound::ACCEPT_TELEPORTATION => {
                     Ok(Some(ClientPacket::ConfirmTeleprortion(cursor)))
+                },
+
+                play::serverbound::CHAT_COMMAND => {
+                    Ok(Some(ClientPacket::ChatCommand(cursor)))
                 },
 
                 play::serverbound::CHAT => {

@@ -17,3 +17,5 @@ pub mod chunk_data_with_light;
 pub mod player_info_remove;
 pub mod player_chat_message;
 pub mod set_compression;
+pub mod commands;
+pub mod system_chat_message;

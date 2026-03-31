@@ -1,4 +1,12 @@
-use crate::{net::packets::clientbound::{chunk_data_with_light::send_chunk_data_with_light, set_center_chunk::send_set_center_chunk}, world::get_region};
+use crate::{
+    net::packets::clientbound::{
+        chunk_data_with_light::send_chunk_data_with_light,
+        set_center_chunk::send_set_center_chunk,
+        system_chat_message::send_system_chat_message
+    },
+    
+    world::get_region
+};
 
 #[derive(Clone)]
 pub struct PlayerMovement {
@@ -80,6 +88,17 @@ impl Player {
             chat_index: -1,
             chunks_loaded: false,
         }
+    }
+
+    pub async fn send_system_message(&self, message: String) -> anyhow::Result<()> {
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+
+        let mut buffer = Vec::new();
+        send_system_chat_message(&mut buffer, message).await?;
+
+        let _ = tx.send(buffer);
+
+        Ok(())
     }
 
     pub async fn tick(&mut self) -> anyhow::Result<()> {

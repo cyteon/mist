@@ -34,8 +34,6 @@ use crate::{
 };
 
 pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow::Result<()> {
-    let mut player: Option<Player>;
-
     if handshake.protocol_version != crate::SERVER_PROTOCOL_VERSION {
         send_disconnect_login(
             &mut socket, 
