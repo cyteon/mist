@@ -52,9 +52,9 @@ pub struct Player {
 
 impl Player {
     pub fn new(uuid: String, username: String) -> Self {
-        Player {
+        let mut player = Player {
             uuid,
-            username,
+            username: username.clone(),
 
             shared_secret: None,
             textures: None,
@@ -87,7 +87,26 @@ impl Player {
             initial_sync_done: false,
             chat_index: -1,
             chunks_loaded: false,
+        };
+
+        let player_save = crate::server::save::load_player(&player.uuid);
+
+        if let Some(player_save) = player_save {
+            player.x = player_save.x;
+            player.y = player_save.y;
+            player.z = player_save.z;
+
+            player.vx = player_save.vx;
+            player.vy = player_save.vy;
+            player.vz = player_save.vz;
+
+            player.yaw = player_save.yaw;
+            player.pitch = player_save.pitch;
+
+            crate::log::log(fancy_log::LogLevel::Info, &format!("Loaded save for player {}", username));
         }
+
+        player
     }
 
     pub async fn send_system_message(&self, message: String) -> anyhow::Result<()> {
@@ -159,7 +178,11 @@ impl Player {
         let current_chunk_area_center_z = (self.z as i32) >> 4;
 
         if last_chunk_area_center_x != current_chunk_area_center_x || last_chunk_area_center_z != current_chunk_area_center_z {
-            let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+            let tx = if let Some(player_tx) = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid) {
+                player_tx.clone()
+            } else {
+                return Ok(());
+            };
 
             let mut buffer = Vec::new();
 

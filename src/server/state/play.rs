@@ -64,14 +64,21 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         while let Some(buffer) = rx.recv().await {
             let packet = encode_packet(&buffer);
 
-            write.write_all(&packet).await.unwrap();
+            if let Err(_) = write.write_all(&packet).await {
+                break;
+            }
 
             while let Ok(buffer) = rx.try_recv() {
                 let packet = encode_packet(&buffer);
-                write.write_all(&packet).await.unwrap();
+                
+                if let Err(_) = write.write_all(&packet).await {
+                    break;
+                }
             }
 
-            write.flush().await.unwrap();
+            if let Err(_) = write.flush().await {
+                break;
+            }
         }
 
         let _ = write.shutdown().await;
@@ -399,16 +406,20 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         }
     }
 
+    crate::log::log(
+        LogLevel::Info, 
+        format!("{} ({}) left the server", username, uuid).as_str()
+    );
+
     PLAYER_SOCKET_MAP.write().await.remove(&uuid);
-    PLAYERS.write().await.remove(&uuid);
 
     drop(tx);
-    let _ = writer_future.await;
 
+    writer_future.abort();
     keep_alive_future.abort();
     chunk_sender_task.abort();
 
-    if PLAYERS.read().await.is_empty() {
+    if PLAYERS.read().await.len() == 1 {
         crate::log::log(
             LogLevel::Debug, 
             "No players online, saving and clearing regions from memory"
@@ -417,6 +428,10 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         crate::server::save::save().await;
         crate::world::REGIONS.lock().await.clear(); // unnecesary having all regions loaded in while nobody is playing
     } else {
+        let players_locked = PLAYERS.read().await;
+        let player_lock = players_locked.get(&uuid).unwrap().clone();
+        crate::server::save::save_player(&player_lock.lock().await.clone()).await;
+
         for other_tx in PLAYER_SOCKET_MAP.read().await.values().into_iter() {
             let mut buffer = Vec::new();
             send_player_info_remove(&mut buffer, vec![&uuid]).await?;
@@ -425,10 +440,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         }
     }
 
-    crate::log::log(
-        LogLevel::Info, 
-        format!("{} ({}) left the server", username, uuid).as_str()
-    );
+    PLAYERS.write().await.remove(&uuid);
 
     Ok(())
 }

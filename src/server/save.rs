@@ -38,30 +38,7 @@ pub async fn save() {
 
     for player in crate::server::state::play::PLAYERS.read().await.values() {
         let player = player.lock().await;
-
-        let player_save = PlayerSave {
-            uuid: player.uuid.clone(),
-
-            x: player.x,
-            y: player.y,
-            z: player.z,
-
-            vx: player.vx,
-            vy: player.vy,
-            vz: player.vz,
-
-            yaw: player.yaw,
-            pitch: player.pitch,
-        };
-        
-        let player_json = serde_json::to_string_pretty(&player_save).unwrap();
-        let player_path = format!(
-            "{}/players/{}.json", 
-            crate::config::SERVER_CONFIG.world_name.clone(), 
-            player.uuid
-        );
-
-        std::fs::write(player_path, player_json).unwrap();
+        save_player(&player).await;
     }
 
     for region in crate::world::REGIONS.lock().await.values() {
@@ -71,4 +48,47 @@ pub async fn save() {
 
     let duration = start.elapsed();
     crate::log::log(LogLevel::Info, format!("Save complete in {:.2?}", duration).as_str());
+}
+
+pub async fn save_player(player: &crate::types::player::Player) {
+    let player_save = PlayerSave {
+        uuid: player.uuid.clone(),
+
+        x: player.x,
+        y: player.y,
+        z: player.z,
+
+        vx: player.vx,
+        vy: player.vy,
+        vz: player.vz,
+
+        yaw: player.yaw,
+        pitch: player.pitch,
+    };
+    
+    let player_json = serde_json::to_string_pretty(&player_save).unwrap();
+    let player_path = format!(
+        "{}/players/{}.json", 
+        crate::config::SERVER_CONFIG.world_name.clone(), 
+        player.uuid
+    );
+
+    std::fs::write(player_path, player_json).unwrap();
+}
+
+pub fn load_player(uuid: &str) -> Option<PlayerSave> {
+    let player_path = format!(
+        "{}/players/{}.json", 
+        crate::config::SERVER_CONFIG.world_name.clone(), 
+        uuid
+    );
+
+    if !std::path::Path::new(&player_path).exists() {
+        return None;
+    }
+
+    let player_json = std::fs::read_to_string(player_path).unwrap();
+    let player_save: PlayerSave = serde_json::from_str(&player_json).unwrap();
+
+    Some(player_save)
 }
