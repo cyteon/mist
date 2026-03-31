@@ -20,3 +20,4 @@ pub mod set_compression;
 pub mod commands;
 pub mod system_chat_message;
 pub mod container_set_content;
+pub mod container_set_slot;

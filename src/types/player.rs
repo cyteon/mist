@@ -3,7 +3,8 @@ use crate::{
         chunk_data_with_light::send_chunk_data_with_light,
         set_center_chunk::send_set_center_chunk,
         system_chat_message::send_system_chat_message,
-        container_set_content::send_container_set_content
+        container_set_content::send_container_set_content,
+        container_set_slot::send_container_set_slot
     },
     
     world::get_region
@@ -138,6 +139,64 @@ impl Player {
         let mut buffer = Vec::new();
         send_container_set_content(&mut buffer, 0, &self.inventory).await?;
         let _ = tx.send(buffer);
+
+        Ok(())
+    }
+
+    pub async fn set_inventory_slot(&mut self, slot: i16) -> anyhow::Result<()> {
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+
+        let mut buffer = Vec::new();
+        send_container_set_slot(&mut buffer, 0, slot, self.inventory[slot as usize].clone()).await?;
+        let _ = tx.send(buffer);
+
+        Ok(())
+    }
+
+    pub async fn give_item(&mut self, item_id: i32, count: i32) -> anyhow::Result<()> {
+        let mut remaining = count;
+
+        for slot in 36..45 {
+            if remaining <= 0 {
+                break;
+            }
+
+            if let Some(item_stack) = &mut self.inventory[slot] {
+                if item_stack.item_id == item_id {
+                    let space = 64 - item_stack.count as i32;
+                    let to_add = space.min(remaining);
+                    item_stack.count += to_add as u8;
+                    remaining -= to_add;
+                }
+            } else {
+                let to_add = 64.min(remaining);
+                self.inventory[slot] = Some(super::items::ItemStack { item_id, count: to_add as u8 });
+                remaining -= to_add;
+            }
+        }
+
+        if remaining > 0 {
+            for slot in 9..36 {
+                if remaining <= 0 {
+                    break;
+                }
+
+                if let Some(item_stack) = &mut self.inventory[slot] {
+                    if item_stack.item_id == item_id {
+                        let space = 64 - item_stack.count as i32;
+                        let to_add = space.min(remaining);
+                        item_stack.count += to_add as u8;
+                        remaining -= to_add;
+                    }
+                } else {
+                    let to_add = 64.min(remaining);
+                    self.inventory[slot] = Some(super::items::ItemStack { item_id, count: to_add as u8 });
+                    remaining -= to_add;
+                }
+            }
+        }
+
+        self.sync_player_inventory().await?;
 
         Ok(())
     }

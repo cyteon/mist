@@ -125,6 +125,23 @@ fn load_items() {
         );
     }
 
+    out.push_str("pub fn get_item_id(name: &str) -> i32 {\n");
+    out.push_str("    match name {\n");
+
+    for (key, item) in json["entries"].as_object().unwrap() {
+        out.push_str(
+            &format!(
+                "        \"{}\" => {},\n",
+                key,
+                item["protocol_id"].as_u64().unwrap()
+            )
+        );
+    }
+
+    out.push_str("        _ => 0,\n"); // default is air
+    out.push_str("    }\n");
+    out.push_str("}\n");
+
     let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("items.rs");
     fs::write(out_path, out).unwrap();
 }
