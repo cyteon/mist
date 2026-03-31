@@ -4,6 +4,9 @@ use fancy_log::LogLevel;
 pub struct PlayerSave {
     pub uuid: String,
 
+    #[serde(default)]
+    pub inventory: Vec<Option<crate::types::items::ItemStack>>,
+
     pub x: f64,
     pub y: f64,
     pub z: f64,
@@ -51,8 +54,11 @@ pub async fn save() {
 }
 
 pub async fn save_player(player: &crate::types::player::Player) {
+    let inventory = player.inventory.iter().map(|slot| slot.clone()).collect();
+
     let player_save = PlayerSave {
         uuid: player.uuid.clone(),
+        inventory,
 
         x: player.x,
         y: player.y,

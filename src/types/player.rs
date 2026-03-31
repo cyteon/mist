@@ -20,17 +20,12 @@ pub struct PlayerMovement {
     pub sprinting: bool,
 }
 
-#[derive(Clone, Copy)]
-pub struct ItemStack {
-    pub item_id: i32,
-    pub count: u8
-}
 
 #[derive(Clone)]
 pub struct Player {
     pub uuid: String,
     pub username: String,
-    pub inventory: [Option<ItemStack>; 45],
+    pub inventory: [Option<super::items::ItemStack>; 45],
     pub current_slot: i16,
     
     pub shared_secret: Option<Vec<u8>>,
@@ -100,13 +95,15 @@ impl Player {
             chunks_loaded: false,
         };
 
-        player.inventory[36] = Some(ItemStack { item_id: super::items::GRASS_BLOCK, count: 64 });
-        player.inventory[37] = Some(ItemStack { item_id: super::items::DIRT, count: 64 });
-        player.inventory[38] = Some(ItemStack { item_id: super::items::STONE, count: 64 });
+        player.inventory[36] = Some(super::items::ItemStack { item_id: super::items::GRASS_BLOCK, count: 64 });
+        player.inventory[37] = Some(super::items::ItemStack { item_id: super::items::DIRT, count: 64 });
+        player.inventory[38] = Some(super::items::ItemStack { item_id: super::items::STONE, count: 64 });
 
         let player_save = crate::server::save::load_player(&player.uuid);
 
         if let Some(player_save) = player_save {
+            player.inventory = player_save.inventory.try_into().unwrap_or_else(|_| [None; 45]);
+
             player.x = player_save.x;
             player.y = player_save.y;
             player.z = player_save.z;
