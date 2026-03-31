@@ -46,7 +46,7 @@ pub async fn save() {
 
     for region in crate::world::REGIONS.lock().await.values() {
         let region = region.lock().await;
-        region.save().await.unwrap();
+        let _ = region.save().await;
     }
 
     let duration = start.elapsed();

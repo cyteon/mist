@@ -96,10 +96,6 @@ impl Player {
             chunks_loaded: false,
         };
 
-        player.inventory[36] = Some(super::items::ItemStack { item_id: super::items::GRASS_BLOCK, count: 64 });
-        player.inventory[37] = Some(super::items::ItemStack { item_id: super::items::DIRT, count: 64 });
-        player.inventory[38] = Some(super::items::ItemStack { item_id: super::items::STONE, count: 64 });
-
         let player_save = crate::server::save::load_player(&player.uuid);
 
         if let Some(player_save) = player_save {
@@ -117,6 +113,10 @@ impl Player {
             player.pitch = player_save.pitch;
 
             crate::log::log(fancy_log::LogLevel::Info, &format!("Loaded save for player {}", username));
+        } else {
+            player.inventory[36] = Some(super::items::ItemStack { item_id: super::items::GRASS_BLOCK, count: 64 });
+            player.inventory[37] = Some(super::items::ItemStack { item_id: super::items::DIRT, count: 64 });
+            player.inventory[38] = Some(super::items::ItemStack { item_id: super::items::STONE, count: 64 });
         }
 
         player
