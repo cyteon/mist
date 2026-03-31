@@ -143,13 +143,17 @@ impl Player {
         let current_chunk_area_center_z = (self.z as i32) >> 4;
 
         if last_chunk_area_center_x != current_chunk_area_center_x || last_chunk_area_center_z != current_chunk_area_center_z {
-            let socket = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+            let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+
+            let mut buffer = Vec::new();
 
             send_set_center_chunk(
-                &mut *socket.lock().await,
+                &mut buffer,
                 current_chunk_area_center_x,
                 current_chunk_area_center_z
             ).await?;
+
+            let _ = tx.send(buffer);
 
             let view_distance = crate::config::SERVER_CONFIG.view_distance as i32;
             let chunk_loading_width = view_distance * 2 + 7;
@@ -187,8 +191,9 @@ impl Player {
                         let region: crate::world::chunks::Region = get_region(cx >> 5, cz >> 5).await.lock().await.clone();
                         let chunk = region.chunks.iter().find(|chunk| chunk.x == *cx && chunk.z == *cz).unwrap();
 
-                        let mut socket = socket.lock().await;
-                        let result = send_chunk_data_with_light(&mut *socket, &chunk).await;
+                        let mut buffer = Vec::new();
+                        let result = send_chunk_data_with_light(&mut buffer, &chunk).await;
+                        let _ = tx.send(buffer);
 
                         if result.is_ok() {
                             crate::log::log(fancy_log::LogLevel::Debug, &format!("Sent chunk {}, {} to player {}", cx, cz, username_clone));

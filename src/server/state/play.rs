@@ -1,9 +1,12 @@
-use std::{collections::HashMap, time::Duration};
-
 use fancy_log::LogLevel;
 use once_cell::sync::Lazy;
-use tokio::{io::AsyncWriteExt, net::TcpStream, sync::{Mutex, RwLock}, time::{self, timeout}};
-use std::sync::Arc;
+use std::{collections::HashMap, time::Duration, sync::Arc};
+use tokio::{
+    io::AsyncWriteExt,
+    net::TcpStream,
+    sync::{Mutex, RwLock, mpsc},
+    time::{self, timeout}
+};
 
 use crate::{
     net::{
@@ -48,15 +51,26 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     let uuid = player.uuid.clone();
     let username = player.username.clone();
 
-    let (read, write) = socket.into_split();
+    let (mut read, write) = socket.into_split();
+    let (tx, mut rx) = mpsc::unbounded_channel::<Vec<u8>>();
 
-    let read = Arc::new(Mutex::new(read));
-    let write = Arc::new(Mutex::new(write));
+    let writer_future = tokio::spawn(async move {
+        let mut write = write;
 
-    let player = Arc::new(Mutex::new(player));
+        while let Some(buffer) = rx.recv().await {
+            if write.write_all(&buffer).await.is_err() {
+                break;
+            }
+
+            let _ = write.flush().await;
+        }
+
+        let _ = write.shutdown().await;
+    });
 
     let keep_alive_future = {
-        let write_socket = Arc::clone(&write);
+        let tx = tx.clone();
+        let username = username.clone();
 
         tokio::spawn(async move {
             let mut interval = time::interval(Duration::from_secs(15));
@@ -64,11 +78,20 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
             loop {
                 interval.tick().await;
 
-                let mut socket = write_socket.lock().await;
-                send_keep_alive(&mut *socket).await.unwrap();
+                let mut buffer = Vec::new();
+                if send_keep_alive(&mut buffer).await.is_ok() {
+                    let _ = tx.send(buffer);
+                    
+                    crate::log::log(
+                        LogLevel::Debug, 
+                        format!("Sent keep alive to {}", username).as_str()
+                    );
+                }
             }
         })
     };
+
+    let player = Arc::new(Mutex::new(player));
 
     let mut player_guard = player.lock().await;
     
@@ -83,7 +106,12 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     
     drop(player_guard);
 
-    send_sync_player_position(&mut *write.lock().await, &*player.lock().await).await?;
+    {
+        let mut buffer = Vec::new();
+        send_sync_player_position(&mut buffer, &*player.lock().await).await?;
+
+        let _ = tx.send(buffer);
+    }
 
     crate::log::log(
         LogLevel::Debug, 
@@ -92,7 +120,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
     PLAYER_SOCKET_MAP.write().await.insert(
         player.lock().await.uuid.clone(),
-        Arc::clone(&write)
+        tx.clone()
     );
 
     PLAYERS.write().await.insert(
@@ -126,28 +154,32 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         }
 
         if !other_players_owned.is_empty() {
-            let mut socket_guard = write.lock().await;
+            let mut buffer = Vec::new();
 
             send_player_info_update(
-                &mut *socket_guard, 
+                &mut buffer,
                 other_players_owned.iter().collect(),
                 vec![PlayerAction::AddPlayer, PlayerAction::UpdateListed(true)]
-            ).await?;            
+            ).await?;
+            
+            let _ = tx.send(buffer);
         }
     }
 
-    for player_socket in PLAYER_SOCKET_MAP.read().await.values() {
+    for player_tx in PLAYER_SOCKET_MAP.read().await.values() {
         let player_guard = player.lock().await;
         let player_clone = player_guard.clone();
         drop(player_guard);
 
-        let mut socket_guard = player_socket.lock().await;
+        let mut buffer = Vec::new();
 
         send_player_info_update(
-            &mut *socket_guard, 
+            &mut buffer,
             vec![&player_clone],
             vec![PlayerAction::AddPlayer, PlayerAction::UpdateListed(true)]
         ).await?;
+
+        let _ = player_tx.send(buffer);
     }
 
     crate::log::log(
@@ -155,8 +187,13 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         format!("Sent player info updates for {}", player.lock().await.username).as_str()
     );
 
-    send_game_event(&mut *write.lock().await, 13, 0.0).await?;
-    send_set_center_chunk(&mut *write.lock().await, 0, 0).await?;
+    let mut buffer = Vec::new();
+    send_game_event(&mut buffer, 13, 0.0).await?;
+    let _ = tx.send(buffer);
+
+    let mut buffer = Vec::new();
+    send_set_center_chunk(&mut buffer, 0, 0).await?;
+    let _ = tx.send(buffer);
 
     crate::log::log(
         LogLevel::Debug, 
@@ -164,7 +201,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     );
 
     let chunk_sender_task = {
-        let socket = Arc::clone(&write);
+        let tx = tx.clone();
         let player_name = player.lock().await.username.clone();
         let view_distance = crate::config::SERVER_CONFIG.view_distance as i32;
         let chunk_loading_width = view_distance * 2 + 7;
@@ -204,17 +241,12 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
             let results: Vec<_> = futures::future::join_all(tasks).await;
 
-            {
-                let mut socket = socket.lock().await;
-
-                for result in results {
-                    if let Ok(Ok(pkt)) = result {
-                        socket.write_all(&pkt).await.unwrap();
-                    }
+            for result in results {
+                if let Ok(Ok(pkt)) = result {
+                    let _ = tx.send(pkt);
                 }
-
-                socket.flush().await.unwrap();
             }
+
 
             crate::log::log(
                 LogLevel::Debug, 
@@ -229,9 +261,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     };
 
     loop {
-        let mut socket_guard = read.lock().await;
-
-        match timeout(Duration::from_secs(30), read_packet(&mut *socket_guard, &ProtocolState::Play)).await {
+        match timeout(Duration::from_secs(30), read_packet(&mut read, &ProtocolState::Play)).await {
             Ok(Ok(Some(packet))) => {
                 match packet {
                     ClientPacket::ConfirmTeleprortion(mut cursor) => {
@@ -262,32 +292,35 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                             LogLevel::Info, 
                             format!("<{}> {}", player_clone.username, message.content).as_str()
                         );
-
-                        drop(socket_guard);
                         
                         for player in PLAYERS.read().await.values() {
                             let mut target_player_guard = player.lock().await;
 
                             if target_player_guard.uuid == uuid {
+                                let mut buffer = Vec::new();
+
                                 send_player_chat_message(
-                                    &mut *write.lock().await,
+                                    &mut buffer,
                                     &player_clone,
                                     &mut *target_player_guard,
                                     &message
                                 ).await?;
+
+                                let _ = tx.send(buffer);
                             } else {
-                                let target_player_socket = PLAYER_SOCKET_MAP.read().await;
-                                let target_player_socket = target_player_socket.get(&target_player_guard.uuid).unwrap();
-                                let mut socket_guard = target_player_socket.lock().await;
+                                let player_sockets = PLAYER_SOCKET_MAP.read().await;
+                                let target_player_tx = player_sockets.get(&target_player_guard.uuid).unwrap();
+                                
+                                let mut buffer = Vec::new();
 
                                 send_player_chat_message(
-                                    &mut *socket_guard,
+                                    &mut buffer,
                                     &player_clone,
                                     &mut *target_player_guard,
                                     &message
                                 ).await?;
                                 
-                                drop(socket_guard);
+                                let _ = target_player_tx.send(buffer);
                             }  
                         }
                         
@@ -344,8 +377,8 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     PLAYER_SOCKET_MAP.write().await.remove(&uuid);
     PLAYERS.write().await.remove(&uuid);
 
-    let mut write_guard = write.lock().await;
-    write_guard.shutdown().await?;
+    drop(tx);
+    let _ = writer_future.await;
 
     keep_alive_future.abort();
     chunk_sender_task.abort();
@@ -359,9 +392,11 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         crate::server::save::save().await;
         crate::world::REGIONS.lock().await.clear(); // unnecesary having all regions loaded in while nobody is playing
     } else {
-        for other_player in PLAYER_SOCKET_MAP.read().await.values().into_iter() {
-            let socket_lock = &mut *other_player.lock().await;
-            send_player_info_remove(socket_lock, vec![&uuid]).await?;
+        for other_tx in PLAYER_SOCKET_MAP.read().await.values().into_iter() {
+            let mut buffer = Vec::new();
+            send_player_info_remove(&mut buffer, vec![&uuid]).await?;
+
+            let _ = other_tx.send(buffer);
         }
     }
 

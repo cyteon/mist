@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 use once_cell::sync::Lazy;
-use tokio::{net::{TcpStream, tcp::OwnedWriteHalf}, sync::{Mutex, RwLock}};
+use tokio::{net::{TcpStream, tcp::OwnedWriteHalf}, sync::{Mutex, RwLock, mpsc}};
 
 use crate::{
     net::packets::serverbound::handshake::{
@@ -14,7 +14,7 @@ use crate::{
     }
 };
 
-pub static PLAYER_SOCKET_MAP: Lazy<RwLock<HashMap<String, Arc<Mutex<EncryptedWriter<OwnedWriteHalf>>>>>> =
+pub static PLAYER_SOCKET_MAP: Lazy<RwLock<HashMap<String, mpsc::UnboundedSender<Vec<u8>>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
 pub async fn handle_conn(mut socket: TcpStream) -> anyhow::Result<()> {
