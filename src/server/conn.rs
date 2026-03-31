@@ -1,6 +1,6 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 use once_cell::sync::Lazy;
-use tokio::{net::{TcpStream, tcp::OwnedWriteHalf}, sync::{Mutex, RwLock, mpsc}};
+use tokio::{net::TcpStream, sync::{RwLock, mpsc}};
 
 use crate::{
     net::packets::serverbound::handshake::{
@@ -8,10 +8,7 @@ use crate::{
         read_handshake
     }, 
 
-    server::{
-        encryption::EncryptedWriter, 
-        state
-    }
+    server::state
 };
 
 pub static PLAYER_SOCKET_MAP: Lazy<RwLock<HashMap<String, mpsc::UnboundedSender<Vec<u8>>>>> =

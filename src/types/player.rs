@@ -130,7 +130,7 @@ impl Player {
         self.z += self.vz;
 
         crate::log::log(fancy_log::LogLevel::Debug, &format!("Player in chunk area center: {}, {}", (self.x as i32) >> 4, (self.z as i32) >> 4));
-        //crate::log::log(fancy_log::LogLevel::Debug, &format!("Player position: {:.2}, {:.2}, {:.2}", self.x, self.y, self.z));
+        crate::log::log(fancy_log::LogLevel::Debug, &format!("Player position: {:.2}, {:.2}, {:.2}", self.x, self.y, self.z));
 
         if !self.chunks_loaded {
             return Ok(());
@@ -184,29 +184,18 @@ impl Player {
             let username_clone = self.username.clone();
 
             tokio::spawn(async move {
-                for batch in chunks_to_send.chunks(8) {
-                    let mut failed_in_batch = 0;
+                for (cx, cz) in chunks_to_send {
+                    let region: crate::world::chunks::Region = get_region(cx >> 5, cz >> 5).await.lock().await.clone();
+                    let chunk = region.chunks.iter().find(|chunk| chunk.x == cx && chunk.z == cz).unwrap();
 
-                    for (cx, cz) in batch {
-                        let region: crate::world::chunks::Region = get_region(cx >> 5, cz >> 5).await.lock().await.clone();
-                        let chunk = region.chunks.iter().find(|chunk| chunk.x == *cx && chunk.z == *cz).unwrap();
+                    let mut buffer = Vec::new();
+                    let result = send_chunk_data_with_light(&mut buffer, &chunk).await;
+                    let _ = tx.send(buffer);
 
-                        let mut buffer = Vec::new();
-                        let result = send_chunk_data_with_light(&mut buffer, &chunk).await;
-                        let _ = tx.send(buffer);
-
-                        if result.is_ok() {
-                            crate::log::log(fancy_log::LogLevel::Debug, &format!("Sent chunk {}, {} to player {}", cx, cz, username_clone));
-                        } else {
-                            crate::log::log(fancy_log::LogLevel::Warn, &format!("Failed to send chunk {}, {} to player {}: {:?}", cx, cz, username_clone, result.err().unwrap()));
-                            failed_in_batch += 1;
-                        }
-                    }
-
-                    // if 4 fails i doubt the rest will work
-                    if failed_in_batch > 4 {
-                        crate::log::log(fancy_log::LogLevel::Warn, &format!("Failed to send chunks in batch to player {}", username_clone));
-                        break;
+                    if result.is_ok() {
+                        crate::log::log(fancy_log::LogLevel::Debug, &format!("Sent chunk {}, {} to player {}", cx, cz, username_clone));
+                    } else {
+                        crate::log::log(fancy_log::LogLevel::Warn, &format!("Failed to send chunk {}, {} to player {}: {:?}", cx, cz, username_clone, result.err().unwrap()));
                     }
                 }
             });

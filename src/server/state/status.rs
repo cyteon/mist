@@ -40,8 +40,17 @@ pub async fn status(mut socket: TcpStream) -> anyhow::Result<()> {
             },
 
             Ok(Ok(None)) => { }
-            Err(_) => { socket.shutdown().await?; break; }
-            Ok(Err(_)) => { socket.shutdown().await?; break; }
+
+            Err(_) => {
+                socket.shutdown().await?;
+                break;
+            }
+
+            Ok(Err(_)) => {
+                socket.shutdown().await?;
+                break; 
+            }
+
         }
     }
 

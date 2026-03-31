@@ -54,10 +54,10 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
 
     let login_start = read_login_start(&mut socket).await?;
 
-    player = Some(Player::new(
+    let mut player = Player::new(
         login_start.uuid.clone(),
         login_start.username.clone()
-    ));
+    );
 
     send_encryption_request(&mut socket).await?;
 
@@ -68,24 +68,24 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
         encryption_response.clone().as_slice()
     );
 
-    player.as_mut().unwrap().shared_secret = Some(encryption_response.clone());
+    player.shared_secret = Some(encryption_response.clone());
 
     if SERVER_CONFIG.online_mode {
-        let player_name = player.as_ref().unwrap().username.clone();
+        let player_name = player.username.clone();
         let player_data = authenticate_player(&player_name, encryption_response.clone()).await?;
 
-        player.as_mut().unwrap().username = player_data.username; // we alr know username, but use mojang as an source of truth
-        player.as_mut().unwrap().textures = Some(player_data.textures);
-        player.as_mut().unwrap().texture_signature = Some(player_data.texture_signature);
+        player.username = player_data.username; // we alr know username, but use mojang as an source of truth
+        player.textures = Some(player_data.textures);
+        player.texture_signature = Some(player_data.texture_signature);
     }
 
-    send_login_success(&mut socket, &player.clone().unwrap()).await?;
-    crate::log::log(LogLevel::Debug, format!("Sent login success to {}", player.as_ref().unwrap().username).as_str());
+    send_login_success(&mut socket, &player).await?;
+    crate::log::log(LogLevel::Debug, format!("Sent login success to {}", player.username).as_str());
     
     read_login_acknowledged(&mut socket).await?;
-    crate::log::log(LogLevel::Debug, format!("{} sent login acknowledged", player.as_ref().unwrap().username).as_str());
+    crate::log::log(LogLevel::Debug, format!("{} sent login acknowledged", player.username).as_str());
 
-    configuration::configuration(socket, player.unwrap()).await?;
+    configuration::configuration(socket, player).await?;
 
     Ok(())
 }

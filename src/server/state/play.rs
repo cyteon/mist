@@ -29,7 +29,8 @@ use crate::{
             serverbound::{
                 chat_message::read_chat_message,
                 confirm_teleportation::read_confirm_teleportation,
-                player_action::read_player_action, player_input::read_player_input,
+                player_action::read_player_action,
+                player_input::read_player_input,
                 set_player_position_and_rotation::read_set_player_position_and_rotation,
                 set_player_rotation::read_set_player_rotation,
                 use_item_on::read_use_item_on
@@ -50,6 +51,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
     let uuid = player.uuid.clone();
     let username = player.username.clone();
+    let mut player = player;
 
     let (mut read, write) = socket.into_split();
     let (tx, mut rx) = mpsc::unbounded_channel::<Vec<u8>>();
@@ -90,33 +92,27 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
             }
         })
     };
-
-    let player = Arc::new(Mutex::new(player));
-
-    let mut player_guard = player.lock().await;
     
-    if player_guard.x == 0.0 && player_guard.y == 0.0 && player_guard.z == 0.0 {
+    if player.x == 0.0 && player.y == 0.0 && player.z == 0.0 {
         let surface_y = 
-            get_region(player_guard.x as i32 >> 9, player_guard.z as i32 >> 9).await.lock().await
-            .get_chunk(player_guard.x as i32 >> 4, player_guard.z as i32 >> 4).unwrap()
-            .get_surface_y((player_guard.x as i32 & 15) as u8, (player_guard.z as i32 & 15) as u8);
+            get_region(player.x as i32 >> 9, player.z as i32 >> 9).await.lock().await
+            .get_chunk(player.x as i32 >> 4, player.z as i32 >> 4).unwrap()
+            .get_surface_y((player.x as i32 & 15) as u8, (player.z as i32 & 15) as u8);
         
-        player_guard.y = surface_y as f64 + 1.0;
+        player.y = surface_y as f64 + 1.0;
     }
-    
-    drop(player_guard);
 
-    {
-        let mut buffer = Vec::new();
-        send_sync_player_position(&mut buffer, &*player.lock().await).await?;
+    let mut buffer = Vec::new();
+    send_sync_player_position(&mut buffer, &player).await?;
 
-        let _ = tx.send(buffer);
-    }
+    let _ = tx.send(buffer);
 
     crate::log::log(
         LogLevel::Debug, 
-        format!("Sent initial player position to {}", player.lock().await.username).as_str()
+        format!("Sent initial player position to {}", username).as_str()
     );
+
+    let player = Arc::new(Mutex::new(player));
 
     PLAYER_SOCKET_MAP.write().await.insert(
         player.lock().await.uuid.clone(),
@@ -247,7 +243,6 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                 }
             }
 
-
             crate::log::log(
                 LogLevel::Debug, 
                 format!("Finished sending chunks to {}", player_name).as_str()
@@ -284,7 +279,6 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                         let message = read_chat_message(&mut cursor).await?;
 
                         let players_locked = PLAYERS.read().await;
-                        // we dont modify the player, so we can just clone it
                         let player_clone = players_locked.get(&uuid).unwrap().lock().await.clone();
                         drop(players_locked);
 
@@ -323,8 +317,6 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                                 let _ = target_player_tx.send(buffer);
                             }  
                         }
-                        
-                        continue;
                     }
 
                     ClientPacket::SetPlayerPositionAndRotation(mut cursor) => {

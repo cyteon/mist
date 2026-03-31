@@ -45,7 +45,7 @@ pub fn place_ores(chunk: &mut Chunk) {
                 continue;
             }
 
-            for i in 0..vein_size {
+            for _ in 0..=vein_size {
                 let offset_x = rng.gen_range(-2..=2);
                 let offset_y = rng.gen_range(-2..=2);
                 let offset_z = rng.gen_range(-2..=2);
