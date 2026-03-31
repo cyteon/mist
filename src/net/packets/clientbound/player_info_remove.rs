@@ -10,10 +10,6 @@ pub async fn send_player_info_remove<W: tokio::io::AsyncWriteExt + Unpin>(stream
         packet_data.extend_from_slice(&uuid_vec);
     }
 
-    let mut len_prefix = Vec::with_capacity(5);
-    write_var(&mut len_prefix, packet_data.len() as i32)?;
-
-    stream.write_all(&len_prefix).await?;
     stream.write_all(&packet_data).await?;
     stream.flush().await?;
 

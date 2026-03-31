@@ -6,8 +6,9 @@ mod packets {
 }
 
 use tokio::io::AsyncReadExt;
+use std::io::Write;
 
-use crate::net::codec::read_var;
+use crate::net::codec::{read_var, write_var};
 
 pub enum ClientPacket {
     // status state
@@ -35,13 +36,58 @@ pub enum ProtocolState {
     Play
 }
 
-pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &ProtocolState) -> anyhow::Result<Option<ClientPacket>> {
+pub fn encode_packet(data: &[u8]) -> Vec<u8> {
+    let mut result = Vec::new();
+
+    if data.len() > 256 {
+        let uncompressed_len = data.len();
+
+        let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::fast());
+        encoder.write_all(&data).unwrap();
+
+        let compressed = encoder.finish().unwrap();
+
+        let mut inner = Vec::with_capacity(5 + compressed.len());
+        write_var(&mut inner, uncompressed_len as i32).unwrap();
+        inner.extend_from_slice(&compressed);
+
+        write_var(&mut result, inner.len() as i32).unwrap();
+        result.extend_from_slice(&inner);
+    } else {
+        let mut inner = Vec::with_capacity(5);
+        write_var(&mut inner, 0).unwrap();
+        inner.extend_from_slice(&data);
+
+        write_var(&mut result, inner.len() as i32).unwrap();
+        result.extend_from_slice(&inner);
+    }
+
+    result
+}
+
+pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &ProtocolState, compression: bool) -> anyhow::Result<Option<ClientPacket>> {
     let packet_len = read_var(stream).await.map_err(|e| anyhow::anyhow!("Failed to read packet length: {}", e))?;
 
     let mut packet_buf = vec![0u8; packet_len as usize];
     stream.read_exact(&mut packet_buf).await.map_err(|e| anyhow::anyhow!("Failed to read packet data: {}", e))?;
 
     let mut cursor = std::io::Cursor::new(packet_buf);
+
+    if compression {
+        let data_len = read_var(&mut cursor).await.map_err(|e| anyhow::anyhow!("Failed to read data length: {}", e))?;
+
+        if data_len != 0 {
+            let mut compressed = Vec::new();
+            std::io::Read::read_to_end(&mut cursor, &mut compressed).map_err(|e| anyhow::anyhow!("Failed to read compressed data: {}", e))?;
+
+            let mut decoder = flate2::read::ZlibDecoder::new(&compressed[..]);
+            let mut decompressed = Vec::with_capacity(data_len as usize);
+            std::io::Read::read_to_end(&mut decoder, &mut decompressed).map_err(|e| anyhow::anyhow!("Failed to decompress data: {}", e))?;
+
+            cursor = std::io::Cursor::new(decompressed);
+        }
+    }
+
     let packet_id = read_var(&mut cursor).await.map_err(|e| anyhow::anyhow!("Failed to read packet ID: {}", e))?;
 
     if packet_id != 0x0C && packet_id != 0x1D { // these packets are spammy

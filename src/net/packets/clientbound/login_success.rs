@@ -39,10 +39,6 @@ pub async fn send_login_success<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mu
         }
     }
 
-    let mut len_prefix = Vec::with_capacity(5);
-    write_var(&mut len_prefix, packet_data.len() as i32)?;
-
-    stream.write_all(&len_prefix).await?;
     stream.write_all(&packet_data).await?;
     stream.flush().await?;
 

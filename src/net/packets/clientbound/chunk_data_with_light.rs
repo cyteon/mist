@@ -66,10 +66,6 @@ pub async fn send_chunk_data_with_light<W: tokio::io::AsyncWriteExt + Unpin>(
         packet_data.extend_from_slice(&FULLBRIGHT_ENTRY);
     }
     
-    let mut len_prefix = Vec::with_capacity(5);
-    write_var(&mut len_prefix, packet_data.len() as i32)?;
-
-    stream.write_all(&len_prefix).await?;
     stream.write_all(&packet_data).await?;
     stream.flush().await?;
     

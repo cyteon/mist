@@ -3,6 +3,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use tokio::io::AsyncWriteExt;
 use crate::net::codec::write_var;
+use crate::net::packet::encode_packet;
 
 #[derive(Debug, Clone)]
 pub struct RegistryEntry {
@@ -74,11 +75,8 @@ pub async fn send_all_registers<W: AsyncWriteExt + Unpin>(
             }
         }
 
-        let mut len_prefix = Vec::with_capacity(5);
-        write_var(&mut len_prefix, packet_data.len() as i32)?;
-
-        stream.write_all(&len_prefix).await?;
-        stream.write_all(&packet_data).await?;
+        let encoded = encode_packet(&packet_data);
+        stream.write_all(&encoded).await?;
         stream.flush().await?;
     }
     Ok(())

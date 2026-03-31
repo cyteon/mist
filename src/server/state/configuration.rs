@@ -6,7 +6,7 @@ use tokio::{io::AsyncWriteExt, net::TcpStream, time::timeout};
 use crate::{
     net::{
         packet::{
-            ClientPacket, ProtocolState, read_packet
+            ClientPacket, ProtocolState, read_packet, encode_packet
         },
         
         packets::{
@@ -32,13 +32,20 @@ use crate::{
 pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Player) -> anyhow::Result<()> {
     crate::log::log(LogLevel::Debug, format!("{} has entered the configuration state", player.username).as_str());
 
-    send_plugin_message(&mut socket).await?;
-    send_known_packs(&mut socket).await?;
+    let mut buffer = Vec::new();
+    send_plugin_message(&mut buffer).await?;
+    let encoded = encode_packet(&buffer);
+    socket.write_all(&encoded).await?;
+
+    let mut buffer = Vec::new();
+    send_known_packs(&mut buffer).await?;
+    let encoded = encode_packet(&buffer);
+    socket.write_all(&encoded).await?;
 
     crate::log::log(LogLevel::Debug, format!("Sent known packs to {}", player.username).as_str());
    
     loop {
-        match timeout(Duration::from_secs(15), read_packet(&mut socket, &ProtocolState::Configuration)).await {
+        match timeout(Duration::from_secs(15), read_packet(&mut socket, &ProtocolState::Configuration, true)).await {
             Ok(Ok(Some(packet))) => {
                 match packet {
                     ClientPacket::KnownPacks(mut cursor) => {
@@ -46,16 +53,25 @@ pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Playe
                         crate::log::log(LogLevel::Debug, format!("{} has sent known packs", player.username).as_str());
 
                         send_all_registers(&mut socket).await?;
+
                         crate::log::log(LogLevel::Debug, format!("Sent registry data to {}", player.username).as_str());
 
-                        send_finish_configuration(&mut socket).await?;
+                        let mut buffer = Vec::new();
+                        send_finish_configuration(&mut buffer).await?;
+                        let encoded = encode_packet(&buffer);
+                        socket.write_all(&encoded).await?;
+
                         crate::log::log(LogLevel::Debug, format!("Sent finish configuration to {}", player.username).as_str());
                     },
 
                     ClientPacket::AcknowledgeFinishConfiguration => {
                         crate::log::log(LogLevel::Debug, format!("{} has finished configuration", player.username).as_str());
                         
-                        send_login_play(&mut socket).await?;
+                        let mut buffer = Vec::new();
+                        send_login_play(&mut buffer).await?;
+                        let encoded = encode_packet(&buffer);
+                        socket.write_all(&encoded).await?;
+
                         crate::log::log(LogLevel::Debug, format!("Switching {} to play state", player.username).as_str());
 
                         play::play(socket, player).await?;

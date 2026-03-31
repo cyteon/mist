@@ -20,10 +20,6 @@ pub async fn send_sync_player_position<W: tokio::io::AsyncWriteExt + Unpin>(stre
 
     packet_data.write_i32::<BigEndian>(0)?; // teleport flags
 
-    let mut len_prefix = Vec::with_capacity(5);
-    write_var(&mut len_prefix, packet_data.len() as i32)?;
-
-    stream.write_all(&len_prefix).await?;
     stream.write_all(&packet_data).await?;
     stream.flush().await?;
 

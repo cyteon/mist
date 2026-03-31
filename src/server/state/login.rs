@@ -1,21 +1,27 @@
 use fancy_log::LogLevel;
 use tokio::net::TcpStream;
+use tokio::io::AsyncWriteExt;
 
 use crate::{
     config::SERVER_CONFIG, 
 
-    net::packets::{
-        clientbound::{
-            disconnect::send_disconnect_login, 
-            encryption_request::send_encryption_request, 
-            login_success::send_login_success
-        },
-        
-        serverbound::{
-            encryption_response::read_encryption_response, 
-            handshake::HandshakePacket, 
-            login_acknowledged::read_login_acknowledged, 
-            login_start::read_login_start
+    net::{
+        packet::encode_packet,
+
+        packets::{
+            clientbound::{
+                disconnect::send_disconnect_login, 
+                encryption_request::send_encryption_request, 
+                login_success::send_login_success,
+                set_compression::send_set_compression
+            },
+            
+            serverbound::{
+                encryption_response::read_encryption_response, 
+                handshake::HandshakePacket, 
+                login_acknowledged::read_login_acknowledged, 
+                login_start::read_login_start
+            }
         }
     },
     
@@ -79,10 +85,18 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
         player.texture_signature = Some(player_data.texture_signature);
     }
 
-    send_login_success(&mut socket, &player).await?;
+    send_set_compression(&mut socket).await?;
+    crate::log::log(LogLevel::Debug, format!("Sent set compression to {}", player.username).as_str());
+
+    let mut buffer = Vec::new();
+    send_login_success(&mut buffer, &player).await?;
+    let encoded = encode_packet(&buffer);
+    socket.write_all(&encoded).await?;
+
     crate::log::log(LogLevel::Debug, format!("Sent login success to {}", player.username).as_str());
     
     read_login_acknowledged(&mut socket).await?;
+
     crate::log::log(LogLevel::Debug, format!("{} sent login acknowledged", player.username).as_str());
 
     configuration::configuration(socket, player).await?;

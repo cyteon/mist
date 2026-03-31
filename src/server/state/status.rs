@@ -24,7 +24,7 @@ pub async fn status(mut socket: TcpStream) -> anyhow::Result<()> {
     send_status_response(&mut socket).await?;
 
     loop {
-        match timeout(Duration::from_secs(2), read_packet(&mut socket, &ProtocolState::Status)).await {
+        match timeout(Duration::from_secs(2), read_packet(&mut socket, &ProtocolState::Status, false)).await {
             Ok(Ok(Some(packet))) => {
                 match packet {
                     ClientPacket::Ping => {

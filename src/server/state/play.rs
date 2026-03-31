@@ -11,7 +11,7 @@ use tokio::{
 use crate::{
     net::{
         packet::{
-            ClientPacket, ProtocolState, read_packet
+            ClientPacket, ProtocolState, read_packet, encode_packet
         }, 
 
         packets::{
@@ -60,11 +60,16 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         let mut write = write;
 
         while let Some(buffer) = rx.recv().await {
-            if write.write_all(&buffer).await.is_err() {
-                break;
+            let packet = encode_packet(&buffer);
+
+            write.write_all(&packet).await.unwrap();
+
+            while let Ok(buffer) = rx.try_recv() {
+                let packet = encode_packet(&buffer);
+                write.write_all(&packet).await.unwrap();
             }
 
-            let _ = write.flush().await;
+            write.flush().await.unwrap();
         }
 
         let _ = write.shutdown().await;
@@ -226,6 +231,11 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         });
 
         tokio::spawn(async move {
+            crate::log::log(
+                LogLevel::Debug, 
+                format!("Making chunk packets for {} to send", player_name).as_str()
+            );
+
             let tasks: Vec<_> = chunks_to_send.into_iter().map(|chunk| {
                 tokio::spawn(async move {
                     let mut buffer = Vec::new();
@@ -236,6 +246,11 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
             }).collect();
 
             let results: Vec<_> = futures::future::join_all(tasks).await;
+
+            crate::log::log(
+                LogLevel::Debug, 
+                format!("Finished making chunk packets for {}, now sending", player_name).as_str()
+            );
 
             for result in results {
                 if let Ok(Ok(pkt)) = result {
@@ -256,7 +271,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     };
 
     loop {
-        match timeout(Duration::from_secs(30), read_packet(&mut read, &ProtocolState::Play)).await {
+        match timeout(Duration::from_secs(30), read_packet(&mut read, &ProtocolState::Play, true)).await {
             Ok(Ok(Some(packet))) => {
                 match packet {
                     ClientPacket::ConfirmTeleprortion(mut cursor) => {
