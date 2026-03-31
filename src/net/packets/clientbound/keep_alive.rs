@@ -1,5 +1,4 @@
 use tokio::io::AsyncWriteExt;
-use crate::net::codec::write_var;
 
 pub async fn send_keep_alive<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::KEEP_ALIVE as u8];

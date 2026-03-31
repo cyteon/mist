@@ -1,4 +1,3 @@
-use crate::net::codec::write_var;
 use tokio::io::AsyncWriteExt;
 
 pub async fn send_game_event<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, event: u8, value: f32) -> anyhow::Result<()> {

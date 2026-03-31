@@ -2,6 +2,7 @@ use tokio::io::AsyncReadExt;
 
 use crate::net::codec::read_var;
 
+#[allow(unused)]
 pub struct HandshakePacket {
     pub protocol_version: i32,
     pub server_address: String,

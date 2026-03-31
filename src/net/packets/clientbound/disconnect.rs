@@ -1,4 +1,4 @@
-use crate::net::codec::write_var;
+use crate::net::codec::{write_var, write_string};
 
 pub async fn send_disconnect_login<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, reason: &str) -> anyhow::Result<()> {
     let json = format!(r#"{{
@@ -7,8 +7,7 @@ pub async fn send_disconnect_login<W: tokio::io::AsyncWriteExt + Unpin>(stream: 
 
     let mut packet_data = vec![crate::net::packet::login::clientbound::LOGIN_DISCONNECT as u8];
 
-    write_var(&mut packet_data, json.len() as i32)?;
-    packet_data.extend_from_slice(json.as_bytes());
+    write_string(&mut packet_data, &json)?;
 
     let mut len_prefix = Vec::with_capacity(5);
     write_var(&mut len_prefix, packet_data.len() as i32)?;

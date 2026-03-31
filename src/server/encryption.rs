@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::task::ready;
 use aes::Aes128;
 use aes::cipher::{KeyIvInit, BlockEncryptMut, BlockDecryptMut, generic_array::GenericArray};

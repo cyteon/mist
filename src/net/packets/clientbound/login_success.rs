@@ -1,4 +1,4 @@
-use crate::{net::codec::write_var, types::player::Player};
+use crate::{net::codec::{write_var, write_string}, types::player::Player};
 use byteorder::WriteBytesExt;
 
 pub async fn send_login_success<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, player: &Player) -> anyhow::Result<()> {
@@ -20,20 +20,13 @@ pub async fn send_login_success<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mu
     write_var(&mut packet_data, property_count)?;
 
     if let Some(textures) = &player.textures {
-        let name = b"textures";
-        write_var(&mut packet_data, name.len() as i32)?;
-        packet_data.extend_from_slice(name);
-
-        let texture_bytes = textures.as_bytes();
-        write_var(&mut packet_data, texture_bytes.len() as i32)?;
-        packet_data.extend(texture_bytes);
+        write_string(&mut packet_data, "textures")?;
+        write_string(&mut packet_data, textures)?;
 
         if let Some(texture_signature) = &player.texture_signature {
             packet_data.write_u8(1)?;
 
-            let signature_bytes = texture_signature.as_bytes();
-            write_var(&mut packet_data, signature_bytes.len() as i32)?;
-            packet_data.extend_from_slice(signature_bytes);
+            write_string(&mut packet_data, texture_signature)?;
         } else {
             packet_data.write_u8(0)?;
         }

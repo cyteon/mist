@@ -48,6 +48,13 @@ pub fn write_var<W: WriteBytesExt + Unpin>(stream: &mut W, value: i32) -> anyhow
     Ok(())
 }
 
+pub fn write_string<W: WriteBytesExt + Unpin>(stream: &mut W, value: &str) -> anyhow::Result<()> {
+    write_var(stream, value.len() as i32)?;
+    stream.write_all(value.as_bytes())?;
+    
+    Ok(())
+}
+
 // x: 26 bits, y: 12 bits, z: 26 bits
 // all signed integers, two's complement
 pub async fn read_position<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow::Result<(i32, i32, i32)> {

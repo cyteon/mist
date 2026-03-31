@@ -1,5 +1,3 @@
-use crate::net::codec::write_var;
-
 pub async fn send_system_chat_message<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, message: String) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::SYSTEM_CHAT as u8];
 

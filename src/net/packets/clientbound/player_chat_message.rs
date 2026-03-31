@@ -2,7 +2,7 @@ use byteorder::{BigEndian, WriteBytesExt};
 
 use crate::{
     net::{
-        codec::write_var, 
+        codec::{write_var, write_string}, 
         packets::serverbound::chat_message::Message
     }, 
 
@@ -35,9 +35,7 @@ pub async fn send_player_chat_message<W: tokio::io::AsyncWriteExt + Unpin>(
 
     // sector: body
 
-    let message_bytes = message.content.as_bytes();
-    write_var(&mut packet_data, message_bytes.len() as i32)?;
-    packet_data.extend_from_slice(message_bytes);
+    write_string(&mut packet_data, &message.content)?;
 
     packet_data.write_i64::<BigEndian>(message.timestamp)?;
     packet_data.write_i64::<BigEndian>(message.salt)?;

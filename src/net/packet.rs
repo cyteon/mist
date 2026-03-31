@@ -29,6 +29,7 @@ pub enum ClientPacket {
     SetPlayerRotation(std::io::Cursor<Vec<u8>>), // 0x1F in play
 }
 
+#[allow(unused)]
 pub enum ProtocolState {
     Handshake,
     Status,

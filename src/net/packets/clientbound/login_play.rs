@@ -1,6 +1,6 @@
 use byteorder::{WriteBytesExt, BigEndian};
 
-use crate::{config::SERVER_CONFIG, net::codec::write_var};
+use crate::{config::SERVER_CONFIG, net::codec::{write_var, write_string}};
 
 pub async fn send_login_play<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::LOGIN as u8];
@@ -9,9 +9,8 @@ pub async fn send_login_play<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W
     packet_data.push(false as u8); // is hardcore
 
     write_var(&mut packet_data, 1)?; // dimension count
-    
-    write_var(&mut packet_data, "overworld".len() as i32)?;
-    packet_data.extend_from_slice("overworld".as_bytes()); // dimension identifier
+
+    write_string(&mut packet_data, "overworld")?; // dimension identifier
 
     write_var(&mut packet_data, SERVER_CONFIG.max_players as i32)?;
     write_var(&mut packet_data, SERVER_CONFIG.view_distance as i32)?;
@@ -22,8 +21,7 @@ pub async fn send_login_play<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W
     packet_data.push(false as u8); // do limited crafting
 
     write_var(&mut packet_data, 0 as i32)?; // dimension type
-    write_var(&mut packet_data, "minecraft:overworld".len() as i32)?;
-    packet_data.extend_from_slice("minecraft:overworld".as_bytes());
+    write_string(&mut packet_data, "minecraft:overworld")?;
 
     packet_data.extend_from_slice(&[1u8; 8]); // placeholder for first 8 bytes of hashed seed
     packet_data.push(1u8); // placeholder for gamemode
