@@ -1,5 +1,5 @@
 # Mist
-An minecraft server implementation in rust for minecraft 1.21.10
+An minecraft server implementation in rust for minecraft 1.21.11
 
 ## Features
 **General**
@@ -11,18 +11,19 @@ An minecraft server implementation in rust for minecraft 1.21.10
 - [x] Encryption
 - [x] Mojang authentication
 - [x] Enter play state
-- [ ] Chat messages
-- [ ] Commands
+- [x] Chat messages
+- [x] Basic Commands
+- [ ] Most/all commands
 
 **World**
-- [ ] Show players in tablist
+- [x] Show players in tablist
 - [x] Spawning player
 - [ ] Synchronize players across all clients
-- [ ] Player skins (in online mode)
+- [x] Player skins (in online mode)
 - [x] Sending chunks
 - [x] Fullbright lightning
 - [ ] Proper lightning
-- [x] Flat worldgen
-- [ ] Improved flat worldgen (ores and stone/deepslate from -64 to 64)
-- [ ] Proper worldgen
+- [x] Basic worldgen
+- [ ] Biomes
+- [ ] Structures
 - [x] World saves

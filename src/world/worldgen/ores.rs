@@ -31,7 +31,7 @@ const ORES: &[OreConfig] = &[
 
 pub fn place_ores(chunk: &mut Chunk) {
     let seed = chunk.chunk_seed();
-    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+    let mut rng = rand::rngs::SmallRng::seed_from_u64(seed);
 
     for ore in ORES {
         for _ in 0..ore.veins_per_chunk {
