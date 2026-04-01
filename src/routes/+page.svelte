@@ -2,10 +2,13 @@
     const features = [
         { name: "Authentication", status: "complete" },
         { name: "World saving", status: "complete" },
+        { name: "Commands", status: "partial" },
+        { name: "Chat", status: "complete" },
         { name: "Worldgen", status: "partial" },
+        { name: "Survival mode", status: "not_started" },
+        { name: "Inventory managment", status: "not_started" },
         { name: "Player sync", status: "not_started" },
         { name: "Entity system", status: "not_started" },
-        { name: "Survival mode", status: "not_started" },
         { name: "The Nether", status: "not_started" },
         { name: "The End", status: "not_started" },
         { name: "Redstone", status: "not_started" }
