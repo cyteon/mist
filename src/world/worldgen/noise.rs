@@ -1,4 +1,4 @@
-use noise::{Perlin, NoiseFn};
+pub use noise::{Perlin, NoiseFn};
 use once_cell::sync::Lazy;
 
 pub static PERLIN: Lazy<Perlin> = Lazy::new(|| {
@@ -47,5 +47,12 @@ pub fn is_cave(x: f64, y: f64, z: f64) -> bool {
         1.0, 2.0, 0.5
     );
 
-    value > 0.5
+    if value > 0.6 {
+        return true;
+    }
+
+    let v1 = PERLIN.get([x / 64.0, y / 64.0, z / 64.0]);
+    let v2 = PERLIN.get([x / 64.0 + 100.0, y / 64.0 + 100.0, z / 64.0 + 100.0]);
+
+    (v1 * v1 + v2 * v2) < 0.005
 }

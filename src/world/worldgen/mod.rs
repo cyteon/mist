@@ -66,7 +66,7 @@ fn place_column(chunk: &mut Chunk, x: u8, z: u8, height: i32) {
             y if y < SEA_LEVEL && y == height => crate::types::blocks::SAND,
             y if y < SEA_LEVEL && y > height - 4 => crate::types::blocks::SAND,
             y if y > height - 4 => crate::types::blocks::DIRT,
-            _ => crate::types::blocks::AIR,
+            _ => crate::types::blocks::STONE,
         };
 
         chunk.set_block(x, y, z, block_id);
@@ -75,9 +75,18 @@ fn place_column(chunk: &mut Chunk, x: u8, z: u8, height: i32) {
     let wx = (chunk.x << 4) + x as i32;
     let wz = (chunk.z << 4) + z as i32;
 
-    for y in -60..=height {
+    use noise::NoiseFn;
+    let entrance_noise = noise::PERLIN.get([wx as f64 / 128.0, wz as f64 / 128.0]);
+
+    let cave_top = if entrance_noise > 0.5 {
+        height
+    } else {
+        height - 8
+    };
+
+    for y in -60..=cave_top {
         if noise::is_cave(wx as f64, y as f64, wz as f64) {
-            chunk.set_block(x, y, z, crate::types::blocks::REDSTONE_BLOCK);
+            chunk.set_block(x, y, z, crate::types::blocks::CAVE_AIR);
         }
     }
 
