@@ -27,3 +27,10 @@ An minecraft server implementation in rust for minecraft 1.21.11
 - [ ] Biomes
 - [ ] Structures
 - [x] World saves
+
+**Security**
+- [ ] Server-side movement validation
+- [ ] Server-side action validation
+- [ ] Secure chat
+- [ ] Permissions
+- [ ] Whitelist
