@@ -42,7 +42,7 @@ use crate::{
     }, 
     
     server::{conn::PLAYER_SOCKET_MAP, encryption::EncryptedStream, commands::handle_command},
-    types::player::Player, world::get_region
+    types::player::Player, world::{get_region, get_chunk}
 };
 
 pub static PLAYERS: Lazy<RwLock<HashMap<String, Arc<Mutex<Player>>>>> =
@@ -109,11 +109,12 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     };
     
     if player.x == 0.0 && player.y == 0.0 && player.z == 0.0 {
-        let surface_y = 
-            get_region(player.x as i32 >> 9, player.z as i32 >> 9).await.lock().await
-            .get_chunk(player.x as i32 >> 4, player.z as i32 >> 4).unwrap()
-            .get_surface_y((player.x as i32 & 15) as u8, (player.z as i32 & 15) as u8);
-        
+        let region_arc = get_region(player.x as i32 >> 9, player.z as i32 >> 9).await;
+        let cx = player.x as i32 >> 4;
+        let cz = player.z as i32 >> 4;
+        let chunk = get_chunk(&region_arc, cx, cz).await;
+        let surface_y = chunk.get_surface_y((player.x as i32 & 15) as u8, (player.z as i32 & 15) as u8);
+
         player.y = surface_y as f64 + 1.0;
     }
 
@@ -234,11 +235,11 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         
         let mut chunks_to_send = Vec::new();
         for ((rx, rz), coords) in by_region {
-            let region = get_region(rx, rz).await.lock().await.clone();
+            let region_arc = get_region(rx, rz).await;
 
             for (cx, cz) in coords {
-                let chunk = region.get_chunk(cx, cz).unwrap();
-                chunks_to_send.push(chunk.clone());
+                let chunk = get_chunk(&region_arc, cx, cz).await;
+                chunks_to_send.push(chunk);
             }
         }
 

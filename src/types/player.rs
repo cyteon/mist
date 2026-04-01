@@ -7,7 +7,7 @@ use crate::{
         container_set_slot::send_container_set_slot
     },
     
-    world::get_region
+    world::{get_region, get_chunk}
 };
 
 #[derive(Clone)]
@@ -305,8 +305,8 @@ impl Player {
 
             tokio::spawn(async move {
                 for (cx, cz) in chunks_to_send {
-                    let region: crate::world::chunks::Region = get_region(cx >> 5, cz >> 5).await.lock().await.clone();
-                    let chunk = region.chunks.iter().find(|chunk| chunk.x == cx && chunk.z == cz).unwrap();
+                    let region_arc = get_region(cx >> 5, cz >> 5).await;
+                    let chunk = get_chunk(&region_arc, cx, cz).await;
 
                     let mut buffer = Vec::new();
                     let result = send_chunk_data_with_light(&mut buffer, &chunk).await;
