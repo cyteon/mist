@@ -40,6 +40,7 @@ impl Default for Gamemode {
 
 #[derive(Clone)]
 pub struct Player {
+    pub id: i32,
     pub uuid: String,
     pub username: String,
 
@@ -78,6 +79,7 @@ pub struct Player {
 impl Player {
     pub fn new(uuid: String, username: String) -> Self {
         let mut player = Player {
+            id: super::entity::next_entity_id(),
             uuid,
             username: username.clone(),
             

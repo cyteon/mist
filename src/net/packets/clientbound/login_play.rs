@@ -5,7 +5,7 @@ use crate::{config::SERVER_CONFIG, net::codec::{write_var, write_string}};
 pub async fn send_login_play<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, player: &crate::types::player::Player) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::LOGIN as u8];
 
-    packet_data.write_i32::<BigEndian>(1)?; // palceholder for entity id
+    packet_data.write_i32::<BigEndian>(player.id)?;
     packet_data.push(false as u8); // is hardcore
 
     write_var(&mut packet_data, 1)?; // dimension count
