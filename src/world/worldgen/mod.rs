@@ -43,6 +43,7 @@ pub fn generate(x: i32, z: i32) -> Chunk {
         sections: (0..24).map(|y| Section::new(y)).collect(),
     };
 
+    let heights = noise::get_height_map(x, z);
     let mut cave_tops = [[0; 16]; 16];
 
     for x in 0..16 {
@@ -50,7 +51,7 @@ pub fn generate(x: i32, z: i32) -> Chunk {
             let wx = (chunk.x << 4) + x;
             let wz = (chunk.z << 4) + z;
 
-            let height = noise::get_height(wx as f64, wz as f64);
+            let height = heights[x as usize][z as usize];
 
             use noise::NoiseFn;
             let entrance_noise = noise::PERLIN.get([wx as f64 / 128.0, wz as f64 / 128.0]);

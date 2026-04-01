@@ -23,29 +23,39 @@ fn fbm(
     value
 }
 
-pub fn get_height(x: f64, z: f64) -> i32 {
-    let continents = fbm(
-        x, 0.0, z,
-        4, 1.0 / 2048.0, 
-        1.0, 2.0, 0.5
-    );
+pub fn get_height_map(cx: i32, cz: i32) -> [[i32; 16]; 16] {
+    let wx = (cx << 4) as f64;
+    let wz = (cz << 4) as f64;
 
-    let erosion = fbm(
-        x, 0.0, z,
-        4, 1.0 / 1024.0,
-        1.0, 2.0, 0.5
-    ).abs();
+    let c00 = continental_height(fbm(wx, 0.0, wz, 4, 1.0 / 2048.0, 1.0, 2.0, 0.5));
+    let c10 = continental_height(fbm(wx + 15.0, 0.0, wz, 4, 1.0 / 2048.0, 1.0, 2.0, 0.5));
+    let c01 = continental_height(fbm(wx, 0.0, wz + 15.0, 4, 1.0 / 2048.0, 1.0, 2.0, 0.5));
+    let c11 = continental_height(fbm(wx + 15.0, 0.0, wz + 15.0, 4, 1.0 / 2048.0, 1.0, 2.0, 0.5));
 
-    let details = fbm(
-        x, 0.0, z,
-        6, 1.0 / 256.0,
-        1.0, 2.0, 0.5
-    );
+    let e00 = fbm(wx, 0.0, wz, 4, 1.0 / 1024.0, 1.0, 2.0, 0.5);
+    let e10 = fbm(wx + 15.0, 0.0, wz, 4, 1.0 / 1024.0, 1.0, 2.0, 0.5);
+    let e01 = fbm(wx, 0.0, wz + 15.0, 4, 1.0 / 1024.0, 1.0, 2.0, 0.5);
+    let e11 = fbm(wx + 15.0, 0.0, wz + 15.0, 4, 1.0 / 1024.0, 1.0, 2.0, 0.5);
 
-    let base = continental_height(continents);
-    let peak = ((erosion + 1.0) / 2.0).powi(2);
+    let mut map = [[0; 16]; 16];
 
-    (base + details * 30.0 * peak) as i32
+    for x in 0..16 {
+        for z in 0..16 {
+            let tx = x as f64 / 15.0;
+            let tz = z as f64 / 15.0;
+
+            let base = bilerp(c00, c10, c01, c11, tx, tz);
+            let peak = bilerp(e00, e10, e01, e11, tx, tz);
+
+            let bx = wx + x as f64;
+            let bz = wz + z as f64;
+            let details = fbm(bx, 0.0, bz, 6, 1.0 / 256.0, 1.0, 2.0, 0.5);
+
+            map[x as usize][z as usize] = (base + details * 30.0 * peak) as i32;
+        }
+    }
+
+    map
 }
 
 fn continental_height(c: f64) -> f64 {
@@ -64,6 +74,12 @@ fn continental_height(c: f64) -> f64 {
 
 fn lerp(a: f64, b: f64, t: f64) -> f64 {
     a + (b - a) * t.clamp(0.0, 1.0)
+}
+
+fn bilerp(a: f64, b: f64, c: f64, d: f64, tx: f64, tz: f64) -> f64 {
+    let u = lerp(a, b, tx);
+    let v = lerp(c, d, tx);
+    lerp(u, v, tz)
 }
 
 pub fn is_cave(x: f64, y: f64, z: f64) -> bool {
