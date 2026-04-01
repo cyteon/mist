@@ -7,6 +7,11 @@ pub struct PlayerSave {
     #[serde(default)]
     pub inventory: Vec<Option<crate::types::items::ItemStack>>,
 
+    #[serde(default)]
+    pub is_op: bool,
+    #[serde(default)]
+    pub gamemode: crate::types::player::Gamemode,
+
     pub x: f64,
     pub y: f64,
     pub z: f64,
@@ -59,6 +64,9 @@ pub async fn save_player(player: &crate::types::player::Player) {
     let player_save = PlayerSave {
         uuid: player.uuid.clone(),
         inventory,
+
+        is_op: player.is_op,
+        gamemode: player.gamemode,
 
         x: player.x,
         y: player.y,

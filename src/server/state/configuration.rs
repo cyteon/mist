@@ -68,7 +68,7 @@ pub async fn configuration(mut socket: EncryptedStream<TcpStream>, player: Playe
                         crate::log::log(LogLevel::Debug, format!("{} has finished configuration", player.username).as_str());
                         
                         let mut buffer = Vec::new();
-                        send_login_play(&mut buffer).await?;
+                        send_login_play(&mut buffer, &player).await?;
                         let encoded = encode_packet(&buffer);
                         socket.write_all(&encoded).await?;
 

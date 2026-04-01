@@ -17,6 +17,7 @@ pub struct ServerConfig {
     pub online_mode: bool,
     pub view_distance: u8,
     pub simulation_distance: u8,
+    pub default_gamemode: String,
 
     pub world_name: String,
     pub world_seed: u64,
@@ -66,6 +67,7 @@ simulation_distance = 8
 
 world_name = "world"
 world_seed = {}
+default_gamemode = "survival"
 "#, random_seed);
         
         if std::fs::write(path, &default_config).is_err() {

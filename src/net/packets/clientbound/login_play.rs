@@ -2,7 +2,7 @@ use byteorder::{WriteBytesExt, BigEndian};
 
 use crate::{config::SERVER_CONFIG, net::codec::{write_var, write_string}};
 
-pub async fn send_login_play<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
+pub async fn send_login_play<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, player: &crate::types::player::Player) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::LOGIN as u8];
 
     packet_data.write_i32::<BigEndian>(1)?; // palceholder for entity id
@@ -24,8 +24,8 @@ pub async fn send_login_play<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W
     write_string(&mut packet_data, "minecraft:overworld")?;
 
     packet_data.extend_from_slice(&[1u8; 8]); // placeholder for first 8 bytes of hashed seed
-    packet_data.push(1u8); // placeholder for gamemode
-    packet_data.push(1u8); // placeholder for previous gamemode
+    packet_data.push(player.gamemode as u8);
+    packet_data.write_i8(-1)?; // previous gamemode, -1 = undefined
 
     packet_data.push(false as u8); // is debug
     packet_data.push(false as u8); // is flat world

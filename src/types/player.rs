@@ -22,12 +22,30 @@ pub struct PlayerMovement {
 }
 
 
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
+pub enum Gamemode {
+    Survival,
+    Creative,
+    Adventure,
+    Spectator,
+}
+
+impl Default for Gamemode {
+    fn default() -> Self {
+        Gamemode::Survival
+    }
+}
+
 #[derive(Clone)]
 pub struct Player {
     pub uuid: String,
     pub username: String,
+
     pub inventory: [Option<super::items::ItemStack>; 45],
     pub current_slot: i16,
+
+    pub is_op: bool,
+    pub gamemode: Gamemode,
     
     pub shared_secret: Option<Vec<u8>>,
     pub textures: Option<String>,
@@ -60,8 +78,21 @@ impl Player {
         let mut player = Player {
             uuid,
             username: username.clone(),
+            
             inventory: [None; 45],
             current_slot: 0,
+
+            is_op: false,
+            gamemode: match crate::config::SERVER_CONFIG.default_gamemode.as_str() {
+                "survival" => Gamemode::Survival,
+                "creative" => Gamemode::Creative,
+                "adventure" => Gamemode::Adventure,
+                "spectator" => Gamemode::Spectator,
+                _ => {
+                    crate::log::log(fancy_log::LogLevel::Warn, &format!("Invalid default gamemode in config: {}, defaulting to survival", crate::config::SERVER_CONFIG.default_gamemode));
+                    Gamemode::Survival
+                }
+            },
 
             shared_secret: None,
             textures: None,
@@ -100,6 +131,9 @@ impl Player {
 
         if let Some(player_save) = player_save {
             player.inventory = player_save.inventory.try_into().unwrap_or_else(|_| [None; 45]);
+
+            player.is_op = player_save.is_op;
+            player.gamemode = player_save.gamemode;
 
             player.x = player_save.x;
             player.y = player_save.y;
