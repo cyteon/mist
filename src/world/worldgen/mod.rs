@@ -1,6 +1,7 @@
 pub mod caves;
 pub mod noise;
 pub mod ores;
+pub mod foliage;
 
 use rayon::prelude::*;
 
@@ -68,6 +69,7 @@ pub fn generate(x: i32, z: i32) -> Chunk {
 
     caves::carve_caves(&mut chunk, &cave_tops);
     ores::place_ores(&mut chunk);
+    foliage::place_foliage(&mut chunk, &heights);
 
     chunk
 }
