@@ -41,7 +41,8 @@ pub fn place_ores(chunk: &mut Chunk) {
             let z = rng.gen_range(0..16);
             let y = rng.gen_range(ore.min_y..ore.max_y);
 
-            if chunk.get_block(x, y, z) != crate::types::blocks::STONE {
+            let block = chunk.get_block(x, y, z);
+            if block != crate::types::blocks::STONE && block != crate::types::blocks::DEEPSLATE {
                 continue;
             }
 
@@ -54,7 +55,11 @@ pub fn place_ores(chunk: &mut Chunk) {
                 let vy = (y + offset_y).clamp(-64, 319) as i32;
                 let vz = (z as i32 + offset_z).clamp(0, 15) as u8;
 
-                chunk.set_block(vx, vy, vz, ore.block as u16);
+                if y < 0 {
+                    chunk.set_block(vx, vy, vz, crate::types::blocks::deepslate_variant(ore.block as u16));
+                } else {
+                    chunk.set_block(vx, vy, vz, ore.block as u16);
+                }
             }
         }
     }

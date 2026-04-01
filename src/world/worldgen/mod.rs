@@ -83,7 +83,11 @@ fn place_column(chunk: &mut Chunk, x: u8, z: u8, height: i32) {
             _ => crate::types::blocks::STONE,
         };
 
-        chunk.set_block(x, y, z, block_id);
+        if y < 0 {
+            chunk.set_block(x, y, z, crate::types::blocks::DEEPSLATE);
+        } else {
+            chunk.set_block(x, y, z, block_id);
+        }
     }
 
     let wx = (chunk.x << 4) + x as i32;
