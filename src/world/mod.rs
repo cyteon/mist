@@ -25,20 +25,28 @@ pub async fn get_region(x: i32, z: i32) -> Arc<Mutex<Region>> {
     let region = if std::path::Path::new(&region_file_path).exists() {
         Region::load(x, z).await.ok().unwrap()
     } else {
-        let mut region = Region::new(x, z);
+        println!("Generating region {}, {}", x, z);
+        
+        tokio::task::spawn_blocking(move || {
+            let mut region = Region::new(x, z);
 
-        region.chunks = (0..32 * 32)
-            .into_par_iter()
-            .map(|i| {
-                let cx = i % 32;
-                let cz = i / 32;
+            region.chunks = (0..32 * 32)
+                .into_par_iter()
+                .map(|i| {
+                    let cx = i % 32;
+                    let cz = i / 32;
 
-                worldgen::generate((x << 5) + cx, (z << 5) + cz)
-            })
-            .collect();
+                    println!("Generating chunk {}, {} in region {}, {}", cx, cz, x, z);
 
-        region
+                    worldgen::generate((x << 5) + cx, (z << 5) + cz)
+                })
+                .collect();
+
+            region
+        }).await.unwrap()
     };
+
+    println!("Region {}, {} loaded", x, z);
 
     let region_arc = Arc::new(Mutex::new(region));
         

@@ -5,7 +5,7 @@ pub static PERLIN: Lazy<Perlin> = Lazy::new(|| {
     Perlin::new(crate::config::SERVER_CONFIG.world_seed as u32)
 });
 
-fn fbm(
+pub fn fbm(
     x: f64, y: f64, z: f64,
     octaves: u32, freq: f64, amp: f64,
     lacunarity: f64, gain: f64,
@@ -32,10 +32,10 @@ pub fn get_height_map(cx: i32, cz: i32) -> [[i32; 16]; 16] {
     let c01 = continental_height(fbm(wx, 0.0, wz + 15.0, 4, 1.0 / 2048.0, 1.0, 2.0, 0.5));
     let c11 = continental_height(fbm(wx + 15.0, 0.0, wz + 15.0, 4, 1.0 / 2048.0, 1.0, 2.0, 0.5));
 
-    let e00 = fbm(wx, 0.0, wz, 4, 1.0 / 1024.0, 1.0, 2.0, 0.5);
-    let e10 = fbm(wx + 15.0, 0.0, wz, 4, 1.0 / 1024.0, 1.0, 2.0, 0.5);
-    let e01 = fbm(wx, 0.0, wz + 15.0, 4, 1.0 / 1024.0, 1.0, 2.0, 0.5);
-    let e11 = fbm(wx + 15.0, 0.0, wz + 15.0, 4, 1.0 / 1024.0, 1.0, 2.0, 0.5);
+    let e00 = fbm(wx, 0.0, wz, 4, 1.0 / 256.0, 1.0, 2.0, 0.5);
+    let e10 = fbm(wx + 15.0, 0.0, wz, 4, 1.0 / 256.0, 1.0, 2.0, 0.5);
+    let e01 = fbm(wx, 0.0, wz + 15.0, 4, 1.0 / 256.0, 1.0, 2.0, 0.5);
+    let e11 = fbm(wx + 15.0, 0.0, wz + 15.0, 4, 1.0 / 256.0, 1.0, 2.0, 0.5);
 
     let mut map = [[0; 16]; 16];
 
@@ -68,7 +68,7 @@ fn continental_height(c: f64) -> f64 {
     } else if c < 0.4 {
         lerp(63.0, 72.0, c / 0.4)
     } else {
-        lerp(72.0, 110.0, (c - 0.4) / 0.6)
+        lerp(72.0, 220.0, (c - 0.4) / 0.6)
     }
 }
 
@@ -80,21 +80,4 @@ fn bilerp(a: f64, b: f64, c: f64, d: f64, tx: f64, tz: f64) -> f64 {
     let u = lerp(a, b, tx);
     let v = lerp(c, d, tx);
     lerp(u, v, tz)
-}
-
-pub fn is_cave(x: f64, y: f64, z: f64) -> bool {
-    let value = fbm(
-        x, y, z, 
-        3, 1.0 / 64.0,
-        1.0, 2.0, 0.5
-    );
-
-    if value > 0.6 {
-        return true;
-    }
-
-    let v1 = PERLIN.get([x / 64.0, y / 64.0, z / 64.0]);
-    let v2 = PERLIN.get([x / 64.0 + 100.0, y / 64.0 + 100.0, z / 64.0 + 100.0]);
-
-    (v1 * v1 + v2 * v2) < 0.005
 }

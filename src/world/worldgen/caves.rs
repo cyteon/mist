@@ -2,44 +2,27 @@ use noise::NoiseFn;
 use crate::world::chunks::Chunk;
 
 pub fn carve_caves(chunk: &mut Chunk, cave_tops: &[[i32; 16]; 16]) {
-    let cx = chunk.x << 4;
-    let cz = chunk.z << 4;
+    let cx = (chunk.x << 4) as f64;
+    let cz = (chunk.z << 4) as f64;
 
-    for x in 0..16u8 {
-        for z in 0..16u8 {
-            let wx = ((chunk.x << 4) + x as i32) as f64;
-            let wz = ((chunk.z << 4) + z as i32) as f64;
-            let ct = cave_tops[x as usize][z as usize];
+    for bx in 0..16 {
+        for bz in 0..16 {
+            let ct = cave_tops[bx as usize][bz as usize];
+            let gx = (bx / 2) as usize;
+            let gz = (bz / 2) as usize;
+            let tx = (bx % 2) as f64 / 2.0;
+            let tz = (bz % 2) as f64 / 2.0;
 
             for y in -60..=ct {
-                if chunk.get_block(x, y, z) == crate::types::blocks::AIR {
-                    continue;
-                }
+                if chunk.get_block(bx as u8, y, bz as u8) == 0 { continue; }
 
-                if !might_have_cave(wx, y as f64, wz) {
-                    continue;
-                }
+                let v1 = super::noise::PERLIN.get([(cx + bx as f64) / 64.0, (y as f64) / 64.0, (cz + bz as f64) / 64.0]);
+                let v2 = super::noise::PERLIN.get([(cx + bx as f64) / 64.0 + 100.0, (y as f64) / 64.0 + 100.0, (cz + bz as f64) / 64.0 + 100.0]);
 
-                if super::noise::is_cave(wx, y as f64, wz) {
-                    chunk.set_block(x, y, z, crate::types::blocks::CAVE_AIR);
+                if v1 * v1 + v2 * v2 < 0.005 {
+                    chunk.set_block(bx as u8, y, bz as u8, crate::types::blocks::CAVE_AIR);
                 }
             }
         }
     }
-}
-
-fn might_have_cave(x: f64, y: f64, z: f64) -> bool {
-    let first = super::noise::PERLIN.get([x / 64.0, y / 64.0, z / 64.0]);
-
-    if first > -0.15 {
-        return true;
-    }
-
-    let v1 = super::noise::PERLIN.get([x / 64.0, y / 64.0, z / 64.0]);
-    if v1.abs() > 0.1 {
-        return false;
-    }
-
-    let v2 = super::noise::PERLIN.get([x / 64.0 + 100.0, y / 64.0 + 100.0, z / 64.0 + 100.0]);
-    v2.abs() < 0.1
 }
