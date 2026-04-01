@@ -4,7 +4,9 @@ use crate::{
         set_center_chunk::send_set_center_chunk,
         system_chat_message::send_system_chat_message,
         container_set_content::send_container_set_content,
-        container_set_slot::send_container_set_slot
+        container_set_slot::send_container_set_slot,
+        game_event::{send_game_event, GameEvent},
+        player_info_update::{send_player_info_update, PlayerAction}
     },
     
     world::{get_region, get_chunk}
@@ -231,6 +233,31 @@ impl Player {
         }
 
         self.sync_player_inventory().await?;
+
+        Ok(())
+    }
+
+    pub async fn set_gamemode(&mut self, gamemode: Gamemode) -> anyhow::Result<()> {
+        self.gamemode = gamemode;
+
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+
+        let mut buffer = Vec::new();
+        send_game_event(&mut buffer, GameEvent::ChangeGameMode as u8, gamemode as u8 as f32).await?;
+        let _ = tx.send(buffer);
+
+        let all_tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.values().cloned().collect::<Vec<_>>();
+
+        let mut buffer = Vec::new();
+        send_player_info_update(
+            &mut buffer,
+            vec![self],
+            vec![PlayerAction::UpdateGameMode(gamemode as i32)]
+        ).await?;
+
+        for tx in all_tx {
+            let _ = tx.send(buffer.clone());
+        }
 
         Ok(())
     }

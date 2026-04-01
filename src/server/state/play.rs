@@ -178,7 +178,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
             send_player_info_update(
                 &mut buffer,
                 other_players_owned.iter().collect(),
-                vec![PlayerAction::AddPlayer, PlayerAction::UpdateListed(true)]
+                vec![PlayerAction::AddPlayer, PlayerAction::UpdateGameMode(player_clone.gamemode as i32), PlayerAction::UpdateListed(true)]
             ).await?;
             
             let _ = tx.send(buffer);

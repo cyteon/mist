@@ -35,6 +35,28 @@ pub async fn handle_command(command: String, player: &mut Player) -> anyhow::Res
             player.give_item(item_id, amount).await?;
         }
 
+        "gamemode" => {
+            if command_parts.len() < 2 {
+                player.send_system_message(format!("{}Usage: /gamemode <mode>", RED)).await?;
+                return Ok(());
+            }
+
+            let mode_str = command_parts[1].to_lowercase();
+            let gamemode = match mode_str.as_str() {
+                "survival" | "s" | "0" => crate::types::player::Gamemode::Survival,
+                "creative" | "c" | "1" => crate::types::player::Gamemode::Creative,
+                "adventure" | "a" | "2" => crate::types::player::Gamemode::Adventure,
+                "spectator" | "sp" | "3" => crate::types::player::Gamemode::Spectator,
+                _ => {
+                    player.send_system_message(format!("{}Unknown gamemode: {}", RED, mode_str)).await?;
+                    return Ok(());
+                }
+            };
+
+            player.set_gamemode(gamemode).await?;
+            player.send_system_message(format!("{}Your gamemode has been set to {}", GREEN, mode_str)).await?;
+        }
+
         _ => {
             player.send_system_message(format!("{}Unknown command: /{}", RED, command_parts[0])).await?;
         }

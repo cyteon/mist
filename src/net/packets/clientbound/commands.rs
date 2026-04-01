@@ -14,15 +14,16 @@ enum Flags {
 pub async fn send_commands<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::COMMANDS as u8];
 
-    // root + 3 commands + 2 args
-    write_var(&mut packet_data, 6)?;
+    // root + 4 commands + 3 args
+    write_var(&mut packet_data, 8)?;
     
     // root
     packet_data.push(Flags::Root as u8);
-    write_var(&mut packet_data, 3)?; // 2 children
+    write_var(&mut packet_data, 4)?; // 4 commands
     write_var(&mut packet_data, 1)?; // tps
     write_var(&mut packet_data, 2)?; // version
     write_var(&mut packet_data, 3)?; // give
+    write_var(&mut packet_data, 6)?; // gamemode
 
     // command 1: /tps
     packet_data.push(Flags::Literal as u8 | Flags::Executable as u8);
@@ -55,6 +56,16 @@ pub async fn send_commands<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) 
     packet_data.push(0x03);
     packet_data.write_i32::<BigEndian>(1)?; // min value
     packet_data.write_i32::<BigEndian>(64)?; // max value
+
+    packet_data.push(Flags::Literal as u8);
+    write_var(&mut packet_data, 1)?; // 1 child
+    write_var(&mut packet_data, 7)?; // target node
+    write_string(&mut packet_data, "gamemode")?;
+
+    packet_data.push(Flags::Argument as u8 | Flags::Executable as u8);
+    write_var(&mut packet_data, 0)?; // no children
+    write_string(&mut packet_data, "gamemode")?;
+    write_var(&mut packet_data, 42)?; // minecraft:gamemode parser
 
     // root index
     write_var(&mut packet_data, 0)?;
