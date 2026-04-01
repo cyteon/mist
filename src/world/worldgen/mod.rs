@@ -47,7 +47,7 @@ pub fn generate(x: i32, z: i32) -> Chunk {
             let wx = (chunk.x << 4) + x;
             let wz = (chunk.z << 4) + z;
 
-            let height = noise::get_height(wx as f32, wz as f32);
+            let height = noise::get_height(wx as f64, wz as f64);
             place_column(&mut chunk, x as u8, z as u8, height);
         }
     }
@@ -66,7 +66,7 @@ fn place_column(chunk: &mut Chunk, x: u8, z: u8, height: i32) {
             y if y < SEA_LEVEL && y == height => crate::types::blocks::SAND,
             y if y < SEA_LEVEL && y > height - 4 => crate::types::blocks::SAND,
             y if y > height - 4 => crate::types::blocks::DIRT,
-            _ => crate::types::blocks::STONE,
+            _ => crate::types::blocks::AIR,
         };
 
         chunk.set_block(x, y, z, block_id);
@@ -76,8 +76,8 @@ fn place_column(chunk: &mut Chunk, x: u8, z: u8, height: i32) {
     let wz = (chunk.z << 4) + z as i32;
 
     for y in -60..=height {
-        if noise::is_cave(wx as f32, y as f32, wz as f32) {
-            chunk.set_block(x, y, z, crate::types::blocks::CAVE_AIR);
+        if noise::is_cave(wx as f64, y as f64, wz as f64) {
+            chunk.set_block(x, y, z, crate::types::blocks::REDSTONE_BLOCK);
         }
     }
 
