@@ -186,6 +186,32 @@ fn load_item_to_block() {
     out.push_str("    }\n");
     out.push_str("}\n");
 
+    out.push_str("pub fn block_to_item_id(block_id: i32) -> Option<u16> {\n");
+    out.push_str("    match block_id {\n");
+
+    for (ik, iv) in items["entries"].as_object().unwrap() {
+        if let Some(block) = blocks.get(ik) {
+            let default_state = block["states"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|state| state["default"].as_bool().unwrap_or(false))
+                .expect("Block is missing a default state");
+
+            out.push_str(
+                &format!(
+                    "        {} => Some({}),\n",
+                    default_state["id"].as_u64().unwrap(),
+                    iv["protocol_id"].as_u64().unwrap()
+                )
+            );
+        }
+    }
+
+    out.push_str("        _ => None,\n");
+    out.push_str("    }\n");
+    out.push_str("}\n");
+
     let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("item_to_block.rs");
     fs::write(out_path, out).unwrap();
 }

@@ -21,3 +21,5 @@ pub mod commands;
 pub mod system_chat_message;
 pub mod container_set_content;
 pub mod container_set_slot;
+pub mod spawn_entity;
+pub mod set_entity_data;

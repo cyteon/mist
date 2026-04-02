@@ -8,10 +8,6 @@ pub fn carve_caves(chunk: &mut Chunk, cave_tops: &[[i32; 16]; 16]) {
     for bx in 0..16 {
         for bz in 0..16 {
             let ct = cave_tops[bx as usize][bz as usize];
-            let gx = (bx / 2) as usize;
-            let gz = (bz / 2) as usize;
-            let tx = (bx % 2) as f64 / 2.0;
-            let tz = (bz % 2) as f64 / 2.0;
 
             for y in -60..=ct {
                 if chunk.get_block(bx as u8, y, bz as u8) == 0 { continue; }

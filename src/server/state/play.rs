@@ -299,7 +299,15 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                     }
                     
                     ClientPacket::PlayerAction(mut cursor) => {
-                        read_player_action(&mut cursor).await?;
+                        let spawned_entity = {
+                            let players_locked = PLAYERS.read().await;
+                            let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                            read_player_action(&mut cursor, &mut player).await?
+                        };
+
+                        if let Some(mut entity) = spawned_entity {
+                            entity.broadcast_spawn().await;
+                        }
                     }
 
                     ClientPacket::UseItemOn(mut cursor) => {

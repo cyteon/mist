@@ -13,7 +13,7 @@ pub fn next_entity_id() -> i32 {
 }
 
 #[derive(Clone)]
-enum EntityType {
+pub enum EntityType {
     Item(super::items::ItemStack),
 }
 
@@ -39,4 +39,62 @@ impl Entity {
     pub fn tick(&mut self) {
         // todo do smth here ig
     }
+
+    pub async fn broadcast_spawn(&mut self) {
+        let players_owned = {
+            let players = crate::server::state::play::PLAYERS.read().await;
+            players.values().cloned().collect::<Vec<_>>()
+        };
+
+        println!("Broadcasting spawn of entity {} to {} players", self.id, players_owned.len());
+
+        for player in players_owned {
+            println!("Checking distance from player {} to entity {}", player.lock().await.username, self.id);
+
+            let mut player_lock = player.lock().await;
+            let distance_squared = (player_lock.x - self.x).powi(2) + (player_lock.y - self.y).powi(2) + (player_lock.z - self.z).powi(2);
+
+            println!("Distance from player {} to entity {}: {}", player_lock.username, self.id, distance_squared.sqrt());
+
+            if distance_squared < 64.0 * 64.0 {
+                let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&player_lock.uuid).cloned().unwrap();
+
+                let mut buffer = Vec::new();
+                crate::net::packets::clientbound::spawn_entity::send_spawn_entity(&mut buffer, self).await.unwrap();
+                let _ = tx.send(buffer);
+
+                let mut buffer = Vec::new();
+                crate::net::packets::clientbound::set_entity_data::sent_set_entity_data(&mut buffer, self).await.unwrap();
+                let _ = tx.send(buffer);
+
+                println!("Broadcasted spawn of entity {} to player {}", self.id, player_lock.username);
+            }
+        }
+    }
+}
+
+pub fn spawn_item_drop(item_stack: super::items::ItemStack, x: f64, y: f64, z: f64) -> Entity {
+    let entity = Entity {
+        id: next_entity_id(),
+        uuid: rand::random(),
+        entity_type: EntityType::Item(item_stack),
+
+        x,
+        y,
+        z,
+
+        yaw: 0.0,
+        pitch: 0.0,
+
+        vx: 0.0,
+        vy: 1.0,
+        vz: 0.0,
+    };
+
+    let entity_clone = entity.clone();
+    tokio::spawn(async move {
+        ENTITIES.write().await.insert(entity.id, entity_clone);
+    });
+
+    return entity;
 }
