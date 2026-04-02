@@ -36,10 +36,6 @@ pub struct Entity {
 }
 
 impl Entity {
-    pub fn tick(&mut self) {
-        // todo do smth here ig
-    }
-
     pub async fn broadcast_spawn(&mut self) {
         let players_owned = {
             let players = crate::server::state::play::PLAYERS.read().await;
@@ -68,6 +64,26 @@ impl Entity {
                 let _ = tx.send(buffer);
 
                 println!("Broadcasted spawn of entity {} to player {}", self.id, player_lock.username);
+            }
+        }
+    }
+
+    pub async fn broadcast_despawn(&self) {
+        let players_owned = {
+            let players = crate::server::state::play::PLAYERS.read().await;
+            players.values().cloned().collect::<Vec<_>>()
+        };
+
+        for player in players_owned {
+            let mut player_lock = player.lock().await;
+            let distance_squared = (player_lock.x - self.x).powi(2) + (player_lock.y - self.y).powi(2) + (player_lock.z - self.z).powi(2);
+
+            if distance_squared < 64.0 * 64.0 {
+                let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&player_lock.uuid).cloned().unwrap();
+
+                let mut buffer = Vec::new();
+                crate::net::packets::clientbound::remove_entities::send_remove_entities(&mut buffer, vec![self.id]).await.unwrap();
+                let _ = tx.send(buffer);
             }
         }
     }

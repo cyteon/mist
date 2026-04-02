@@ -35,9 +35,57 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
             ticks = 0;
         }
 
-        for player in crate::server::state::play::PLAYERS.read().await.values() {
+        let players = crate::server::state::play::PLAYERS.read().await;
+        let entities = crate::types::entity::ENTITIES.read().await;
+
+        for player in players.values() {
             let mut player_lock = player.lock().await;
             player_lock.tick().await?;
+        }
+
+        let mut to_pickup = Vec::new();
+
+        for entity in entities.values() {
+            if let crate::types::entity::EntityType::Item(item_stack) = &entity.entity_type {
+                for player in players.values() {
+                    let player = player.lock().await;
+
+                    let distance_squared = (player.x - entity.x).powi(2) + (player.y - entity.y).powi(2) + (player.z - entity.z).powi(2);
+
+                    if distance_squared < 1.5 * 1.5 {
+                        to_pickup.push((entity.id, player.uuid.clone(), item_stack.count));
+                        break;
+                    }
+                }
+            }
+        }
+
+        drop(players);
+        drop(entities);
+
+        for (entity_id, player_uuid, count) in to_pickup {
+            let mut entities = crate::types::entity::ENTITIES.write().await;
+
+            if let Some(entity) = entities.remove(&entity_id) {
+                if let crate::types::entity::EntityType::Item(item_stack) = entity.entity_type {
+                    let players = crate::server::state::play::PLAYERS.read().await;
+
+                    if let Some(player) = players.get(&player_uuid) {
+                        let mut player_lock = player.lock().await;
+                        player_lock.give_item(item_stack.item_id, count as i32).await?;
+
+                        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&player_lock.uuid).cloned().unwrap();
+
+                        let mut buffer = Vec::new();
+                        crate::net::packets::clientbound::pickup_item::send_pickup_item(&mut buffer, entity_id, player_lock.id, count as i32).await.unwrap();
+                        let _ = tx.send(buffer);
+                    }
+
+                    drop(players);
+
+                    entity.broadcast_despawn().await;
+                }
+            }
         }
 
         interval.tick().await;
