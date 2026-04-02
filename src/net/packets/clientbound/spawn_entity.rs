@@ -9,7 +9,6 @@ pub async fn send_spawn_entity<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut
 
     match entity.entity_type {
         crate::types::entity::EntityType::Item(_) => write_var(&mut packet_data, 71)?,
-        _ => write_var(&mut packet_data, 0)? // todo
     }
 
     packet_data.write_f64::<BigEndian>(entity.x)?;

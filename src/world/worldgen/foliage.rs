@@ -73,9 +73,9 @@ fn place_oak(chunk: &mut Chunk, x: u8, y: i32, z: u8, rng: &mut impl Rng) {
                 let lx = x as i32 + dx;
                 let lz = z as i32 + dz;
 
-                if lx < 0 || lx > 15 || lz < 0 || lz > 15 { continue; }
+                if !(1..16).contains(&lx) || !(1..16).contains(&lz) { continue; }
 
-                if chunk.get_block(lx as u8, (leaf_base + dy) as i32, lz as u8) == crate::types::blocks::AIR {
+                if chunk.get_block(lx as u8, leaf_base + dy, lz as u8) == crate::types::blocks::AIR {
                     chunk.set_block(lx as u8, leaf_base + dy, lz as u8, crate::types::blocks::OAK_LEAVES);
                 }
             }

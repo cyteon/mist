@@ -7,8 +7,8 @@ use tokio::time::timeout;
 mod config;
 mod log;
 
-mod server;
 mod net;
+mod server;
 mod types;
 mod world;
 
@@ -38,10 +38,8 @@ async fn main() -> anyhow::Result<()> {
         tokio::signal::ctrl_c().await.ok();
         log::log(LogLevel::Info, "Received shutdown signal, stopping server...");
         
-        match timeout(Duration::from_secs(5), crate::server::save::save()).await {
-            Err(_) => log::log(LogLevel::Error, "Timeout while saving server :("),
-
-            _ => {}
+        if timeout(Duration::from_secs(5), crate::server::save::save()).await.is_err() {
+            log::log(LogLevel::Error, "Timeout while saving server :(");
         }
 
         std::process::exit(0);

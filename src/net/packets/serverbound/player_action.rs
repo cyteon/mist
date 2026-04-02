@@ -35,7 +35,7 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
             let spawned_entity = if player.gamemode as u8 != 1 {
                 Some(crate::types::entity::spawn_item_drop(
                     crate::types::items::ItemStack {
-                        item_id: crate::types::items::block_to_item_id(chunk.get_block((x & 15) as u8, y as i32, (z & 15) as u8) as i32).unwrap_or(0) as i32,
+                        item_id: crate::types::items::block_to_item_id(chunk.get_block((x & 15) as u8, y, (z & 15) as u8) as i32).unwrap_or(0) as i32,
                         count: 1,
                     },
                     None,
@@ -47,7 +47,7 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
                 None
             };
 
-            chunk.set_block((x & 15) as u8, y as i32, (z & 15) as u8, 0);
+            chunk.set_block((x & 15) as u8, y, (z & 15) as u8, 0);
 
             return Ok(spawned_entity);
         }
@@ -75,9 +75,9 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
                     count,
                 },
                 Some(player.uuid.clone()),
-                player.x + dx as f64,
+                player.x + dx,
                 player.y + 1.0,
-                player.z + dz as f64,
+                player.z + dz,
             );
 
             return Ok(Some(entity));

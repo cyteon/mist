@@ -28,18 +28,13 @@ pub struct PlayerMovement {
 }
 
 
-#[derive(PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize, Default)]
 pub enum Gamemode {
+    #[default]
     Survival,
     Creative,
     Adventure,
     Spectator,
-}
-
-impl Default for Gamemode {
-    fn default() -> Self {
-        Gamemode::Survival
-    }
 }
 
 #[derive(Clone)]
@@ -165,7 +160,7 @@ impl Player {
         let player_save = crate::server::save::load_player(&player.uuid);
 
         if let Some(player_save) = player_save {
-            player.inventory = player_save.inventory.try_into().unwrap_or_else(|_| [None; 45]);
+            player.inventory = player_save.inventory.try_into().unwrap_or([None; 45]);
 
             player.is_op = player_save.is_op;
             player.gamemode = player_save.gamemode;
@@ -243,7 +238,7 @@ impl Player {
         let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
 
         let mut buffer = Vec::new();
-        send_container_set_slot(&mut buffer, 0, slot, self.inventory[slot as usize].clone()).await?;
+        send_container_set_slot(&mut buffer, 0, slot, self.inventory[slot as usize]).await?;
         let _ = tx.send(buffer);
 
         Ok(())
@@ -387,8 +382,6 @@ impl Player {
         if self.dead {
             return Ok(());
         }
-
-        let prev_on_ground = self.on_ground;
 
         let mut move_x = 0.0;
         let mut move_z = 0.0;

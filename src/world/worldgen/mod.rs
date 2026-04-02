@@ -1,7 +1,7 @@
 pub mod caves;
+pub mod foliage;
 pub mod noise;
 pub mod ores;
-pub mod foliage;
 
 use rayon::prelude::*;
 

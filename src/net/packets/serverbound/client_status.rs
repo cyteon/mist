@@ -7,12 +7,8 @@ pub async fn read_client_status<R: AsyncReadExt + Unpin>(
 ) -> anyhow::Result<u32> {
     let action_id = read_var(stream).await?;
 
-    match action_id {
-        0 => {
-            player.respawn().await?;
-        },
-
-        _ => {}
+    if action_id == 0 {
+        player.respawn().await?;
     }
 
     Ok(action_id)

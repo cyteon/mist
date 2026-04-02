@@ -52,7 +52,7 @@ pub fn place_ores(chunk: &mut Chunk) {
                 let offset_z = rng.gen_range(-2..=2);
 
                 let vx = (x as i32 + offset_x).clamp(0, 15) as u8;
-                let vy = (y + offset_y).clamp(-64, 319) as i32;
+                let vy = (y + offset_y).clamp(-64, 319);
                 let vz = (z as i32 + offset_z).clamp(0, 15) as u8;
 
                 if y < 0 {

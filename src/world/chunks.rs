@@ -114,7 +114,7 @@ impl Chunk {
                 let block_id = section.blocks.palette.get(palette_idx as usize).copied().unwrap_or(0);
                 
                 if block_id != 0 {
-                    return (section.y * 16) + y as i32 - 64;
+                    return (section.y * 16) + y - 64;
                 }
             }
         }

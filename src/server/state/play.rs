@@ -23,7 +23,6 @@ use crate::{
                 player_info_remove::send_player_info_remove,
                 player_info_update::{PlayerAction, send_player_info_update},
                 set_center_chunk::send_set_center_chunk,
-                sync_player_position::send_sync_player_position,
                 commands::send_commands
             },
 

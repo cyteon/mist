@@ -139,5 +139,5 @@ pub fn spawn_item_drop(item_stack: super::items::ItemStack, dropped_by: Option<S
         ENTITIES.write().await.insert(entity.id, entity_clone);
     });
 
-    return entity;
+    entity
 }

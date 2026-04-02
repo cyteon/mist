@@ -1,6 +1,4 @@
-use byteorder::{BigEndian, WriteBytesExt};
-
-use crate::{net::codec::write_var, types::player::Player};
+use crate::net::codec::write_var;
 
 pub async fn send_damage_event<W: tokio::io::AsyncWriteExt + Unpin>(
     stream: &mut W,
