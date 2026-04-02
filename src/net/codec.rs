@@ -1,6 +1,8 @@
 use byteorder::{WriteBytesExt, BigEndian};
 use tokio::io::{AsyncReadExt};
 
+use crate::types::items::ItemStack;
+
 pub async fn read_var<R: AsyncReadExt + Unpin>(reader: &mut R) -> anyhow::Result<u32> {
     let mut num_read = 0;
     let mut result = 0;
@@ -70,4 +72,23 @@ pub async fn read_position<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow::R
     let y = if y >= 0x800 { y - 0x1000 } else { y };
 
     Ok((x, y, z))
+}
+
+pub async fn read_slot<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow::Result<Option<ItemStack>> {
+    let count = read_var(stream).await?;
+
+    if count <= 0 {
+        return Ok(None);
+    }
+
+    let item_id = read_var(stream).await? as i32;
+
+    // TODO:
+    // Number of components to add
+    // Number of components to remove
+
+    return Ok(Some(ItemStack {
+        item_id,
+        count: count as u8,
+    }));
 }

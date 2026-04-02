@@ -38,7 +38,6 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
             let tps = ticks_5s as f64 / elapsed;
             TPS_5S.store(tps.round() as u32, Ordering::Relaxed);
 
-            crate::log::log(LogLevel::Debug , &format!("TPS (last 5s): {:.2}", tps));
             last_tps_5s_check = std::time::Instant::now();
             ticks_5s = 0;
         }
@@ -48,6 +47,9 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
             let elapsed = last_tps_1m_check.elapsed().as_secs_f64();
             let tps = ticks_1m as f64 / elapsed;
             TPS_1M.store(tps.round() as u32, Ordering::Relaxed);
+
+            last_tps_1m_check = std::time::Instant::now();
+            ticks_1m = 0;
         }
 
         ticks_5m += 1;
@@ -55,6 +57,9 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
             let elapsed = last_tps_5m_check.elapsed().as_secs_f64();
             let tps = ticks_5m as f64 / elapsed;
             TPS_5M.store(tps.round() as u32, Ordering::Relaxed);
+
+            last_tps_5m_check = std::time::Instant::now();
+            ticks_5m = 0;
         }
 
         let players = crate::server::state::play::PLAYERS.read().await;

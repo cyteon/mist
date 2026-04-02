@@ -1,3 +1,4 @@
+use byteorder::{WriteBytesExt, BigEndian};
 use crate::net::codec::write_var;
 
 pub async fn send_container_set_slot<W: tokio::io::AsyncWriteExt + Unpin>(
@@ -10,6 +11,7 @@ pub async fn send_container_set_slot<W: tokio::io::AsyncWriteExt + Unpin>(
 
     write_var(&mut packet_data, window_id as i32)?;
     write_var(&mut packet_data, 0)?; // state id, TODO: implement
+    packet_data.write_i16::<BigEndian>(slot)?;
 
     match item_stack {
         Some(item_stack) => {

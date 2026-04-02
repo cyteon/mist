@@ -12,3 +12,4 @@ pub mod player_input;
 pub mod set_player_rotation;
 pub mod chat_command;
 pub mod set_carried_item;
+pub mod set_creative_mode_slot;
