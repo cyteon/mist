@@ -122,6 +122,22 @@ impl Chunk {
         -64
     }
 
+    pub fn get_surface_y_below_point(&self, x: u8, y: i32, z: u8) -> i32 {
+        let mut current_y = y;
+        
+        while current_y >= -64 {
+            let block_id = self.get_block(x, current_y, z);
+            
+            if block_id != 0 {
+                return current_y;
+            }
+            
+            current_y -= 1;
+        }
+        
+        -64
+    }
+
     pub fn chunk_seed(&self) -> u64 {
         let seed = crate::config::SERVER_CONFIG.world_seed;
         let mut hasher = DefaultHasher::new();

@@ -93,9 +93,6 @@ fn place_column(chunk: &mut Chunk, x: u8, z: u8, height: i32) {
         }
     }
 
-    let wx = (chunk.x << 4) + x as i32;
-    let wz = (chunk.z << 4) + z as i32;
-
     if height < SEA_LEVEL {
         for y in (height + 1)..SEA_LEVEL {
             chunk.set_block(x, y, z, crate::types::blocks::WATER);

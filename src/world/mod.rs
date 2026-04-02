@@ -51,6 +51,7 @@ pub async fn get_chunk(region: &Arc<Mutex<Region>>, cx: i32, cz: i32) -> Chunk {
     if let Some(existing) = region_guard.get_chunk(cx, cz) {
         return existing.clone();
     }
+    
     region_guard.chunks.push(chunk.clone());
     chunk
 }

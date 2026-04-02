@@ -6,6 +6,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use crate::server::save::save;
 
 pub static TPS_5S: AtomicU32 = AtomicU32::new(20);
+pub static TPS_1M: AtomicU32 = AtomicU32::new(20);
+pub static TPS_5M: AtomicU32 = AtomicU32::new(20);
 
 pub async fn start_tick_loop() -> anyhow::Result<()> {
     crate::log::log(LogLevel::Info, "Tick loop started");
@@ -13,8 +15,14 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
     let mut interval = time::interval(Duration::from_millis(50)); // 20 tps
     let mut ticks_until_autosave = 100; // so it autosaves 5 seconds after start
 
-    let mut last_tps_check = std::time::Instant::now();
-    let mut ticks = 0;
+    let mut last_tps_5s_check = std::time::Instant::now();
+    let mut ticks_5s = 0;
+
+    let mut last_tps_1m_check = std::time::Instant::now();
+    let mut ticks_1m = 0;
+
+    let mut last_tps_5m_check = std::time::Instant::now();
+    let mut ticks_5m = 0;
 
     loop {
         if ticks_until_autosave == 0 {
@@ -24,23 +32,41 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
             ticks_until_autosave -= 1;
         }
 
-        ticks += 1;
-        if last_tps_check.elapsed().as_secs() >= 5 {
-            let elapsed = last_tps_check.elapsed().as_secs_f64();
-            let tps = ticks as f64 / elapsed;
+        ticks_5s += 1;
+        if last_tps_5s_check.elapsed().as_secs() >= 5 {
+            let elapsed = last_tps_5s_check.elapsed().as_secs_f64();
+            let tps = ticks_5s as f64 / elapsed;
             TPS_5S.store(tps.round() as u32, Ordering::Relaxed);
 
             crate::log::log(LogLevel::Debug , &format!("TPS (last 5s): {:.2}", tps));
-            last_tps_check = std::time::Instant::now();
-            ticks = 0;
+            last_tps_5s_check = std::time::Instant::now();
+            ticks_5s = 0;
+        }
+
+        ticks_1m += 1;
+        if last_tps_1m_check.elapsed().as_secs() >= 60 {
+            let elapsed = last_tps_1m_check.elapsed().as_secs_f64();
+            let tps = ticks_1m as f64 / elapsed;
+            TPS_1M.store(tps.round() as u32, Ordering::Relaxed);
+        }
+
+        ticks_5m += 1;
+        if last_tps_5m_check.elapsed().as_secs() >= 300 {
+            let elapsed = last_tps_5m_check.elapsed().as_secs_f64();
+            let tps = ticks_5m as f64 / elapsed;
+            TPS_5M.store(tps.round() as u32, Ordering::Relaxed);
         }
 
         let players = crate::server::state::play::PLAYERS.read().await;
-        let entities = crate::types::entity::ENTITIES.read().await;
 
         for player in players.values() {
             let mut player_lock = player.lock().await;
             player_lock.tick().await?;
+        }
+
+        let mut entities = crate::types::entity::ENTITIES.write().await;
+        for entity in entities.values_mut() {
+            entity.tick().await?;
         }
 
         let mut to_pickup = Vec::new();

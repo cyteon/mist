@@ -36,21 +36,44 @@ pub struct Entity {
 }
 
 impl Entity {
+    // TODO: update position for players in range
+    // TODO: spawn for players spawning or entering range that dont have it spawned already
+    pub async fn tick(&mut self) -> anyhow::Result<()> {
+        self.vy -= 0.04;
+
+        self.vx *= 0.98;
+        self.vy *= 0.98;
+        self.vz *= 0.98;
+
+        self.x += self.vx;
+        self.y += self.vy;
+        self.z += self.vz;
+        
+        let region = crate::world::get_region(self.x as i32 >> 9, self.z as i32 >> 9).await;
+        let chunk = crate::world::get_chunk(&region, self.x as i32 >> 4, self.z as i32 >> 4).await;
+
+        let lx = (self.x as i32 & 15) as u8;
+        let lz = (self.z as i32 & 15) as u8;
+
+        let surface = chunk.get_surface_y_below_point(lx, self.y as i32, lz) as i32;
+
+        if self.y <= surface as f64 + 1.0 {
+            self.y = surface as f64 + 1.0;
+            self.vy = 0.0;
+        }
+
+        Ok(())
+    }
+
     pub async fn broadcast_spawn(&mut self) {
         let players_owned = {
             let players = crate::server::state::play::PLAYERS.read().await;
             players.values().cloned().collect::<Vec<_>>()
         };
 
-        println!("Broadcasting spawn of entity {} to {} players", self.id, players_owned.len());
-
         for player in players_owned {
-            println!("Checking distance from player {} to entity {}", player.lock().await.username, self.id);
-
             let mut player_lock = player.lock().await;
             let distance_squared = (player_lock.x - self.x).powi(2) + (player_lock.y - self.y).powi(2) + (player_lock.z - self.z).powi(2);
-
-            println!("Distance from player {} to entity {}: {}", player_lock.username, self.id, distance_squared.sqrt());
 
             if distance_squared < 64.0 * 64.0 {
                 let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&player_lock.uuid).cloned().unwrap();
@@ -62,8 +85,6 @@ impl Entity {
                 let mut buffer = Vec::new();
                 crate::net::packets::clientbound::set_entity_data::sent_set_entity_data(&mut buffer, self).await.unwrap();
                 let _ = tx.send(buffer);
-
-                println!("Broadcasted spawn of entity {} to player {}", self.id, player_lock.username);
             }
         }
     }
@@ -75,7 +96,7 @@ impl Entity {
         };
 
         for player in players_owned {
-            let mut player_lock = player.lock().await;
+            let player_lock = player.lock().await;
             let distance_squared = (player_lock.x - self.x).powi(2) + (player_lock.y - self.y).powi(2) + (player_lock.z - self.z).powi(2);
 
             if distance_squared < 64.0 * 64.0 {
@@ -103,7 +124,7 @@ pub fn spawn_item_drop(item_stack: super::items::ItemStack, x: f64, y: f64, z: f
         pitch: 0.0,
 
         vx: 0.0,
-        vy: 1.0,
+        vy: 0.0,
         vz: 0.0,
     };
 
