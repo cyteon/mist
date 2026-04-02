@@ -1,4 +1,4 @@
-pub mod chunk_data_with_light;
+pub mod level_chunk_with_light;
 pub mod commands;
 pub mod container_set_content;
 pub mod container_set_slot;

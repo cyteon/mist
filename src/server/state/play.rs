@@ -16,7 +16,7 @@ use crate::{
 
         packets::{
             clientbound::{
-                chunk_data_with_light::send_chunk_data_with_light,
+                level_chunk_with_light::send_level_chunk_with_light,
                 game_event::send_game_event,
                 keep_alive::send_keep_alive,
                 player_chat_message::send_player_chat_message,
@@ -95,7 +95,7 @@ pub async fn send_chunks_to_player(
     let tasks: Vec<_> = chunks_to_send.into_iter().map(|chunk| {
         tokio::spawn(async move {
             let mut buffer = Vec::new();
-            send_chunk_data_with_light(&mut buffer, &chunk).await?;
+            send_level_chunk_with_light(&mut buffer, &chunk).await?;
 
             println!("Sent chunk {}, {}", chunk.x, chunk.z);
 

@@ -1,6 +1,6 @@
 use crate::{
     net::packets::clientbound::{
-        chunk_data_with_light::send_chunk_data_with_light,
+        level_chunk_with_light::send_level_chunk_with_light,
         set_center_chunk::send_set_center_chunk,
         system_chat_message::send_system_chat_message,
         container_set_content::send_container_set_content,
@@ -533,7 +533,7 @@ impl Player {
                     let chunk = get_chunk(&region_arc, cx, cz).await;
 
                     let mut buffer = Vec::new();
-                    let result = send_chunk_data_with_light(&mut buffer, &chunk).await;
+                    let result = send_level_chunk_with_light(&mut buffer, &chunk).await;
                     let _ = tx.send(buffer);
 
                     if result.is_ok() {

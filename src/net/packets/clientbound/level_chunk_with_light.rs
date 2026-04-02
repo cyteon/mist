@@ -5,7 +5,7 @@ use byteorder::{WriteBytesExt, BigEndian};
 const FULLBRIGHT_ENTRY: [u8; 2048] = [0xFFu8; 2048];
 
 // https://minecraft.wiki/w/Java_Edition_protocol/Packets#Chunk_Data_and_Update_Light
-pub async fn send_chunk_data_with_light<W: tokio::io::AsyncWriteExt + Unpin>(
+pub async fn send_level_chunk_with_light<W: tokio::io::AsyncWriteExt + Unpin>(
     stream: &mut W,
     chunk: &Chunk,
 ) -> anyhow::Result<()> {
