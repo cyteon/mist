@@ -1,16 +1,18 @@
 use fancy_log::LogLevel;
 
 #[derive(serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct PlayerSave {
     pub uuid: String,
 
-    #[serde(default)]
     pub inventory: Vec<Option<crate::types::items::ItemStack>>,
 
-    #[serde(default)]
     pub is_op: bool,
-    #[serde(default)]
     pub gamemode: crate::types::player::Gamemode,
+
+    pub health: f32,
+    pub hunger: i32,
+    pub saturation: f32,
 
     pub x: f64,
     pub y: f64,
@@ -22,6 +24,42 @@ pub struct PlayerSave {
 
     pub yaw: f32,
     pub pitch: f32,
+}
+
+impl Default for PlayerSave {
+    fn default() -> Self {
+        Self {
+            uuid: String::new(),
+            inventory: vec![None; 36],
+
+            is_op: false,
+            gamemode: match crate::config::SERVER_CONFIG.default_gamemode.as_str() {
+                "survival" => crate::types::player::Gamemode::Survival,
+                "creative" => crate::types::player::Gamemode::Creative,
+                "adventure" => crate::types::player::Gamemode::Adventure,
+                "spectator" => crate::types::player::Gamemode::Spectator,
+                _ => {
+                    crate::log::log(fancy_log::LogLevel::Warn, format!("Invalid default gamemode: {}, defaulting to survival", crate::config::SERVER_CONFIG.default_gamemode).as_str());
+                    crate::types::player::Gamemode::Survival
+                }
+            },
+
+            health: 20.0,
+            hunger: 20,
+            saturation: 5.0,
+
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+
+            vx: 0.0,
+            vy: 0.0,
+            vz: 0.0,
+
+            yaw: 0.0,
+            pitch: 0.0,
+        }
+    }
 }
 
 pub fn ensure_save_folders() {
@@ -67,6 +105,10 @@ pub async fn save_player(player: &crate::types::player::Player) {
 
         is_op: player.is_op,
         gamemode: player.gamemode,
+
+        health: player.health,
+        hunger: player.hunger,
+        saturation: player.saturation,
 
         x: player.x,
         y: player.y,

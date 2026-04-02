@@ -6,7 +6,9 @@ use crate::{
         container_set_content::send_container_set_content,
         container_set_slot::send_container_set_slot,
         game_event::{send_game_event, GameEvent},
-        player_info_update::{send_player_info_update, PlayerAction}
+        player_info_update::{send_player_info_update, PlayerAction},
+        set_health::send_set_health,
+        sync_player_position::send_sync_player_position,
     },
     
     world::{get_region, get_chunk}
@@ -49,6 +51,9 @@ pub struct Player {
 
     pub is_op: bool,
     pub gamemode: Gamemode,
+    pub health: f32,
+    pub hunger: i32,
+    pub saturation: f32,
     
     pub shared_secret: Option<Vec<u8>>,
     pub textures: Option<String>,
@@ -65,6 +70,8 @@ pub struct Player {
     pub vx: f64,
     pub vy: f64,
     pub vz: f64,
+    pub on_ground: bool,
+    pub flying: bool,
 
     pub yaw: f32,
     pub pitch: f32,
@@ -98,6 +105,10 @@ impl Player {
                 }
             },
 
+            health: 20.0,
+            hunger: 20,
+            saturation: 5.0,
+
             shared_secret: None,
             textures: None,
             texture_signature: None,
@@ -112,6 +123,8 @@ impl Player {
             vx: 0.0,
             vy: 0.0,
             vz: 0.0,
+            on_ground: false,
+            flying: false,
 
             yaw: 0.0,
             pitch: 0.0,
@@ -138,6 +151,10 @@ impl Player {
 
             player.is_op = player_save.is_op;
             player.gamemode = player_save.gamemode;
+
+            player.health = player_save.health;
+            player.hunger = player_save.hunger;
+            player.saturation = player_save.saturation;
 
             player.x = player_save.x;
             player.y = player_save.y;
@@ -176,6 +193,26 @@ impl Player {
 
         let mut buffer = Vec::new();
         send_container_set_content(&mut buffer, 0, &self.inventory).await?;
+        let _ = tx.send(buffer);
+
+        Ok(())
+    }
+
+    pub async fn sync_player_health(&mut self) -> anyhow::Result<()> {
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+
+        let mut buffer = Vec::new();
+        send_set_health(&mut buffer, self).await?;
+        let _ = tx.send(buffer);
+
+        Ok(())
+    }
+
+    pub async fn sync_player_position(&mut self) -> anyhow::Result<()> {
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+
+        let mut buffer = Vec::new();
+        send_sync_player_position(&mut buffer, self).await?;
         let _ = tx.send(buffer);
 
         Ok(())
@@ -308,8 +345,30 @@ impl Player {
             self.vz = 0.0;
         }
 
+        self.vy -= 0.08;
+
         self.x += self.vx;
+        self.y += self.vy;
         self.z += self.vz;
+
+        let region = crate::world::get_region(self.x as i32 >> 9, self.z as i32 >> 9).await;
+        let chunk = crate::world::get_chunk(&region, self.x as i32 >> 4, self.z as i32 >> 4).await;
+
+        let lx = (self.x as i32 & 15) as u8;
+        let lz = (self.z as i32 & 15) as u8;
+
+        let surface = chunk.get_surface_y_below_point(lx, self.y as i32, lz) as i32;
+
+        if self.y <= surface as f64 + 1.0 {
+            self.y = surface as f64 + 1.0;
+            self.vy = 0.0;
+        }
+
+        if self.flying {
+            self.vy = 0.0;
+        }
+
+        println!("Player {} moved to {}, {}, {}, flying: {}, on_ground: {}", self.username, self.x, self.y, self.z, self.flying, self.on_ground);
 
         if !self.chunks_loaded {
             return Ok(());

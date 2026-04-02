@@ -25,3 +25,4 @@ pub mod spawn_entity;
 pub mod set_entity_data;
 pub mod remove_entities;
 pub mod pickup_item;
+pub mod set_health;

@@ -22,10 +22,12 @@ pub enum ClientPacket {
     ConfirmTeleprortion(std::io::Cursor<Vec<u8>>), // 0x00 in play
     ChatCommand(std::io::Cursor<Vec<u8>>), // 0x06 in play
     ChatMessage(std::io::Cursor<Vec<u8>>), // 0x08 in play
+    PlayerAbilities(std::io::Cursor<Vec<u8>>), // 0x27 in play
     PlayerAction(std::io::Cursor<Vec<u8>>), // 0x28 in play
     SetCarriedItem(std::io::Cursor<Vec<u8>>), // 0x34 in play
     SetCreativeModeSlot(std::io::Cursor<Vec<u8>>), // 0x37 in play
     UseItemOn(std::io::Cursor<Vec<u8>>), // 0x3F in play
+    SetPlayerPosition(std::io::Cursor<Vec<u8>>), // 0x1D in play
     SetPlayerPositionAndRotation(std::io::Cursor<Vec<u8>>), // 0x1E in play
     PlayerInput(std::io::Cursor<Vec<u8>>), // 0x2A in play
     SetPlayerRotation(std::io::Cursor<Vec<u8>>), // 0x1F in play
@@ -150,6 +152,10 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
                     Ok(Some(ClientPacket::UseItemOn(cursor)))
                 },
 
+                play::serverbound::MOVE_PLAYER_POS => {
+                    Ok(Some(ClientPacket::SetPlayerPosition(cursor)))
+                },
+
                 play::serverbound::MOVE_PLAYER_POS_ROT => {
                     Ok(Some(ClientPacket::SetPlayerPositionAndRotation(cursor)))
                 },
@@ -168,6 +174,10 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
 
                 play::serverbound::SET_CREATIVE_MODE_SLOT => {
                     Ok(Some(ClientPacket::SetCreativeModeSlot(cursor)))
+                },
+
+                play::serverbound::PLAYER_ABILITIES => {
+                    Ok(Some(ClientPacket::PlayerAbilities(cursor)))
                 },
                 
                 _ => Ok(None)

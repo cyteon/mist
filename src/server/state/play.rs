@@ -32,12 +32,14 @@ use crate::{
                 confirm_teleportation::read_confirm_teleportation,
                 player_action::read_player_action,
                 player_input::read_player_input,
+                set_player_position::read_set_player_position,
                 set_player_position_and_rotation::read_set_player_position_and_rotation,
                 set_player_rotation::read_set_player_rotation,
                 use_item_on::read_use_item_on,
                 chat_command::read_chat_command,
                 set_carried_item::read_set_carried_item,
-                set_creative_mode_slot::read_set_creative_mode_slot
+                set_creative_mode_slot::read_set_creative_mode_slot,
+                player_abilities::read_player_abilities
             }
         }
     }, 
@@ -120,15 +122,6 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     }
 
     let mut buffer = Vec::new();
-    send_sync_player_position(&mut buffer, &player).await?;
-    let _ = tx.send(buffer);
-
-    crate::log::log(
-        LogLevel::Debug, 
-        format!("Sent initial player position to {}", username).as_str()
-    );
-
-    let mut buffer = Vec::new();
     send_commands(&mut buffer).await?;
     let _ = tx.send(buffer);
 
@@ -144,14 +137,17 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         Arc::clone(&player)
     );
 
-    let mut player_guard = player.lock().await;
-    player_guard.sync_player_inventory().await?;
-    drop(player_guard);
+    {
+        let mut player_guard = player.lock().await;
+        player_guard.sync_player_position().await?;
+        player_guard.sync_player_inventory().await?;
+        player_guard.sync_player_health().await?;
 
-    crate::log::log(
-        LogLevel::Debug, 
-        format!("Added {} to player list", player.lock().await.username).as_str()
-    );
+        crate::log::log(
+            LogLevel::Debug, 
+            format!("Synchronized intial data for {}", player_guard.username).as_str()
+        );
+    }
 
     {
         let player_guard = player.lock().await;
@@ -374,6 +370,13 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                         }
                     }
 
+                    ClientPacket::SetPlayerPosition(mut cursor) => {
+                        let players_locked = PLAYERS.read().await;
+                        let mut player = players_locked.get(&uuid).unwrap().lock().await;
+
+                        read_set_player_position(&mut cursor, &mut player).await?;
+                    }
+
                     ClientPacket::SetPlayerPositionAndRotation(mut cursor) => {
                         let players_locked = PLAYERS.read().await;
                         let mut player = players_locked.get(&uuid).unwrap().lock().await;
@@ -407,6 +410,13 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                         let mut player = players_locked.get(&uuid).unwrap().lock().await;
 
                         read_set_creative_mode_slot(&mut cursor, &mut player).await?;
+                    }
+
+                    ClientPacket::PlayerAbilities(mut cursor) => {
+                        let players_locked = PLAYERS.read().await;
+                        let mut player = players_locked.get(&uuid).unwrap().lock().await;
+
+                        read_player_abilities(&mut cursor, &mut player).await?;
                     }
 
                     _ => { }
