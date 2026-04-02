@@ -1,4 +1,4 @@
-use byteorder::{WriteBytesExt, BigEndian};
+use byteorder::WriteBytesExt;
 use tokio::io::{AsyncReadExt};
 
 use crate::types::items::ItemStack;

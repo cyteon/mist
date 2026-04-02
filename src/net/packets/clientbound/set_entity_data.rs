@@ -1,5 +1,3 @@
-use byteorder::{WriteBytesExt, BigEndian};
-
 use crate::net::codec::write_var;
 
 pub async fn sent_set_entity_data<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, entity: &mut crate::types::entity::Entity) -> anyhow::Result<()> {

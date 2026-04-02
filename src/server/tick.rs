@@ -77,9 +77,19 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
         let mut to_pickup = Vec::new();
 
         for entity in entities.values() {
+            if entity.spawned_at.elapsed().as_millis() < 500 {
+                continue;
+            }
+
             if let crate::types::entity::EntityType::Item(item_stack) = &entity.entity_type {
                 for player in players.values() {
                     let player = player.lock().await;
+
+                    if let Some(dropped_by) = &entity.dropped_by {
+                        if *dropped_by == player.uuid && entity.spawned_at.elapsed().as_secs() < 2 {
+                            continue;
+                        }
+                    }
 
                     let distance_squared = (player.x - entity.x).powi(2) + (player.y - entity.y).powi(2) + (player.z - entity.z).powi(2);
 

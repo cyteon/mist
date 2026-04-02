@@ -6,8 +6,8 @@ pub enum ActionStatus {
     StartedDigging = 0,
     //CancelledDigging = 1,
     FinishedDigging = 2,
-    //DropItemStack = 3,
-    //DropItem = 4,
+    DropItemStack = 3,
+    DropItem = 4,
     //ShootArrowFinishEating = 5,
     //SwapItemInHand = 6,
 }
@@ -38,6 +38,7 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
                         item_id: crate::types::items::block_to_item_id(chunk.get_block((x & 15) as u8, y as i32, (z & 15) as u8) as i32).unwrap_or(0) as i32,
                         count: 1,
                     },
+                    None,
                     x as f64 + 0.5,
                     y as f64 + 0.5,
                     z as f64 + 0.5,
@@ -49,6 +50,37 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
             chunk.set_block((x & 15) as u8, y as i32, (z & 15) as u8, 0);
 
             return Ok(spawned_entity);
+        }
+    } else if status == ActionStatus::DropItemStack as u32 || status == ActionStatus::DropItem as u32 {
+        let drop_all = status == ActionStatus::DropItemStack as u32;
+        let held_slot = player.current_slot as usize + 36;
+
+        if let Some(item) = &mut player.inventory[held_slot] {
+            let count = if drop_all { item.count } else { 1 };
+            let item_id = item.item_id;
+
+            item.count -= count;
+            if item.count == 0 {
+                player.inventory[held_slot] = None;
+            }
+
+            let (dx, dz) = {
+                let yaw = player.yaw.to_radians();
+                (-yaw.sin() as f64, yaw.cos() as f64)
+            };
+
+            let entity = crate::types::entity::spawn_item_drop(
+                crate::types::items::ItemStack {
+                    item_id,
+                    count,
+                },
+                Some(player.uuid.clone()),
+                player.x + dx as f64,
+                player.y + 1.0,
+                player.z + dz as f64,
+            );
+
+            return Ok(Some(entity));
         }
     }
 

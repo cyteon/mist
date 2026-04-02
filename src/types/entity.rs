@@ -23,6 +23,9 @@ pub struct Entity {
     pub uuid: u128,
     pub entity_type: EntityType,
 
+    pub spawned_at: std::time::Instant,
+    pub dropped_by: Option<String>,
+
     pub x: f64,
     pub y: f64,
     pub z: f64,
@@ -110,11 +113,14 @@ impl Entity {
     }
 }
 
-pub fn spawn_item_drop(item_stack: super::items::ItemStack, x: f64, y: f64, z: f64) -> Entity {
+pub fn spawn_item_drop(item_stack: super::items::ItemStack, dropped_by: Option<String>, x: f64, y: f64, z: f64) -> Entity {
     let entity = Entity {
         id: next_entity_id(),
         uuid: rand::random(),
         entity_type: EntityType::Item(item_stack),
+
+        spawned_at: std::time::Instant::now(),
+        dropped_by,
 
         x,
         y,
