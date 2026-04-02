@@ -9,6 +9,8 @@ use crate::{
         player_info_update::{send_player_info_update, PlayerAction},
         set_health::send_set_health,
         sync_player_position::send_sync_player_position,
+        damage_event::send_damage_event,
+        respawn::send_respawn,
     },
     
     world::{get_region, get_chunk}
@@ -26,7 +28,7 @@ pub struct PlayerMovement {
 }
 
 
-#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum Gamemode {
     Survival,
     Creative,
@@ -51,9 +53,12 @@ pub struct Player {
 
     pub is_op: bool,
     pub gamemode: Gamemode,
+
     pub health: f32,
     pub hunger: i32,
     pub saturation: f32,
+    pub dead: bool,
+    pub ignore_fall_for_ticks: i32,
     
     pub shared_secret: Option<Vec<u8>>,
     pub textures: Option<String>,
@@ -63,15 +68,21 @@ pub struct Player {
     pub y: f64,
     pub z: f64,
 
-    // used to determine what chunks to send
+    // used to determine what chunks to send and fall damage
     pub last_x: f64,
     pub last_z: f64,
 
     pub vx: f64,
     pub vy: f64,
     pub vz: f64,
+
+    // only for fall damage calc
+    pub server_vy: f64,
+    pub jump_applied: bool,
+
     pub on_ground: bool,
     pub flying: bool,
+    pub fall_distance: f64,
 
     pub yaw: f32,
     pub pitch: f32,
@@ -123,8 +134,15 @@ impl Player {
             vx: 0.0,
             vy: 0.0,
             vz: 0.0,
-            on_ground: false,
+
+            server_vy: 0.0,
+            jump_applied: false,
+
+            on_ground: true,
             flying: false,
+            fall_distance: 0.0,
+            dead: false,
+            ignore_fall_for_ticks: 0,
 
             yaw: 0.0,
             pitch: 0.0,
@@ -155,6 +173,7 @@ impl Player {
             player.health = player_save.health;
             player.hunger = player_save.hunger;
             player.saturation = player_save.saturation;
+            player.dead = player_save.dead;
 
             player.x = player_save.x;
             player.y = player_save.y;
@@ -214,6 +233,8 @@ impl Player {
         let mut buffer = Vec::new();
         send_sync_player_position(&mut buffer, self).await?;
         let _ = tx.send(buffer);
+
+        self.ignore_fall_for_ticks = 2;
 
         Ok(())
     }
@@ -301,7 +322,74 @@ impl Player {
         Ok(())
     }
 
+    pub async fn damage(
+        &mut self,
+        amount: i32,
+        source_type_id: i32,
+        source_cause_id: i32,
+        source_direct_id: i32
+    ) -> anyhow::Result<()> {
+        self.health -= amount as f32;
+
+        if self.health <= 0.0 {
+            self.health = 0.0;
+            self.dead = true;
+        }
+
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+
+        let mut buffer = Vec::new();
+        send_damage_event(&mut buffer, self.id, source_type_id, source_cause_id, source_direct_id).await?;
+        let _ = tx.send(buffer);
+
+        self.sync_player_health().await?;
+
+        Ok(())
+    }
+
+    pub async fn respawn(&mut self) -> anyhow::Result<()> {
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+
+        let mut buffer = Vec::new();
+        send_respawn(&mut buffer, self).await?;
+        let _ = tx.send(buffer);
+
+        self.health = 20.0;
+        self.hunger = 20;
+        self.saturation = 5.0;
+
+        let region_arc = get_region(0, 0).await;
+        let chunk = get_chunk(&region_arc, 0, 0).await;
+        let surface_y = chunk.get_surface_y(0, 0) as f64;
+
+        self.x = 0.0;
+        self.y = surface_y + 1.0;
+        self.z = 0.0;
+
+        self.vx = 0.0;
+        self.vy = 0.0;
+        self.vz = 0.0;
+
+        self.yaw = 0.0;
+        self.pitch = 0.0;
+
+        self.dead = false;
+        self.chunks_loaded = false;
+        self.ignore_fall_for_ticks = 5;
+
+        self.sync_player_health().await?;
+        self.sync_player_position().await?;
+
+        Ok(())
+    }
+
     pub async fn tick(&mut self) -> anyhow::Result<()> {
+        if self.dead {
+            return Ok(());
+        }
+
+        let prev_on_ground = self.on_ground;
+
         let mut move_x = 0.0;
         let mut move_z = 0.0;
 
@@ -347,28 +435,49 @@ impl Player {
 
         self.vy -= 0.08;
 
+        if self.on_ground || self.flying {
+            self.vy = 0.0;
+        }
+
         self.x += self.vx;
         self.y += self.vy;
         self.z += self.vz;
 
-        let region = crate::world::get_region(self.x as i32 >> 9, self.z as i32 >> 9).await;
-        let chunk = crate::world::get_chunk(&region, self.x as i32 >> 4, self.z as i32 >> 4).await;
+        if !self.on_ground && !self.flying {
+            if self.movement.jumping && !self.jump_applied {
+                self.server_vy = 0.42;
+                self.jump_applied = true;
+            }
 
-        let lx = (self.x as i32 & 15) as u8;
-        let lz = (self.z as i32 & 15) as u8;
+            self.server_vy -= 0.08;
 
-        let surface = chunk.get_surface_y_below_point(lx, self.y as i32, lz) as i32;
+            if self.server_vy < 0.0 {
+                self.fall_distance += -self.server_vy;
+            } else {
+                self.fall_distance = 0.0;
+            }
+        } else if self.on_ground {
+            if self.gamemode == Gamemode::Survival && self.ignore_fall_for_ticks <= 0 && self.fall_distance > 3.0 {
+                let damage = (self.fall_distance - 3.0).ceil() as i32;
+                self.damage(damage, 10, 0, 0).await?;
+            }
 
-        if self.y <= surface as f64 + 1.0 {
-            self.y = surface as f64 + 1.0;
-            self.vy = 0.0;
+            self.fall_distance = 0.0;
+            self.server_vy = 0.0;
+            self.jump_applied = false;
         }
 
-        if self.flying {
-            self.vy = 0.0;
+        // void damage
+        if self.y < -64.0 && self.gamemode == Gamemode::Survival && self.ignore_fall_for_ticks <= 0 {
+            self.damage(
+                2,
+                32,
+                0,
+                0
+            ).await?;
         }
 
-        println!("Player {} moved to {}, {}, {}, flying: {}, on_ground: {}", self.username, self.x, self.y, self.z, self.flying, self.on_ground);
+        self.ignore_fall_for_ticks = self.ignore_fall_for_ticks.saturating_sub(1);
 
         if !self.chunks_loaded {
             return Ok(());

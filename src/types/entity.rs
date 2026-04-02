@@ -75,7 +75,7 @@ impl Entity {
         };
 
         for player in players_owned {
-            let mut player_lock = player.lock().await;
+            let player_lock = player.lock().await;
             let distance_squared = (player_lock.x - self.x).powi(2) + (player_lock.y - self.y).powi(2) + (player_lock.z - self.z).powi(2);
 
             if distance_squared < 64.0 * 64.0 {

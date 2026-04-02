@@ -15,3 +15,4 @@ pub mod set_carried_item;
 pub mod set_creative_mode_slot;
 pub mod set_player_position;
 pub mod player_abilities;
+pub mod client_status;

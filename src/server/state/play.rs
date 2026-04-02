@@ -39,7 +39,8 @@ use crate::{
                 chat_command::read_chat_command,
                 set_carried_item::read_set_carried_item,
                 set_creative_mode_slot::read_set_creative_mode_slot,
-                player_abilities::read_player_abilities
+                player_abilities::read_player_abilities,
+                client_status::read_client_status
             }
         }
     }, 
@@ -50,6 +51,74 @@ use crate::{
 
 pub static PLAYERS: Lazy<RwLock<HashMap<String, Arc<Mutex<Player>>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
+
+pub async fn send_chunks_to_player(
+    tx: mpsc::UnboundedSender<Vec<u8>>,
+    player: Arc<Mutex<Player>>
+) -> anyhow::Result<()> {
+    let view_distance = crate::config::SERVER_CONFIG.view_distance as i32;
+    let chunk_loading_width = view_distance * 2 + 7;
+    let radius = chunk_loading_width / 2;
+
+    let cx = player.lock().await.x as i32 >> 4;
+    let cz = player.lock().await.z as i32 >> 4;
+
+    let mut buffer = Vec::new();
+    send_game_event(&mut buffer, 13, 0.0).await?;
+    let _ = tx.send(buffer);
+
+    let mut buffer = Vec::new();
+    send_set_center_chunk(&mut buffer, cx, cz).await?;
+    let _ = tx.send(buffer);
+
+    let mut by_region: HashMap<(i32, i32), Vec<(i32, i32)>> = HashMap::new();
+    for cx in -radius..=radius {
+        for cz in -radius..=radius {
+            by_region.entry((cx >> 5, cz >> 5)).or_default().push((cx, cz));
+        }
+    }
+    
+    let mut chunks_to_send = Vec::new();
+    for ((rx, rz), coords) in by_region {
+        let region_arc = get_region(rx, rz).await;
+
+        for (cx, cz) in coords {
+            let chunk = get_chunk(&region_arc, cx, cz).await;
+            chunks_to_send.push(chunk);
+        }
+    }
+
+    // sort so chunk loading starts at 0,0
+    chunks_to_send.sort_by_key(|chunk| {
+        chunk.x * chunk.x + chunk.z * chunk.z
+    });
+
+    let tasks: Vec<_> = chunks_to_send.into_iter().map(|chunk| {
+        tokio::spawn(async move {
+            let mut buffer = Vec::new();
+            send_chunk_data_with_light(&mut buffer, &chunk).await?;
+
+            println!("Sent chunk {}, {}", chunk.x, chunk.z);
+
+            Ok::<Vec<u8>, anyhow::Error>(buffer)
+        })
+    }).collect();
+
+    let results: Vec<_> = futures::future::join_all(tasks).await;
+
+    for result in results {
+        if let Ok(Ok(pkt)) = result {
+            let _ = tx.send(pkt);
+        }
+    }
+
+    let players_locked = PLAYERS.read().await;
+    let player_lock = players_locked.get(&player.lock().await.uuid).unwrap().clone();
+    let mut player = player_lock.lock().await;
+    player.chunks_loaded = true;
+
+    Ok(())
+}
 
 pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow::Result<()> {
     crate::log::log(LogLevel::Debug, format!("{} has entered the play state", player.username).as_str());
@@ -203,85 +272,12 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         format!("Sent player info updates for {}", player.lock().await.username).as_str()
     );
 
-    let mut buffer = Vec::new();
-    send_game_event(&mut buffer, 13, 0.0).await?;
-    let _ = tx.send(buffer);
-
-    let mut buffer = Vec::new();
-    send_set_center_chunk(&mut buffer, 0, 0).await?;
-    let _ = tx.send(buffer);
-
-    crate::log::log(
-        LogLevel::Debug, 
-        format!("Sent center chunk and is now sending chunks to {}", player.lock().await.username).as_str()
-    );
-
     let chunk_sender_task = {
         let tx = tx.clone();
-        let player_name = player.lock().await.username.clone();
-        let view_distance = crate::config::SERVER_CONFIG.view_distance as i32;
-        let chunk_loading_width = view_distance * 2 + 7;
-        let radius = chunk_loading_width / 2;
-
-        let mut by_region: HashMap<(i32, i32), Vec<(i32, i32)>> = HashMap::new();
-        for cx in -radius..=radius {
-            for cz in -radius..=radius {
-                by_region.entry((cx >> 5, cz >> 5)).or_default().push((cx, cz));
-            }
-        }
+        let player_arc = Arc::clone(&player);
         
-        let mut chunks_to_send = Vec::new();
-        for ((rx, rz), coords) in by_region {
-            let region_arc = get_region(rx, rz).await;
-
-            for (cx, cz) in coords {
-                let chunk = get_chunk(&region_arc, cx, cz).await;
-                chunks_to_send.push(chunk);
-            }
-        }
-
-        // sort so chunk loading starts at 0,0
-        chunks_to_send.sort_by_key(|chunk| {
-            chunk.x * chunk.x + chunk.z * chunk.z
-        });
-
         tokio::spawn(async move {
-            crate::log::log(
-                LogLevel::Debug, 
-                format!("Making chunk packets for {} to send", player_name).as_str()
-            );
-
-            let tasks: Vec<_> = chunks_to_send.into_iter().map(|chunk| {
-                tokio::spawn(async move {
-                    let mut buffer = Vec::new();
-                    send_chunk_data_with_light(&mut buffer, &chunk).await?;
-
-                    Ok::<Vec<u8>, anyhow::Error>(buffer)
-                })
-            }).collect();
-
-            let results: Vec<_> = futures::future::join_all(tasks).await;
-
-            crate::log::log(
-                LogLevel::Debug, 
-                format!("Finished making chunk packets for {}, now sending", player_name).as_str()
-            );
-
-            for result in results {
-                if let Ok(Ok(pkt)) = result {
-                    let _ = tx.send(pkt);
-                }
-            }
-
-            crate::log::log(
-                LogLevel::Debug, 
-                format!("Finished sending chunks to {}", player_name).as_str()
-            );
-
-            let players_locked = PLAYERS.read().await;
-            let player_lock = players_locked.get(&player.lock().await.uuid).unwrap().clone();
-            let mut player = player_lock.lock().await;
-            player.chunks_loaded = true;
+            send_chunks_to_player(tx, player_arc).await.unwrap();
         })
     };
 
@@ -417,6 +413,24 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                         let mut player = players_locked.get(&uuid).unwrap().lock().await;
 
                         read_player_abilities(&mut cursor, &mut player).await?;
+                    }
+
+                    ClientPacket::ClientStatus(mut cursor) => {
+                        let players_locked = PLAYERS.read().await;
+                        let player_arc = players_locked.get(&uuid).unwrap().clone();
+                        let mut player = player_arc.lock().await;
+
+                        let action = read_client_status(&mut cursor, &mut player).await?;
+
+                        drop(player);
+                        drop(players_locked);
+
+                        if action == 0 {
+                            let tx_clone = tx.clone();
+                            tokio::spawn(async move {
+                                send_chunks_to_player(tx_clone, player_arc.clone()).await.unwrap();
+                            });
+                        }
                     }
 
                     _ => { }

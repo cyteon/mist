@@ -13,6 +13,7 @@ pub struct PlayerSave {
     pub health: f32,
     pub hunger: i32,
     pub saturation: f32,
+    pub dead: bool,
 
     pub x: f64,
     pub y: f64,
@@ -47,6 +48,7 @@ impl Default for PlayerSave {
             health: 20.0,
             hunger: 20,
             saturation: 5.0,
+            dead: false,
 
             x: 0.0,
             y: 0.0,
@@ -109,6 +111,7 @@ pub async fn save_player(player: &crate::types::player::Player) {
         health: player.health,
         hunger: player.hunger,
         saturation: player.saturation,
+        dead: player.dead,
 
         x: player.x,
         y: player.y,

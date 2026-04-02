@@ -22,6 +22,7 @@ pub enum ClientPacket {
     ConfirmTeleprortion(std::io::Cursor<Vec<u8>>), // 0x00 in play
     ChatCommand(std::io::Cursor<Vec<u8>>), // 0x06 in play
     ChatMessage(std::io::Cursor<Vec<u8>>), // 0x08 in play
+    ClientStatus(std::io::Cursor<Vec<u8>>), // 0x0B in play
     PlayerAbilities(std::io::Cursor<Vec<u8>>), // 0x27 in play
     PlayerAction(std::io::Cursor<Vec<u8>>), // 0x28 in play
     SetCarriedItem(std::io::Cursor<Vec<u8>>), // 0x34 in play
@@ -178,6 +179,10 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(stream: &mut R, state: &Protoc
 
                 play::serverbound::PLAYER_ABILITIES => {
                     Ok(Some(ClientPacket::PlayerAbilities(cursor)))
+                },
+
+                play::serverbound::CLIENT_COMMAND => {
+                    Ok(Some(ClientPacket::ClientStatus(cursor)))
                 },
                 
                 _ => Ok(None)
