@@ -1,3 +1,4 @@
+pub mod block_update;
 pub mod level_chunk_with_light;
 pub mod commands;
 pub mod container_set_content;

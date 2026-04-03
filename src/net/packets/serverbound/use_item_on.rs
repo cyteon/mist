@@ -47,17 +47,17 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, player: &
     let mut region_lock = region.lock().await;
 
     if let Some(chunk) = region_lock.chunks.iter_mut().find(|chunk| chunk.x == chunk_pos.0 && chunk.z == chunk_pos.1) {
-        if let Some(section) = chunk.sections.iter_mut().find(|section| section.y == section_y) {
-            section.set_block((bx & 15) as u8, (by & 15) as u8, (bz & 15) as u8, block_id as u16);
+        chunk.set_block((bx & 15) as u8, by as i32, (bz & 15) as u8, block_id as u16);
 
-            if player.gamemode as u8 != 1 {
-                player.inventory[player.current_slot as usize + 36].as_mut().unwrap().count -= 1;
+        if player.gamemode as u8 != 1 {
+            player.inventory[player.current_slot as usize + 36].as_mut().unwrap().count -= 1;
 
-                if player.inventory[player.current_slot as usize + 36].as_ref().unwrap().count == 0 {
-                    player.inventory[player.current_slot as usize + 36] = None;
-                }
+            if player.inventory[player.current_slot as usize + 36].as_ref().unwrap().count == 0 {
+                player.inventory[player.current_slot as usize + 36] = None;
             }
         }
+
+        crate::net::packets::clientbound::block_update::broadcast_block_update(bx, by, bz, block_id as i32).await?;
     }
 
     Ok(())

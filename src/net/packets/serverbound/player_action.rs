@@ -26,8 +26,6 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
         let chunk_pos = (x.div_euclid(16), z.div_euclid(16));
         let region_pos = (chunk_pos.0.div_euclid(32), chunk_pos.1.div_euclid(32));
 
-        let _section_y = y.div_euclid(16) + 4; // cause section 0 is -64
-
         let regions_lock = get_region(region_pos.0, region_pos.1).await;
         let mut region = regions_lock.lock().await;
 
@@ -46,6 +44,7 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
             }
 
             chunk.set_block((x & 15) as u8, y, (z & 15) as u8, 0);
+            crate::net::packets::clientbound::block_update::broadcast_block_update(x, y, z, 0).await?;
         }
     } else if status == ActionStatus::DropItemStack as u32 || status == ActionStatus::DropItem as u32 {
         let drop_all = status == ActionStatus::DropItemStack as u32;

@@ -127,8 +127,6 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
                     }
 
                     drop(players);
-
-                    entity.broadcast_despawn().await;
                 }
             }
         }

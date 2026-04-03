@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+use once_cell::sync::Lazy;
+use tokio::sync::RwLock;
+
 use crate::{
     net::packets::clientbound::{
         level_chunk_with_light::send_level_chunk_with_light,
@@ -18,6 +22,9 @@ use crate::{
     
     world::{get_region, get_chunk}
 };
+
+pub static PLAYER_POSITIONS: Lazy<RwLock<HashMap<String, (f64, f64, f64)>>> = 
+    Lazy::new(|| RwLock::new(HashMap::new()));
 
 #[derive(Clone)]
 pub struct PlayerMovement {
@@ -612,6 +619,9 @@ impl Player {
 
             self.loaded_entities.retain(|id| !to_remove.contains(id));
         }
+
+        let mut player_positions = PLAYER_POSITIONS.write().await;
+        player_positions.insert(self.uuid.clone(), (self.x, self.y, self.z));
 
         Ok(())
     }

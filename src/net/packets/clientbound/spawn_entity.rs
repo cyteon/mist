@@ -23,8 +23,6 @@ pub async fn send_spawn_entity<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut
 
     write_var(&mut packet_data, 0)?; // data
 
-    println!("sending {} bytes: {:?}", packet_data.len(), packet_data);
-
     stream.write_all(&packet_data).await?;
     stream.flush().await?;
 

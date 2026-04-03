@@ -1,4 +1,4 @@
-use byteorder::WriteBytesExt;
+use byteorder::{WriteBytesExt, BigEndian};
 use tokio::io::{AsyncReadExt};
 
 use crate::types::items::ItemStack;
@@ -57,7 +57,20 @@ pub fn write_string<W: WriteBytesExt + Unpin>(stream: &mut W, value: &str) -> an
     Ok(())
 }
 
-// x: 26 bits, y: 12 bits, z: 26 bits
+// x: 26 bits z: 26 bits, y: 12 bits,
+pub fn write_position<W: WriteBytesExt + Unpin>(stream: &mut W, x: i32, y: i32, z: i32) -> anyhow::Result<()> {
+    let mut val = 0i64;
+
+    val |= (x as i64 & 0x3FFFFFF) << 38;
+    val |= (z as i64 & 0x3FFFFFF) << 12;
+    val |= y as i64 & 0xFFF;
+
+    stream.write_i64::<BigEndian>(val)?;
+
+    Ok(())
+}
+
+// x: 26 bits z: 26 bits, y: 12 bits,
 // all signed integers, two's complement
 pub async fn read_position<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow::Result<(i32, i32, i32)> {
     let val = stream.read_i64().await?;
