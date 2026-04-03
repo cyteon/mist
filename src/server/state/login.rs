@@ -61,7 +61,7 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
     let mut player = Player::new(
         login_start.uuid.clone(),
         login_start.username.clone()
-    );
+    ).await;
 
     send_encryption_request(&mut socket).await?;
 

@@ -101,7 +101,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(uuid: String, username: String) -> Self {
+    pub async fn new(uuid: String, username: String) -> Self {
         let mut player = Player {
             id: super::entity::next_entity_id(),
             uuid,
@@ -199,6 +199,41 @@ impl Player {
             player.inventory[37] = Some(super::items::ItemStack { item_id: super::items::DIRT, count: 64 });
             player.inventory[38] = Some(super::items::ItemStack { item_id: super::items::STONE, count: 64 });
         }
+
+        let entity = super::entity::Entity {
+            id: player.id,
+            uuid: {
+                let uuid = player.uuid.replace("-", "");
+                u128::from_be_bytes(hex::decode(uuid).unwrap().try_into().unwrap())
+            },
+            entity_type: super::entity::EntityType::Player(player.uuid.clone()),
+
+            x: player.x,
+            y: player.y,
+            z: player.z,
+
+            last_x: player.x,
+            last_y: player.y,
+            last_z: player.z,
+            ticks_since_last_update: 0,
+
+            yaw: player.yaw,
+            pitch: player.pitch,
+
+            last_yaw: player.yaw,
+            last_pitch: player.pitch,
+
+            vx: player.vx,
+            vy: player.vy,
+            vz: player.vz,
+            on_ground: player.on_ground,
+        };
+
+        println!("Player {} has entity id {}", player.username, entity.id);
+
+        crate::types::entity::ENTITIES.write().await.insert(entity.id, entity);
+
+        println!("Saved player entity for player {}", player.username);
 
         player
     }
@@ -590,6 +625,10 @@ impl Player {
         let mut to_remove = Vec::new();
 
         for (id, entity) in all_entities.iter() {
+            if id == &self.id {
+                continue;
+            }
+
             if !self.loaded_entities.contains(id) && (entity.x - self.x).abs() < 64.0 && (entity.z - self.z).abs() < 64.0 {
                 let distance_squared = (entity.x - self.x).powi(2) + (entity.y - self.y).powi(2) + (entity.z - self.z).powi(2);
 
@@ -611,6 +650,7 @@ impl Player {
 
         let all_entity_ids = all_entities.keys().cloned().collect::<Vec<_>>();
         to_remove.extend(self.loaded_entities.iter().filter(|id| !all_entity_ids.contains(id)).cloned());
+        drop(all_entities);
 
         if !to_remove.is_empty() {
             let mut buffer = Vec::new();
@@ -622,6 +662,23 @@ impl Player {
 
         let mut player_positions = PLAYER_POSITIONS.write().await;
         player_positions.insert(self.uuid.clone(), (self.x, self.y, self.z));
+
+        let mut entities_write = crate::types::entity::ENTITIES.write().await;
+
+        if let Some(entity) = entities_write.get_mut(&self.id) {
+            entity.x = self.x;
+            entity.y = self.y;
+            entity.z = self.z;
+        
+            entity.vx = self.vx;
+            entity.vy = self.vy;
+            entity.vz = self.vz;
+
+            entity.yaw = self.yaw;
+            entity.pitch = self.pitch;
+
+            entity.on_ground = self.on_ground;
+        }
 
         Ok(())
     }

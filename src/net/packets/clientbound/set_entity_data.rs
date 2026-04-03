@@ -5,7 +5,7 @@ pub async fn sent_set_entity_data<W: tokio::io::AsyncWriteExt + Unpin>(stream: &
 
     write_var(&mut packet_data, entity.id)?;
     
-    if let crate::types::entity::EntityType::Item(item) = &entity.entity_type {
+    if let crate::types::entity::EntityType::Item(item, ..) = &entity.entity_type {
         packet_data.push(0x08); // item index
         write_var(&mut packet_data, 7)?; // item data
 
