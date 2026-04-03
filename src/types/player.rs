@@ -53,7 +53,7 @@ pub struct Player {
     pub hunger: i32,
     pub saturation: f32,
     pub dead: bool,
-    pub ignore_fall_for_ticks: i32,
+    pub ignore_fall_for_ticks: u32,
     
     pub shared_secret: Option<Vec<u8>>,
     pub textures: Option<String>,
@@ -229,7 +229,9 @@ impl Player {
         send_sync_player_position(&mut buffer, self).await?;
         let _ = tx.send(buffer);
 
-        self.ignore_fall_for_ticks = 2;
+        self.fall_distance = 0.0;
+        self.server_vy = 0.0;
+        self.ignore_fall_for_ticks = 100;
 
         Ok(())
     }
@@ -364,13 +366,13 @@ impl Player {
         self.vx = 0.0;
         self.vy = 0.0;
         self.vz = 0.0;
+        self.server_vy = 0.0;
 
         self.yaw = 0.0;
         self.pitch = 0.0;
 
         self.dead = false;
         self.chunks_loaded = false;
-        self.ignore_fall_for_ticks = 5;
 
         self.sync_player_health().await?;
         self.sync_player_position().await?;
@@ -379,7 +381,7 @@ impl Player {
     }
 
     pub async fn tick(&mut self) -> anyhow::Result<()> {
-        if self.dead {
+        if self.dead || !self.initial_sync_done {
             return Ok(());
         }
 
@@ -436,6 +438,8 @@ impl Player {
         self.y += self.vy;
         self.z += self.vz;
 
+        println!("Server vy: {}, fall distance: {}, on_ground: {}, flying: {}, ignore_fall_for_ticks: {}", self.server_vy, self.fall_distance, self.on_ground, self.flying, self.ignore_fall_for_ticks);
+
         if !self.on_ground && !self.flying {
             if self.movement.jumping && !self.jump_applied {
                 self.server_vy = 0.42;
@@ -471,6 +475,11 @@ impl Player {
         }
 
         self.ignore_fall_for_ticks = self.ignore_fall_for_ticks.saturating_sub(1);
+
+        if self.ignore_fall_for_ticks > 0 {
+            self.fall_distance = 0.0;
+            self.server_vy = 0.0;
+        }
 
         if !self.chunks_loaded {
             return Ok(());

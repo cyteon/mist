@@ -206,18 +206,6 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     );
 
     {
-        let mut player_guard = player.lock().await;
-        player_guard.sync_player_position().await?;
-        player_guard.sync_player_inventory().await?;
-        player_guard.sync_player_health().await?;
-
-        crate::log::log(
-            LogLevel::Debug, 
-            format!("Synchronized intial data for {}", player_guard.username).as_str()
-        );
-    }
-
-    {
         let player_guard = player.lock().await;
         let player_clone = player_guard.clone();
         drop(player_guard);
@@ -279,6 +267,21 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
             send_chunks_to_player(tx, player_arc).await.unwrap();
         })
     };
+
+    {
+        let mut player_guard = player.lock().await;
+        player_guard.sync_player_position().await?;
+        player_guard.sync_player_inventory().await?;
+        player_guard.sync_player_health().await?;
+
+        crate::log::log(
+            LogLevel::Debug, 
+            format!("Synchronized intial data for {}", player_guard.username).as_str()
+        );
+
+        player_guard.send_system_message(format!("This server is running Mist {}", env!("CARGO_PKG_VERSION"))).await?;
+        player_guard.send_system_message("Please report any bugs at https://github.com/cyteon/mist/issues/new".to_string()).await?;
+    }
 
     loop {
         match timeout(Duration::from_secs(30), read_packet(&mut read, &ProtocolState::Play, true)).await {
