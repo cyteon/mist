@@ -18,7 +18,7 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
     let (x, y, z) = read_position(stream).await?;
 
     let _face = stream.read_u8().await?;
-    let _sequence = read_var(stream).await?;
+    let sequence = read_var(stream).await?;
 
     let instant_dig = status == ActionStatus::StartedDigging as u32 && player.gamemode as u8 == 1;
 
@@ -44,6 +44,13 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
             }
 
             chunk.set_block((x & 15) as u8, y, (z & 15) as u8, 0);
+
+            let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&player.uuid).cloned().unwrap();
+
+            let mut buffer = Vec::new();
+            crate::net::packets::clientbound::block_changed_ack::send_block_changed_ack(&mut buffer, sequence as i32).await?;
+            let _ = tx.send(buffer);
+            
             crate::net::packets::clientbound::block_update::broadcast_block_update(x, y, z, 0).await?;
         }
     } else if status == ActionStatus::DropItemStack as u32 || status == ActionStatus::DropItem as u32 {

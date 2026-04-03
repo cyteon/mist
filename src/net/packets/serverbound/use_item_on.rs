@@ -14,7 +14,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, player: &
     
     let _inside_block = stream.read_u8().await?;
     let _world_border_hit = stream.read_u8().await?;
-    let _sequence = read_var(stream).await?;
+    let sequence = read_var(stream).await?;
 
     let (mut bx, mut by, mut bz) = (x, y, z);
 
@@ -41,8 +41,6 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, player: &
     let chunk_pos = (bx.div_euclid(16), bz.div_euclid(16));
     let region_pos = (chunk_pos.0.div_euclid(32), chunk_pos.1.div_euclid(32));
 
-    let section_y = by.div_euclid(16) + 4; // cause section 0 is -64
-
     let region = get_region(region_pos.0, region_pos.1).await;
     let mut region_lock = region.lock().await;
 
@@ -57,6 +55,12 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(stream: &mut R, player: &
             }
         }
 
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&player.uuid).cloned().unwrap();
+
+        let mut buffer = Vec::new();
+        crate::net::packets::clientbound::block_changed_ack::send_block_changed_ack(&mut buffer, sequence as i32).await?;
+        let _ = tx.send(buffer);
+        
         crate::net::packets::clientbound::block_update::broadcast_block_update(bx, by, bz, block_id as i32).await?;
     }
 
