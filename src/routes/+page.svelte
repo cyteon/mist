@@ -8,8 +8,9 @@
         { name: "Creative mode", status: "complete" },
         { name: "Survival mode", status: "partial" },
         { name: "Inventory managment", status: "partial" },
-        { name: "Player sync", status: "not_started" },
-        { name: "Entity system", status: "not_started" },
+        { name: "Player sync", status: "partial" },
+        { name: "Entity system", status: "partial" },
+        { name: "Mobs", status: "not_started" },
         { name: "The Nether", status: "not_started" },
         { name: "The End", status: "not_started" },
         { name: "Redstone", status: "not_started" }
