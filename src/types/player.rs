@@ -11,6 +11,9 @@ use crate::{
         sync_player_position::send_sync_player_position,
         damage_event::send_damage_event,
         respawn::send_respawn,
+        spawn_entity::send_spawn_entity,
+        set_entity_data::sent_set_entity_data,
+        remove_entities::send_remove_entities,
     },
     
     world::{get_region, get_chunk}
@@ -87,6 +90,7 @@ pub struct Player {
     pub initial_sync_done: bool,
     pub chunks_loaded: bool,
     pub chat_index: i32,
+    pub loaded_entities: Vec<i32>,
 }
 
 impl Player {
@@ -155,6 +159,7 @@ impl Player {
             initial_sync_done: false,
             chat_index: -1,
             chunks_loaded: false,
+            loaded_entities: Vec::new(),
         };
 
         let player_save = crate::server::save::load_player(&player.uuid);
@@ -327,12 +332,6 @@ impl Player {
         source_direct_id: i32
     ) -> anyhow::Result<()> {
         self.health -= amount as f32;
-
-        if self.health <= 0.0 {
-            self.health = 0.0;
-            self.dead = true;
-        }
-
         let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
 
         let mut buffer = Vec::new();
@@ -340,6 +339,23 @@ impl Player {
         let _ = tx.send(buffer);
 
         self.sync_player_health().await?;
+
+        if self.health <= 0.0 {
+            self.health = 0.0;
+            self.dead = true;
+
+            for i in 0..45 {
+                if let Some(item) = self.inventory[i].take() && source_type_id != 32 {
+                    crate::types::entity::spawn_item_drop(
+                        item,
+                        Some(self.uuid.clone()),
+                        self.x + (rand::random::<f64>() - 0.5) * 2.0,
+                        self.y + 1.0,
+                        self.z + (rand::random::<f64>() - 0.5) * 2.0
+                    );
+                }
+            }
+        }
 
         Ok(())
     }
@@ -438,8 +454,6 @@ impl Player {
         self.y += self.vy;
         self.z += self.vz;
 
-        println!("Server vy: {}, fall distance: {}, on_ground: {}, flying: {}, ignore_fall_for_ticks: {}", self.server_vy, self.fall_distance, self.on_ground, self.flying, self.ignore_fall_for_ticks);
-
         if !self.on_ground && !self.flying {
             if self.movement.jumping && !self.jump_applied {
                 self.server_vy = 0.42;
@@ -447,6 +461,8 @@ impl Player {
             }
 
             self.server_vy -= 0.08;
+
+            println!("vy: {}, server_vy: {}, fall_distance: {}, ignore_fall_for_ticks: {}", self.vy, self.server_vy, self.fall_distance, self.ignore_fall_for_ticks);
 
             if self.server_vy < 0.0 {
                 self.fall_distance += -self.server_vy;
@@ -555,6 +571,46 @@ impl Player {
 
             self.last_x = self.x;
             self.last_z = self.z;
+        }
+
+        let all_entities = crate::types::entity::ENTITIES.read().await;
+        let tx = if let Some(tx) = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid) {
+            tx.clone()
+        } else {
+            return Ok(());
+        };
+
+        let mut to_remove = Vec::new();
+
+        for (id, entity) in all_entities.iter() {
+            if !self.loaded_entities.contains(id) && (entity.x - self.x).abs() < 64.0 && (entity.z - self.z).abs() < 64.0 {
+                let distance_squared = (entity.x - self.x).powi(2) + (entity.y - self.y).powi(2) + (entity.z - self.z).powi(2);
+
+                if distance_squared < 64.0 * 64.0 && !self.loaded_entities.contains(id) {
+                    let mut buffer = Vec::new();
+                    send_spawn_entity(&mut buffer, entity).await.unwrap();
+                    let _ = tx.send(buffer);
+
+                    let mut buffer = Vec::new();
+                    sent_set_entity_data(&mut buffer, entity).await.unwrap();
+                    let _ = tx.send(buffer);
+
+                    self.loaded_entities.push(*id);
+                } else if distance_squared >= 64.0 * 64.0 && self.loaded_entities.contains(id) {
+                    to_remove.push(*id);
+                }
+            }
+        }
+
+        let all_entity_ids = all_entities.keys().cloned().collect::<Vec<_>>();
+        to_remove.extend(self.loaded_entities.iter().filter(|id| !all_entity_ids.contains(id)).cloned());
+
+        if !to_remove.is_empty() {
+            let mut buffer = Vec::new();
+            send_remove_entities(&mut buffer, to_remove.clone()).await.unwrap();
+            let _ = tx.send(buffer);
+
+            self.loaded_entities.retain(|id| !to_remove.contains(id));
         }
 
         Ok(())

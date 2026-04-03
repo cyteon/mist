@@ -91,6 +91,10 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
                         }
                     }
 
+                    if player.dead || !player.initial_sync_done {
+                        continue;
+                    }
+
                     let distance_squared = (player.x - entity.x).powi(2) + (player.y - entity.y).powi(2) + (player.z - entity.z).powi(2);
 
                     if distance_squared < 1.5 * 1.5 {

@@ -1,6 +1,6 @@
 use crate::net::codec::write_var;
 
-pub async fn sent_set_entity_data<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, entity: &mut crate::types::entity::Entity) -> anyhow::Result<()> {
+pub async fn sent_set_entity_data<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, entity: &crate::types::entity::Entity) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::SET_ENTITY_DATA as u8];
 
     write_var(&mut packet_data, entity.id)?;

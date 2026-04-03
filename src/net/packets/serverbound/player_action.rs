@@ -12,7 +12,7 @@ pub enum ActionStatus {
     //SwapItemInHand = 6,
 }
 
-pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player: &mut crate::types::player::Player) -> anyhow::Result<Option<crate::types::entity::Entity>> {
+pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player: &mut crate::types::player::Player) -> anyhow::Result<()> {
     let status = read_var(stream).await?;
 
     let (x, y, z) = read_position(stream).await?;
@@ -32,8 +32,8 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
         let mut region = regions_lock.lock().await;
 
         if let Some(chunk) = region.chunks.iter_mut().find(|chunk| chunk.x == chunk_pos.0 && chunk.z == chunk_pos.1) {
-            let spawned_entity = if player.gamemode as u8 != 1 {
-                Some(crate::types::entity::spawn_item_drop(
+            if player.gamemode as u8 != 1 {
+                crate::types::entity::spawn_item_drop(
                     crate::types::items::ItemStack {
                         item_id: crate::types::items::block_to_item_id(chunk.get_block((x & 15) as u8, y, (z & 15) as u8) as i32).unwrap_or(0) as i32,
                         count: 1,
@@ -42,14 +42,10 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
                     x as f64 + 0.5,
                     y as f64 + 0.5,
                     z as f64 + 0.5,
-                ))
-            } else {
-                None
-            };
+                );
+            }
 
             chunk.set_block((x & 15) as u8, y, (z & 15) as u8, 0);
-
-            return Ok(spawned_entity);
         }
     } else if status == ActionStatus::DropItemStack as u32 || status == ActionStatus::DropItem as u32 {
         let drop_all = status == ActionStatus::DropItemStack as u32;
@@ -69,7 +65,7 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
                 (-yaw.sin() as f64, yaw.cos() as f64)
             };
 
-            let entity = crate::types::entity::spawn_item_drop(
+            crate::types::entity::spawn_item_drop(
                 crate::types::items::ItemStack {
                     item_id,
                     count,
@@ -79,10 +75,8 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
                 player.y + 1.0,
                 player.z + dz,
             );
-
-            return Ok(Some(entity));
         }
     }
 
-    Ok(None)
+    Ok(())
 }
