@@ -1,10 +1,9 @@
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicI32, Ordering};
 use tokio::sync::RwLock;
-use std::collections::HashMap;
 
-pub static ENTITIES: Lazy<RwLock<HashMap<i32, Entity>>> = 
-    Lazy::new(|| RwLock::new(HashMap::new()));
+pub static ENTITIES: Lazy<RwLock<HashMap<i32, Entity>>> = Lazy::new(|| RwLock::new(HashMap::new()));
 
 static NEXT_ENTITY_ID: AtomicI32 = AtomicI32::new(1);
 
@@ -59,6 +58,12 @@ impl Entity {
                 if self.ticks_since_last_update >= 20 {
                     self.ticks_since_last_update = 0;
                     crate::net::packets::clientbound::entity_position_sync::send_entity_position_sync(&mut packet_buffer, self).await?;
+                } else if self.yaw != self.last_yaw || self.pitch != self.last_pitch {
+                    crate::net::packets::clientbound::move_entity_rot::send_move_entity_rot(
+                        &mut packet_buffer,
+                        self,
+                    )
+                    .await?;
                 } else {
                     return Ok(());
                 }
@@ -69,19 +74,15 @@ impl Entity {
 
                 if dx.abs() >= 8.0 || dy.abs() >= 7.9 || dz.abs() >= 8.0 {
                     crate::net::packets::clientbound::entity_position_sync::send_entity_position_sync(&mut packet_buffer, self).await?;
+                } else if self.yaw != self.last_yaw || self.pitch != self.last_pitch {
+                    crate::net::packets::clientbound::move_entity_pos_rot::send_move_entity_pos_rot(&mut packet_buffer, self).await?;
                 } else {
-                    if self.yaw != self.last_yaw || self.pitch != self.last_pitch {
-                        crate::net::packets::clientbound::move_entity_pos_rot::send_move_entity_pos_rot(&mut packet_buffer, self).await?;
-                    } else {
-                        crate::net::packets::clientbound::move_entity_pos::send_move_entity_pos(&mut packet_buffer, self).await?;
-                    }
+                    crate::net::packets::clientbound::move_entity_pos::send_move_entity_pos(
+                        &mut packet_buffer,
+                        self,
+                    )
+                    .await?;
                 }
-
-                self.last_x = self.x;
-                self.last_y = self.y;
-                self.last_z = self.z;
-                self.last_yaw = self.yaw;
-                self.last_pitch = self.pitch;
             }
 
             let positions = super::player::PLAYER_POSITIONS.read().await;
@@ -90,17 +91,38 @@ impl Entity {
 
             for (uuid, tx) in socket_map.iter() {
                 if let EntityType::Player(my_uuid) = &self.entity_type {
-                    if uuid == my_uuid { continue; }
+                    if uuid == my_uuid {
+                        continue;
+                    }
                 }
 
                 if let Some(pos) = positions.get(uuid) {
                     let distance_squared = (pos.0 - self.x).powi(2) + (pos.2 - self.z).powi(2);
 
                     if distance_squared < view_distance_blocks * view_distance_blocks {
-                        let _ = tx.send(packet_buffer.clone());
+                        if !packet_buffer.is_empty() {
+                            let _ = tx.send(packet_buffer.clone());
+                        }
+
+                        if self.yaw != self.last_yaw {
+                            let mut buffer = Vec::new();
+                            crate::net::packets::clientbound::rotate_head::send_rotate_head(
+                                &mut buffer,
+                                self.id,
+                                self.yaw,
+                            )
+                            .await?;
+                            let _ = tx.send(buffer.clone());
+                        }
                     }
                 }
             }
+
+            self.last_x = self.x;
+            self.last_y = self.y;
+            self.last_z = self.z;
+            self.last_yaw = self.yaw;
+            self.last_pitch = self.pitch;
 
             return Ok(());
         } else if let EntityType::Item(..) = self.entity_type {
@@ -113,9 +135,10 @@ impl Entity {
             self.x += self.vx;
             self.y += self.vy;
             self.z += self.vz;
-            
+
             let region = crate::world::get_region(self.x as i32 >> 9, self.z as i32 >> 9).await;
-            let chunk = crate::world::get_chunk(&region, self.x as i32 >> 4, self.z as i32 >> 4).await;
+            let chunk =
+                crate::world::get_chunk(&region, self.x as i32 >> 4, self.z as i32 >> 4).await;
 
             let lx = (self.x as i32 & 15) as u8;
             let lz = (self.z as i32 & 15) as u8;
@@ -140,7 +163,13 @@ impl Entity {
     }
 }
 
-pub fn spawn_item_drop(item_stack: super::items::ItemStack, dropped_by: Option<String>, x: f64, y: f64, z: f64) -> Entity {
+pub fn spawn_item_drop(
+    item_stack: super::items::ItemStack,
+    dropped_by: Option<String>,
+    x: f64,
+    y: f64,
+    z: f64,
+) -> Entity {
     let entity = Entity {
         id: next_entity_id(),
         uuid: rand::random(),
