@@ -77,18 +77,18 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
         let mut to_pickup = Vec::new();
 
         for entity in entities.values() {
-            if let crate::types::entity::EntityType::Item(item_stack, spawned_at, dropped_by) =
-                &entity.entity_type
-            {
-                if spawned_at.elapsed().as_millis() < 500 {
+            if let crate::types::entity::EntityType::Item(item_entity) = &entity.entity_type {
+                if item_entity.dropped_at.elapsed().as_millis() < 500 {
                     continue;
                 }
 
                 for player in players.values() {
                     let player = player.lock().await;
 
-                    if let Some(dropped_by) = &dropped_by {
-                        if *dropped_by == player.uuid && spawned_at.elapsed().as_secs() < 2 {
+                    if let Some(dropped_by) = &item_entity.dropped_by {
+                        if *dropped_by == player.uuid
+                            && item_entity.dropped_at.elapsed().as_secs() < 2
+                        {
                             continue;
                         }
                     }
@@ -102,7 +102,11 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
                         + (player.z - entity.z).powi(2);
 
                     if distance_squared < 1.5 * 1.5 {
-                        to_pickup.push((entity.id, player.uuid.clone(), item_stack.count));
+                        to_pickup.push((
+                            entity.id,
+                            player.uuid.clone(),
+                            item_entity.item_stack.count,
+                        ));
                         break;
                     }
                 }
@@ -116,13 +120,16 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
             let mut entities = crate::types::entity::ENTITIES.write().await;
 
             if let Some(entity) = entities.remove(&entity_id) {
-                if let crate::types::entity::EntityType::Item(item_stack, ..) = entity.entity_type {
+                if let crate::types::entity::EntityType::Item(item_entity) = entity.entity_type {
                     let players = crate::server::state::play::PLAYERS.read().await;
 
                     if let Some(player) = players.get(&player_uuid) {
                         let mut player_lock = player.lock().await;
                         player_lock
-                            .give_item(item_stack.item_id, count as i32)
+                            .give_item(
+                                item_entity.item_stack.item_id,
+                                item_entity.item_stack.count as i32,
+                            )
                             .await?;
 
                         let tx = crate::server::conn::PLAYER_SOCKET_MAP

@@ -12,10 +12,21 @@ pub fn next_entity_id() -> i32 {
 }
 
 #[derive(Clone)]
+pub struct ItemEntity {
+    pub item_stack: super::items::ItemStack,
+    pub dropped_at: std::time::Instant,
+    pub dropped_by: Option<String>,
+}
+
+#[derive(Clone)]
+pub struct PlayerEntity {
+    pub uuid: String,
+}
+#[derive(Clone)]
 pub enum EntityType {
-    Item(super::items::ItemStack, std::time::Instant, Option<String>),
+    Item(ItemEntity),
     // the player will manage their entity and update it themselves
-    Player(String),
+    Player(PlayerEntity),
 }
 
 #[derive(Clone)]
@@ -49,7 +60,7 @@ pub struct Entity {
 impl Entity {
     // TODO: update position for players in range
     pub async fn tick(&mut self) -> anyhow::Result<()> {
-        if let EntityType::Player(_) = self.entity_type {
+        if let EntityType::Player(player_entity) = &self.entity_type {
             let mut packet_buffer = Vec::new();
 
             if self.x == self.last_x && self.y == self.last_y && self.z == self.last_z {
@@ -90,10 +101,8 @@ impl Entity {
             let view_distance_blocks = crate::config::SERVER_CONFIG.view_distance as f64 * 16.0;
 
             for (uuid, tx) in socket_map.iter() {
-                if let EntityType::Player(my_uuid) = &self.entity_type {
-                    if uuid == my_uuid {
-                        continue;
-                    }
+                if uuid == &player_entity.uuid {
+                    continue;
                 }
 
                 if let Some(pos) = positions.get(uuid) {
@@ -125,7 +134,7 @@ impl Entity {
             self.last_pitch = self.pitch;
 
             return Ok(());
-        } else if let EntityType::Item(..) = self.entity_type {
+        } else if let EntityType::Item(_) = self.entity_type {
             self.vy -= 0.04;
 
             self.vx *= 0.98;
@@ -161,6 +170,46 @@ impl Entity {
 
         Ok(())
     }
+
+    pub async fn send_hand_swing(&self, main_hand: bool) -> anyhow::Result<()> {
+        if let EntityType::Player(player_entity) = &self.entity_type {
+            let mut buffer = Vec::new();
+
+            let animation = match main_hand {
+                true => crate::net::packets::clientbound::animate::Animation::SwingMainArm,
+                false => crate::net::packets::clientbound::animate::Animation::SwingOffArm,
+            };
+
+            crate::net::packets::clientbound::animate::send_animate(
+                &mut buffer,
+                self.id,
+                animation,
+            )
+            .await?;
+
+            let socket_map = crate::server::conn::PLAYER_SOCKET_MAP.read().await;
+            let positions = super::player::PLAYER_POSITIONS.read().await;
+            let view_distance_blocks = crate::config::SERVER_CONFIG.view_distance as f64 * 16.0;
+
+            for (uuid, tx) in socket_map.iter() {
+                if uuid == &player_entity.uuid {
+                    continue;
+                }
+
+                if let Some(pos) = positions.get(uuid) {
+                    let distance_squared = (pos.0 - self.x).powi(2) + (pos.2 - self.z).powi(2);
+
+                    if distance_squared < view_distance_blocks * view_distance_blocks {
+                        let _ = tx.send(buffer.clone());
+                    }
+                }
+            }
+        } else {
+            anyhow::bail!("Only player entities can swing their arms");
+        }
+
+        Ok(())
+    }
 }
 
 pub fn spawn_item_drop(
@@ -173,7 +222,11 @@ pub fn spawn_item_drop(
     let entity = Entity {
         id: next_entity_id(),
         uuid: rand::random(),
-        entity_type: EntityType::Item(item_stack, std::time::Instant::now(), dropped_by.clone()),
+        entity_type: EntityType::Item(ItemEntity {
+            item_stack,
+            dropped_at: std::time::Instant::now(),
+            dropped_by,
+        }),
 
         x,
         y,

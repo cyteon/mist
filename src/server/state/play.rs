@@ -31,7 +31,8 @@ use crate::{
                 set_creative_mode_slot::read_set_creative_mode_slot,
                 set_player_position::read_set_player_position,
                 set_player_position_and_rotation::read_set_player_position_and_rotation,
-                set_player_rotation::read_set_player_rotation, use_item_on::read_use_item_on,
+                set_player_rotation::read_set_player_rotation, swing_arm::read_swing_arm,
+                use_item_on::read_use_item_on,
             },
         },
     },
@@ -301,6 +302,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                 env!("CARGO_PKG_VERSION")
             ))
             .await?;
+
         player_guard
             .send_system_message(
                 "Please report any bugs at https://github.com/cyteon/mist/issues/new".to_string(),
@@ -463,6 +465,13 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                     }
                 }
 
+                ClientPacket::SwingArm(mut cursor) => {
+                    let players_locked = PLAYERS.read().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+
+                    read_swing_arm(&mut cursor, &mut player).await?;
+                }
+
                 _ => {}
             },
 
@@ -524,6 +533,14 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
             let _ = other_tx.send(buffer);
         }
+    }
+
+    {
+        let mut players_guard = PLAYERS.write().await;
+        let player_guard = players_guard.remove(&uuid).unwrap();
+
+        let mut entities_write = crate::types::entity::ENTITIES.write().await;
+        entities_write.remove(&player_guard.lock().await.id);
     }
 
     PLAYERS.write().await.remove(&uuid);

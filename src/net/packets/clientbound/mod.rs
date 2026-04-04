@@ -1,3 +1,4 @@
+pub mod animate;
 pub mod block_changed_ack;
 pub mod block_update;
 pub mod commands;

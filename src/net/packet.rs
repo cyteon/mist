@@ -32,6 +32,7 @@ pub enum ClientPacket {
     SetPlayerPositionAndRotation(std::io::Cursor<Vec<u8>>), // 0x1E in play
     PlayerInput(std::io::Cursor<Vec<u8>>),         // 0x2A in play
     SetPlayerRotation(std::io::Cursor<Vec<u8>>),   // 0x1F in play
+    SwingArm(std::io::Cursor<Vec<u8>>),            // 0x3C in play
 }
 
 #[allow(unused)]
@@ -175,6 +176,8 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(
             play::serverbound::PLAYER_ABILITIES => Ok(Some(ClientPacket::PlayerAbilities(cursor))),
 
             play::serverbound::CLIENT_COMMAND => Ok(Some(ClientPacket::ClientStatus(cursor))),
+
+            play::serverbound::SWING => Ok(Some(ClientPacket::SwingArm(cursor))),
 
             _ => Ok(None),
         },

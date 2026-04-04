@@ -222,7 +222,9 @@ impl Player {
                 let uuid = player.uuid.replace("-", "");
                 u128::from_be_bytes(hex::decode(uuid).unwrap().try_into().unwrap())
             },
-            entity_type: super::entity::EntityType::Player(player.uuid.clone()),
+            entity_type: super::entity::EntityType::Player(super::entity::PlayerEntity {
+                uuid: player.uuid.clone(),
+            }),
 
             x: player.x,
             y: player.y,
@@ -519,6 +521,19 @@ impl Player {
 
         self.sync_player_health().await?;
         self.sync_player_position().await?;
+
+        Ok(())
+    }
+
+    pub async fn send_hand_swing(&mut self, main_hand: bool) -> anyhow::Result<()> {
+        let entity = crate::types::entity::ENTITIES
+            .read()
+            .await
+            .get(&self.id)
+            .cloned()
+            .unwrap();
+
+        entity.send_hand_swing(main_hand).await?;
 
         Ok(())
     }
