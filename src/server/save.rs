@@ -40,7 +40,14 @@ impl Default for PlayerSave {
                 "adventure" => crate::types::player::Gamemode::Adventure,
                 "spectator" => crate::types::player::Gamemode::Spectator,
                 _ => {
-                    crate::log::log(fancy_log::LogLevel::Warn, format!("Invalid default gamemode: {}, defaulting to survival", crate::config::SERVER_CONFIG.default_gamemode).as_str());
+                    crate::log::log(
+                        fancy_log::LogLevel::Warn,
+                        format!(
+                            "Invalid default gamemode: {}, defaulting to survival",
+                            crate::config::SERVER_CONFIG.default_gamemode
+                        )
+                        .as_str(),
+                    );
                     crate::types::player::Gamemode::Survival
                 }
             },
@@ -66,16 +73,28 @@ impl Default for PlayerSave {
 
 pub fn ensure_save_folders() {
     std::fs::create_dir_all(crate::config::SERVER_CONFIG.world_name.clone()).unwrap();
-    std::fs::create_dir_all(format!("{}/players", crate::config::SERVER_CONFIG.world_name.clone())).unwrap();
-    std::fs::create_dir_all(format!("{}/regions", crate::config::SERVER_CONFIG.world_name.clone())).unwrap();
+    std::fs::create_dir_all(format!(
+        "{}/players",
+        crate::config::SERVER_CONFIG.world_name.clone()
+    ))
+    .unwrap();
+    std::fs::create_dir_all(format!(
+        "{}/regions",
+        crate::config::SERVER_CONFIG.world_name.clone()
+    ))
+    .unwrap();
 }
 
 pub fn exists(path: &str) -> bool {
-    std::path::Path::new(format!(
-        "{}/{}",
-        crate::config::SERVER_CONFIG.world_name.clone(),
-        path
-    ).as_str()).exists()
+    std::path::Path::new(
+        format!(
+            "{}/{}",
+            crate::config::SERVER_CONFIG.world_name.clone(),
+            path
+        )
+        .as_str(),
+    )
+    .exists()
 }
 
 pub async fn save() {
@@ -95,7 +114,10 @@ pub async fn save() {
     }
 
     let duration = start.elapsed();
-    crate::log::log(LogLevel::Info, format!("Save complete in {:.2?}", duration).as_str());
+    crate::log::log(
+        LogLevel::Info,
+        format!("Save complete in {:.2?}", duration).as_str(),
+    );
 }
 
 pub async fn save_player(player: &crate::types::player::Player) {
@@ -124,11 +146,11 @@ pub async fn save_player(player: &crate::types::player::Player) {
         yaw: player.yaw,
         pitch: player.pitch,
     };
-    
+
     let player_json = serde_json::to_string_pretty(&player_save).unwrap();
     let player_path = format!(
-        "{}/players/{}.json", 
-        crate::config::SERVER_CONFIG.world_name.clone(), 
+        "{}/players/{}.json",
+        crate::config::SERVER_CONFIG.world_name.clone(),
         player.uuid
     );
 
@@ -137,8 +159,8 @@ pub async fn save_player(player: &crate::types::player::Player) {
 
 pub fn load_player(uuid: &str) -> Option<PlayerSave> {
     let player_path = format!(
-        "{}/players/{}.json", 
-        crate::config::SERVER_CONFIG.world_name.clone(), 
+        "{}/players/{}.json",
+        crate::config::SERVER_CONFIG.world_name.clone(),
         uuid
     );
 

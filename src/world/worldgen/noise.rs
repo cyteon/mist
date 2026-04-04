@@ -1,9 +1,8 @@
-pub use noise::{Perlin, NoiseFn};
+pub use noise::{NoiseFn, Perlin};
 use once_cell::sync::Lazy;
 
-pub static PERLIN: Lazy<Perlin> = Lazy::new(|| {
-    Perlin::new(crate::config::SERVER_CONFIG.world_seed as u32)
-});
+pub static PERLIN: Lazy<Perlin> =
+    Lazy::new(|| Perlin::new(crate::config::SERVER_CONFIG.world_seed as u32));
 
 pub struct fBmOptions {
     pub octaves: u32,
@@ -13,14 +12,11 @@ pub struct fBmOptions {
     pub gain: f64,
 }
 
-pub fn fbm(
-    x: f64, y: f64, z: f64,
-    opts: fBmOptions
-) -> f64 {
+pub fn fbm(x: f64, y: f64, z: f64, opts: fBmOptions) -> f64 {
     let mut value = 0.0;
     let mut freq = opts.freq;
     let mut amp = opts.amp;
-    
+
     for _ in 0..opts.octaves {
         value += PERLIN.get([x * freq, y * freq, z * freq]) * amp;
         freq *= opts.lacunarity;
@@ -34,69 +30,109 @@ pub fn get_height_map(cx: i32, cz: i32) -> [[i32; 16]; 16] {
     let wx = (cx << 4) as f64;
     let wz = (cz << 4) as f64;
 
-    let c00 = continental_height(fbm(wx, 0.0, wz, fBmOptions {
-        octaves: 4,
-        freq: 1.0 / 2048.0,
-        amp: 1.0,
-        lacunarity: 2.0,
-        gain: 0.5,
-    }));
+    let c00 = continental_height(fbm(
+        wx,
+        0.0,
+        wz,
+        fBmOptions {
+            octaves: 4,
+            freq: 1.0 / 2048.0,
+            amp: 1.0,
+            lacunarity: 2.0,
+            gain: 0.5,
+        },
+    ));
 
-    let c10 = continental_height(fbm(wx + 15.0, 0.0, wz, fBmOptions {
-        octaves: 4,
-        freq: 1.0 / 2048.0,
-        amp: 1.0,
-        lacunarity: 2.0,
-        gain: 0.5,
-    }));
+    let c10 = continental_height(fbm(
+        wx + 15.0,
+        0.0,
+        wz,
+        fBmOptions {
+            octaves: 4,
+            freq: 1.0 / 2048.0,
+            amp: 1.0,
+            lacunarity: 2.0,
+            gain: 0.5,
+        },
+    ));
 
-    let c01 = continental_height(fbm(wx, 0.0, wz + 15.0, fBmOptions {
-        octaves: 4,
-        freq: 1.0 / 2048.0,
-        amp: 1.0,
-        lacunarity: 2.0,
-        gain: 0.5,
-    }));
+    let c01 = continental_height(fbm(
+        wx,
+        0.0,
+        wz + 15.0,
+        fBmOptions {
+            octaves: 4,
+            freq: 1.0 / 2048.0,
+            amp: 1.0,
+            lacunarity: 2.0,
+            gain: 0.5,
+        },
+    ));
 
-    let c11 = continental_height(fbm(wx + 15.0, 0.0, wz + 15.0, fBmOptions {
-        octaves: 4,
-        freq: 1.0 / 2048.0,
-        amp: 1.0,
-        lacunarity: 2.0,
-        gain: 0.5,
-    }));
-    
-    let e00 = fbm(wx, 0.0, wz, fBmOptions {
-        octaves: 4,
-        freq: 1.0 / 256.0,
-        amp: 1.0,
-        lacunarity: 2.0,
-        gain: 0.5,
-    });
+    let c11 = continental_height(fbm(
+        wx + 15.0,
+        0.0,
+        wz + 15.0,
+        fBmOptions {
+            octaves: 4,
+            freq: 1.0 / 2048.0,
+            amp: 1.0,
+            lacunarity: 2.0,
+            gain: 0.5,
+        },
+    ));
 
-    let e10 = fbm(wx + 15.0, 0.0, wz, fBmOptions {
-        octaves: 4,
-        freq: 1.0 / 256.0,
-        amp: 1.0,
-        lacunarity: 2.0,
-        gain: 0.5,
-    });
+    let e00 = fbm(
+        wx,
+        0.0,
+        wz,
+        fBmOptions {
+            octaves: 4,
+            freq: 1.0 / 256.0,
+            amp: 1.0,
+            lacunarity: 2.0,
+            gain: 0.5,
+        },
+    );
 
-    let e01 = fbm(wx, 0.0, wz + 15.0, fBmOptions {
-        octaves: 4,
-        freq: 1.0 / 256.0,
-        amp: 1.0,
-        lacunarity: 2.0,
-        gain: 0.5,
-    });
+    let e10 = fbm(
+        wx + 15.0,
+        0.0,
+        wz,
+        fBmOptions {
+            octaves: 4,
+            freq: 1.0 / 256.0,
+            amp: 1.0,
+            lacunarity: 2.0,
+            gain: 0.5,
+        },
+    );
 
-    let e11 = fbm(wx + 15.0, 0.0, wz + 15.0, fBmOptions {
-        octaves: 4,
-        freq: 1.0 / 256.0,
-        amp: 1.0,
-        lacunarity: 2.0,
-        gain: 0.5,
-    });
+    let e01 = fbm(
+        wx,
+        0.0,
+        wz + 15.0,
+        fBmOptions {
+            octaves: 4,
+            freq: 1.0 / 256.0,
+            amp: 1.0,
+            lacunarity: 2.0,
+            gain: 0.5,
+        },
+    );
+
+    let e11 = fbm(
+        wx + 15.0,
+        0.0,
+        wz + 15.0,
+        fBmOptions {
+            octaves: 4,
+            freq: 1.0 / 256.0,
+            amp: 1.0,
+            lacunarity: 2.0,
+            gain: 0.5,
+        },
+    );
 
     let mut map = [[0; 16]; 16];
 
@@ -111,13 +147,18 @@ pub fn get_height_map(cx: i32, cz: i32) -> [[i32; 16]; 16] {
             let bx = wx + x as f64;
             let bz = wz + z as f64;
 
-            let details = fbm(bx, 0.0, bz, fBmOptions {
-                octaves: 6,
-                freq: 1.0 / 256.0,
-                amp: 1.0,
-                lacunarity: 2.0,
-                gain: 0.5,
-            });
+            let details = fbm(
+                bx,
+                0.0,
+                bz,
+                fBmOptions {
+                    octaves: 6,
+                    freq: 1.0 / 256.0,
+                    amp: 1.0,
+                    lacunarity: 2.0,
+                    gain: 0.5,
+                },
+            );
 
             map[x as usize][z as usize] = (base + details * 30.0 * peak) as i32;
         }

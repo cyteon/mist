@@ -1,7 +1,10 @@
-use crate::net::codec::{write_var, write_string};
+use crate::net::codec::{write_string, write_var};
 
-pub async fn send_known_packs<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
-    let mut packet_data = vec![crate::net::packet::configuration::clientbound::SELECT_KNOWN_PACKS as u8];
+pub async fn send_known_packs<W: tokio::io::AsyncWriteExt + Unpin>(
+    stream: &mut W,
+) -> anyhow::Result<()> {
+    let mut packet_data =
+        vec![crate::net::packet::configuration::clientbound::SELECT_KNOWN_PACKS as u8];
 
     write_var(&mut packet_data, 1)?;
 

@@ -1,4 +1,4 @@
-use rand::{SeedableRng, Rng};
+use rand::{Rng, SeedableRng};
 
 use crate::world::chunks::Chunk;
 
@@ -13,20 +13,62 @@ struct OreConfig {
 }
 
 const ORES: &[OreConfig] = &[
-    OreConfig { block: crate::types::blocks::COAL_ORE as u32, veins_per_chunk: 30, max_size: 16, min_y: 0, max_y: 320 },
-
-    OreConfig { block: crate::types::blocks::IRON_ORE as u32, veins_per_chunk: 10, max_size: 9, min_y: -64, max_y: 320 },
-
-    OreConfig { block: crate::types::blocks::COPPER_ORE as u32, veins_per_chunk: 16, max_size: 10, min_y: -16, max_y: 112 },
-
-    OreConfig { block: crate::types::blocks::GOLD_ORE as u32, veins_per_chunk: 4, max_size: 9, min_y: -64, max_y: 32 },
-
-    OreConfig { block: crate::types::blocks::REDSTONE_ORE as u32, veins_per_chunk: 4, max_size: 8, min_y: -64, max_y: -32 },
-    OreConfig { block: crate::types::blocks::REDSTONE_ORE as u32, veins_per_chunk: 4, max_size: 8, min_y: -64, max_y: 15 },
-
-    OreConfig { block: crate::types::blocks::DIAMOND_ORE as u32, veins_per_chunk: 3, max_size: 8, min_y: -64, max_y: 16 },
-
-    OreConfig { block: crate::types::blocks::LAPIS_ORE as u32, veins_per_chunk: 2, max_size: 7, min_y: -64, max_y: 64 },
+    OreConfig {
+        block: crate::types::blocks::COAL_ORE as u32,
+        veins_per_chunk: 30,
+        max_size: 16,
+        min_y: 0,
+        max_y: 320,
+    },
+    OreConfig {
+        block: crate::types::blocks::IRON_ORE as u32,
+        veins_per_chunk: 10,
+        max_size: 9,
+        min_y: -64,
+        max_y: 320,
+    },
+    OreConfig {
+        block: crate::types::blocks::COPPER_ORE as u32,
+        veins_per_chunk: 16,
+        max_size: 10,
+        min_y: -16,
+        max_y: 112,
+    },
+    OreConfig {
+        block: crate::types::blocks::GOLD_ORE as u32,
+        veins_per_chunk: 4,
+        max_size: 9,
+        min_y: -64,
+        max_y: 32,
+    },
+    OreConfig {
+        block: crate::types::blocks::REDSTONE_ORE as u32,
+        veins_per_chunk: 4,
+        max_size: 8,
+        min_y: -64,
+        max_y: -32,
+    },
+    OreConfig {
+        block: crate::types::blocks::REDSTONE_ORE as u32,
+        veins_per_chunk: 4,
+        max_size: 8,
+        min_y: -64,
+        max_y: 15,
+    },
+    OreConfig {
+        block: crate::types::blocks::DIAMOND_ORE as u32,
+        veins_per_chunk: 3,
+        max_size: 8,
+        min_y: -64,
+        max_y: 16,
+    },
+    OreConfig {
+        block: crate::types::blocks::LAPIS_ORE as u32,
+        veins_per_chunk: 2,
+        max_size: 7,
+        min_y: -64,
+        max_y: 64,
+    },
 ];
 
 pub fn place_ores(chunk: &mut Chunk) {
@@ -36,7 +78,7 @@ pub fn place_ores(chunk: &mut Chunk) {
     for ore in ORES {
         for _ in 0..ore.veins_per_chunk {
             let vein_size = rng.gen_range(1..=ore.max_size);
-            
+
             let x = rng.gen_range(0..16);
             let z = rng.gen_range(0..16);
             let y = rng.gen_range(ore.min_y..ore.max_y);
@@ -56,7 +98,12 @@ pub fn place_ores(chunk: &mut Chunk) {
                 let vz = (z as i32 + offset_z).clamp(0, 15) as u8;
 
                 if y < 0 {
-                    chunk.set_block(vx, vy, vz, crate::types::blocks::deepslate_variant(ore.block as u16));
+                    chunk.set_block(
+                        vx,
+                        vy,
+                        vz,
+                        crate::types::blocks::deepslate_variant(ore.block as u16),
+                    );
                 } else {
                     chunk.set_block(vx, vy, vz, ore.block as u16);
                 }

@@ -1,9 +1,9 @@
 #![allow(deprecated)]
 
-use std::task::ready;
 use aes::Aes128;
-use aes::cipher::{KeyIvInit, BlockEncryptMut, BlockDecryptMut, generic_array::GenericArray};
-use cfb8::{Encryptor, Decryptor};
+use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit, generic_array::GenericArray};
+use cfb8::{Decryptor, Encryptor};
+use std::task::ready;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 
@@ -39,7 +39,12 @@ impl<S> EncryptedStream<S> {
 }
 
 impl EncryptedStream<tokio::net::TcpStream> {
-    pub fn into_split(self) -> (EncryptedReader<OwnedReadHalf>, EncryptedWriter<OwnedWriteHalf>) {
+    pub fn into_split(
+        self,
+    ) -> (
+        EncryptedReader<OwnedReadHalf>,
+        EncryptedWriter<OwnedWriteHalf>,
+    ) {
         let (read, write) = self.stream.into_split();
 
         (
@@ -47,13 +52,12 @@ impl EncryptedStream<tokio::net::TcpStream> {
                 stream: read,
                 decryptor: self.decryptor,
             },
-
             EncryptedWriter {
                 stream: write,
                 encryptor: self.encryptor,
                 pending: Vec::new(),
                 pending_pos: 0,
-            }
+            },
         )
     }
 }
@@ -67,19 +71,19 @@ impl<R: AsyncRead + Unpin> AsyncRead for EncryptedReader<R> {
         let filled_before = buf.filled().len();
         let this = self.as_mut().get_mut();
         let poll = std::pin::Pin::new(&mut this.stream).poll_read(cx, buf);
-        
+
         if let std::task::Poll::Ready(Ok(())) = poll {
             let filled_after = buf.filled().len();
             if filled_after > filled_before {
                 let new_data = &mut buf.filled_mut()[filled_before..filled_after];
-                
+
                 for byte in new_data.iter_mut() {
                     let block = GenericArray::from_mut_slice(std::slice::from_mut(byte));
                     this.decryptor.decrypt_block_mut(block);
                 }
             }
         }
-        
+
         poll
     }
 }
@@ -93,8 +97,10 @@ impl<W: AsyncWrite + Unpin> AsyncWrite for EncryptedWriter<W> {
         let this = self.as_mut().get_mut();
 
         while this.pending_pos < this.pending.len() {
-            let n = ready!(std::pin::Pin::new(&mut this.stream)
-                .poll_write(cx, &this.pending[this.pending_pos..]))?;
+            let n = ready!(
+                std::pin::Pin::new(&mut this.stream)
+                    .poll_write(cx, &this.pending[this.pending_pos..])
+            )?;
             if n == 0 {
                 return std::task::Poll::Ready(Err(std::io::Error::new(
                     std::io::ErrorKind::WriteZero,
@@ -114,7 +120,9 @@ impl<W: AsyncWrite + Unpin> AsyncWrite for EncryptedWriter<W> {
         }
 
         match std::pin::Pin::new(&mut this.stream).poll_write(cx, &this.pending) {
-            std::task::Poll::Ready(Ok(n)) => { this.pending_pos = n; }
+            std::task::Poll::Ready(Ok(n)) => {
+                this.pending_pos = n;
+            }
             std::task::Poll::Ready(Err(e)) => return std::task::Poll::Ready(Err(e)),
             std::task::Poll::Pending => {}
         }
@@ -124,13 +132,15 @@ impl<W: AsyncWrite + Unpin> AsyncWrite for EncryptedWriter<W> {
 
     fn poll_flush(
         mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
         let this = self.as_mut().get_mut();
 
         while this.pending_pos < this.pending.len() {
-            let n = ready!(std::pin::Pin::new(&mut this.stream)
-                .poll_write(cx, &this.pending[this.pending_pos..]))?;
+            let n = ready!(
+                std::pin::Pin::new(&mut this.stream)
+                    .poll_write(cx, &this.pending[this.pending_pos..])
+            )?;
             if n == 0 {
                 return std::task::Poll::Ready(Err(std::io::Error::new(
                     std::io::ErrorKind::WriteZero,
@@ -147,7 +157,7 @@ impl<W: AsyncWrite + Unpin> AsyncWrite for EncryptedWriter<W> {
 
     fn poll_shutdown(
         self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
         std::pin::Pin::new(&mut self.get_mut().stream).poll_shutdown(cx)
     }
@@ -162,19 +172,19 @@ impl<S: AsyncRead + Unpin> AsyncRead for EncryptedStream<S> {
         let filled_before = buf.filled().len();
         let this = self.as_mut().get_mut();
         let poll = std::pin::Pin::new(&mut this.stream).poll_read(cx, buf);
-        
+
         if let std::task::Poll::Ready(Ok(())) = poll {
             let filled_after = buf.filled().len();
             if filled_after > filled_before {
                 let new_data = &mut buf.filled_mut()[filled_before..filled_after];
-                
+
                 for byte in new_data.iter_mut() {
                     let block = GenericArray::from_mut_slice(std::slice::from_mut(byte));
                     this.decryptor.decrypt_block_mut(block);
                 }
             }
         }
-        
+
         poll
     }
 }
@@ -187,26 +197,26 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for EncryptedStream<S> {
     ) -> std::task::Poll<std::io::Result<usize>> {
         let mut encrypted_buf = buf.to_vec();
         let this = self.as_mut().get_mut();
-        
+
         for byte in encrypted_buf.iter_mut() {
             let block = GenericArray::from_mut_slice(std::slice::from_mut(byte));
             this.encryptor.encrypt_block_mut(block);
         }
-        
+
         let n = ready!(std::pin::Pin::new(&mut this.stream).poll_write(cx, &encrypted_buf))?;
         std::task::Poll::Ready(Ok(n))
     }
 
     fn poll_flush(
         self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
         std::pin::Pin::new(&mut self.get_mut().stream).poll_flush(cx)
     }
 
     fn poll_shutdown(
         self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
         std::pin::Pin::new(&mut self.get_mut().stream).poll_shutdown(cx)
     }

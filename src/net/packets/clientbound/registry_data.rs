@@ -1,9 +1,9 @@
+use crate::net::codec::write_var;
+use crate::net::packet::encode_packet;
 use once_cell::sync::Lazy;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use tokio::io::AsyncWriteExt;
-use crate::net::codec::write_var;
-use crate::net::packet::encode_packet;
 
 #[derive(Debug, Clone)]
 pub struct RegistryEntry {
@@ -17,9 +17,8 @@ pub struct RegistryDataPacket {
     pub entries: Vec<RegistryEntry>,
 }
 
-pub static REGISTRY_PACKETS: Lazy<Vec<RegistryDataPacket>> = Lazy::new(|| {
-    process_registry_packets()
-});
+pub static REGISTRY_PACKETS: Lazy<Vec<RegistryDataPacket>> =
+    Lazy::new(|| process_registry_packets());
 
 fn process_registry_packets() -> Vec<RegistryDataPacket> {
     let json_file = include_bytes!("../../../assets/registries.json");
@@ -43,7 +42,11 @@ fn process_registry_packets() -> Vec<RegistryDataPacket> {
                 craftflow_nbt::to_writer(&mut nbt_buf, &nbt_value).expect("Failed to write NBT");
                 let packet_entry = RegistryEntry {
                     id: entry_id,
-                    data: if nbt_buf.is_empty() { None } else { Some(nbt_buf) },
+                    data: if nbt_buf.is_empty() {
+                        None
+                    } else {
+                        Some(nbt_buf)
+                    },
                 };
                 packets.push(packet_entry);
             }
@@ -55,11 +58,10 @@ fn process_registry_packets() -> Vec<RegistryDataPacket> {
         .collect()
 }
 
-pub async fn send_all_registers<W: AsyncWriteExt + Unpin>(
-    stream: &mut W,
-) -> anyhow::Result<()> {
+pub async fn send_all_registers<W: AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
     for packet in REGISTRY_PACKETS.iter() {
-        let mut packet_data = vec![crate::net::packet::configuration::clientbound::REGISTRY_DATA as u8];
+        let mut packet_data =
+            vec![crate::net::packet::configuration::clientbound::REGISTRY_DATA as u8];
         write_var(&mut packet_data, packet.registry_id.len() as i32)?;
         packet_data.extend_from_slice(packet.registry_id.as_bytes());
         write_var(&mut packet_data, packet.entries.len() as i32)?;

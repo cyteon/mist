@@ -4,10 +4,12 @@ use crate::net::codec::read_var;
 
 pub struct LoginStartPacket {
     pub username: String,
-    pub uuid: String
+    pub uuid: String,
 }
 
-pub async fn read_login_start<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow::Result<LoginStartPacket> {
+pub async fn read_login_start<R: AsyncReadExt + Unpin>(
+    stream: &mut R,
+) -> anyhow::Result<LoginStartPacket> {
     let _packet_len = read_var(stream).await?;
     let packet_id = read_var(stream).await?;
 
@@ -21,7 +23,8 @@ pub async fn read_login_start<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow
     let username = String::from_utf8(username_buf)?;
 
     let uuid_encoded = stream.read_i128().await?;
-    let uuid = format!("{:08x}-{:04x}-{:04x}-{:04x}-{:012x}",
+    let uuid = format!(
+        "{:08x}-{:04x}-{:04x}-{:04x}-{:012x}",
         (uuid_encoded >> 96) & 0xffffffff,
         (uuid_encoded >> 80) & 0xffff,
         (uuid_encoded >> 64) & 0xffff,
@@ -29,8 +32,5 @@ pub async fn read_login_start<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow
         uuid_encoded & 0xffffffffffff
     );
 
-    Ok(LoginStartPacket {
-        username,
-        uuid
-    })
+    Ok(LoginStartPacket { username, uuid })
 }

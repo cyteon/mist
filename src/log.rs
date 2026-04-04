@@ -1,9 +1,9 @@
-use fancy_log::LogLevel;
 use chrono::Local;
+use fancy_log::LogLevel;
+use lazy_static::lazy_static;
 use std::fs::{OpenOptions, create_dir_all};
 use std::io::Write;
 use std::sync::Mutex;
-use lazy_static::lazy_static;
 
 lazy_static! {
     static ref LOG_FILE: Mutex<std::fs::File> = {
@@ -30,6 +30,7 @@ pub fn log(level: LogLevel, message: &str) {
         let log_message = format!("[{:?}] [{}] {}\n", level, timestamp, message);
 
         let mut file = LOG_FILE.lock().unwrap();
-        file.write_all(log_message.as_bytes()).expect("Failed to write to log file");
+        file.write_all(log_message.as_bytes())
+            .expect("Failed to write to log file");
     }
 }

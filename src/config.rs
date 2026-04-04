@@ -1,11 +1,9 @@
-use std::process::exit;
+use fancy_log::LogLevel;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
-use fancy_log::LogLevel;
+use std::process::exit;
 
-pub static SERVER_CONFIG: Lazy<ServerConfig> = Lazy::new(|| {
-    load_config()
-});
+pub static SERVER_CONFIG: Lazy<ServerConfig> = Lazy::new(|| load_config());
 
 #[derive(Deserialize)]
 pub struct ServerConfig {
@@ -42,7 +40,10 @@ pub fn load_config() -> ServerConfig {
         match toml::from_str::<ServerConfig>(&config_str.unwrap()) {
             Ok(config) => config,
             Err(e) => {
-                crate::log::log(LogLevel::Error, format!("Failed to parse config:\n\n{}", e).as_str());
+                crate::log::log(
+                    LogLevel::Error,
+                    format!("Failed to parse config:\n\n{}", e).as_str(),
+                );
                 crate::log::log(LogLevel::Info, "Stopping server");
 
                 exit(1);
@@ -50,8 +51,9 @@ pub fn load_config() -> ServerConfig {
         }
     } else {
         let random_seed = rand::random::<u64>();
-        
-        let default_config = format!(r#"# the host the server will bind to
+
+        let default_config = format!(
+            r#"# the host the server will bind to
 host = "0.0.0.0"
 
 # the port the server will listen on
@@ -68,8 +70,10 @@ simulation_distance = 8
 world_name = "world"
 world_seed = {}
 default_gamemode = "survival"
-"#, random_seed);
-        
+"#,
+            random_seed
+        );
+
         if std::fs::write(path, &default_config).is_err() {
             crate::log::log(LogLevel::Error, "Failed to write default config");
             crate::log::log(LogLevel::Error, "Stopping server");

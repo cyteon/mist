@@ -1,9 +1,15 @@
-use crate::{net::codec::{write_var, write_string}, types::player::Player};
+use crate::{
+    net::codec::{write_string, write_var},
+    types::player::Player,
+};
 use byteorder::WriteBytesExt;
 
-pub async fn send_login_success<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, player: &Player) -> anyhow::Result<()> {
+pub async fn send_login_success<W: tokio::io::AsyncWriteExt + Unpin>(
+    stream: &mut W,
+    player: &Player,
+) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::login::clientbound::LOGIN_FINISHED as u8];
-    
+
     let uuid_clean = player.uuid.replace("-", "");
     let uuid_bytes = hex::decode(&uuid_clean)?;
     packet_data.extend_from_slice(&uuid_bytes);

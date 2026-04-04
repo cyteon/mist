@@ -1,29 +1,28 @@
-use std::collections::HashMap;
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use tokio::sync::RwLock;
 
 use crate::{
     net::packets::clientbound::{
-        level_chunk_with_light::send_level_chunk_with_light,
-        set_center_chunk::send_set_center_chunk,
-        system_chat_message::send_system_chat_message,
         container_set_content::send_container_set_content,
         container_set_slot::send_container_set_slot,
-        game_event::{send_game_event, GameEvent},
-        player_info_update::{send_player_info_update, PlayerAction},
-        set_health::send_set_health,
-        sync_player_position::send_sync_player_position,
         damage_event::send_damage_event,
-        respawn::send_respawn,
-        spawn_entity::send_spawn_entity,
-        set_entity_data::sent_set_entity_data,
+        game_event::{GameEvent, send_game_event},
+        level_chunk_with_light::send_level_chunk_with_light,
+        player_info_update::{PlayerAction, send_player_info_update},
         remove_entities::send_remove_entities,
+        respawn::send_respawn,
+        set_center_chunk::send_set_center_chunk,
+        set_entity_data::sent_set_entity_data,
+        set_health::send_set_health,
+        spawn_entity::send_spawn_entity,
+        sync_player_position::send_sync_player_position,
+        system_chat_message::send_system_chat_message,
     },
-    
-    world::{get_region, get_chunk}
+    world::{get_chunk, get_region},
 };
 
-pub static PLAYER_POSITIONS: Lazy<RwLock<HashMap<String, (f64, f64, f64)>>> = 
+pub static PLAYER_POSITIONS: Lazy<RwLock<HashMap<String, (f64, f64, f64)>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
 #[derive(Clone)]
@@ -36,7 +35,6 @@ pub struct PlayerMovement {
     pub sneaking: bool,
     pub sprinting: bool,
 }
-
 
 #[derive(PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize, Default)]
 pub enum Gamemode {
@@ -64,7 +62,7 @@ pub struct Player {
     pub saturation: f32,
     pub dead: bool,
     pub ignore_fall_for_ticks: u32,
-    
+
     pub shared_secret: Option<Vec<u8>>,
     pub textures: Option<String>,
     pub texture_signature: Option<String>,
@@ -106,7 +104,7 @@ impl Player {
             id: super::entity::next_entity_id(),
             uuid,
             username: username.clone(),
-            
+
             inventory: [None; 45],
             current_slot: 0,
 
@@ -117,7 +115,13 @@ impl Player {
                 "adventure" => Gamemode::Adventure,
                 "spectator" => Gamemode::Spectator,
                 _ => {
-                    crate::log::log(fancy_log::LogLevel::Warn, &format!("Invalid default gamemode in config: {}, defaulting to survival", crate::config::SERVER_CONFIG.default_gamemode));
+                    crate::log::log(
+                        fancy_log::LogLevel::Warn,
+                        &format!(
+                            "Invalid default gamemode in config: {}, defaulting to survival",
+                            crate::config::SERVER_CONFIG.default_gamemode
+                        ),
+                    );
                     Gamemode::Survival
                 }
             },
@@ -193,11 +197,23 @@ impl Player {
             player.yaw = player_save.yaw;
             player.pitch = player_save.pitch;
 
-            crate::log::log(fancy_log::LogLevel::Info, &format!("Loaded save for player {}", username));
+            crate::log::log(
+                fancy_log::LogLevel::Info,
+                &format!("Loaded save for player {}", username),
+            );
         } else {
-            player.inventory[36] = Some(super::items::ItemStack { item_id: super::items::GRASS_BLOCK, count: 64 });
-            player.inventory[37] = Some(super::items::ItemStack { item_id: super::items::DIRT, count: 64 });
-            player.inventory[38] = Some(super::items::ItemStack { item_id: super::items::STONE, count: 64 });
+            player.inventory[36] = Some(super::items::ItemStack {
+                item_id: super::items::GRASS_BLOCK,
+                count: 64,
+            });
+            player.inventory[37] = Some(super::items::ItemStack {
+                item_id: super::items::DIRT,
+                count: 64,
+            });
+            player.inventory[38] = Some(super::items::ItemStack {
+                item_id: super::items::STONE,
+                count: 64,
+            });
         }
 
         let entity = super::entity::Entity {
@@ -231,7 +247,10 @@ impl Player {
 
         println!("Player {} has entity id {}", player.username, entity.id);
 
-        crate::types::entity::ENTITIES.write().await.insert(entity.id, entity);
+        crate::types::entity::ENTITIES
+            .write()
+            .await
+            .insert(entity.id, entity);
 
         println!("Saved player entity for player {}", player.username);
 
@@ -239,7 +258,12 @@ impl Player {
     }
 
     pub async fn send_system_message(&self, message: String) -> anyhow::Result<()> {
-        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP
+            .read()
+            .await
+            .get(&self.uuid)
+            .unwrap()
+            .clone();
 
         let mut buffer = Vec::new();
         send_system_chat_message(&mut buffer, message).await?;
@@ -250,7 +274,12 @@ impl Player {
     }
 
     pub async fn sync_player_inventory(&mut self) -> anyhow::Result<()> {
-        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP
+            .read()
+            .await
+            .get(&self.uuid)
+            .unwrap()
+            .clone();
 
         let mut buffer = Vec::new();
         send_container_set_content(&mut buffer, 0, &self.inventory).await?;
@@ -260,7 +289,12 @@ impl Player {
     }
 
     pub async fn sync_player_health(&mut self) -> anyhow::Result<()> {
-        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP
+            .read()
+            .await
+            .get(&self.uuid)
+            .unwrap()
+            .clone();
 
         let mut buffer = Vec::new();
         send_set_health(&mut buffer, self).await?;
@@ -270,7 +304,12 @@ impl Player {
     }
 
     pub async fn sync_player_position(&mut self) -> anyhow::Result<()> {
-        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP
+            .read()
+            .await
+            .get(&self.uuid)
+            .unwrap()
+            .clone();
 
         let mut buffer = Vec::new();
         send_sync_player_position(&mut buffer, self).await?;
@@ -284,7 +323,12 @@ impl Player {
     }
 
     pub async fn set_inventory_slot(&mut self, slot: i16) -> anyhow::Result<()> {
-        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP
+            .read()
+            .await
+            .get(&self.uuid)
+            .unwrap()
+            .clone();
 
         let mut buffer = Vec::new();
         send_container_set_slot(&mut buffer, 0, slot, self.inventory[slot as usize]).await?;
@@ -310,7 +354,10 @@ impl Player {
                 }
             } else {
                 let to_add = 64.min(remaining);
-                self.inventory[slot] = Some(super::items::ItemStack { item_id, count: to_add as u8 });
+                self.inventory[slot] = Some(super::items::ItemStack {
+                    item_id,
+                    count: to_add as u8,
+                });
                 remaining -= to_add;
             }
         }
@@ -330,7 +377,10 @@ impl Player {
                     }
                 } else {
                     let to_add = 64.min(remaining);
-                    self.inventory[slot] = Some(super::items::ItemStack { item_id, count: to_add as u8 });
+                    self.inventory[slot] = Some(super::items::ItemStack {
+                        item_id,
+                        count: to_add as u8,
+                    });
                     remaining -= to_add;
                 }
             }
@@ -344,20 +394,36 @@ impl Player {
     pub async fn set_gamemode(&mut self, gamemode: Gamemode) -> anyhow::Result<()> {
         self.gamemode = gamemode;
 
-        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP
+            .read()
+            .await
+            .get(&self.uuid)
+            .unwrap()
+            .clone();
 
         let mut buffer = Vec::new();
-        send_game_event(&mut buffer, GameEvent::ChangeGameMode as u8, gamemode as u8 as f32).await?;
+        send_game_event(
+            &mut buffer,
+            GameEvent::ChangeGameMode as u8,
+            gamemode as u8 as f32,
+        )
+        .await?;
         let _ = tx.send(buffer);
 
-        let all_tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.values().cloned().collect::<Vec<_>>();
+        let all_tx = crate::server::conn::PLAYER_SOCKET_MAP
+            .read()
+            .await
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
 
         let mut buffer = Vec::new();
         send_player_info_update(
             &mut buffer,
             vec![self],
-            vec![PlayerAction::UpdateGameMode(gamemode as i32)]
-        ).await?;
+            vec![PlayerAction::UpdateGameMode(gamemode as i32)],
+        )
+        .await?;
 
         for tx in all_tx {
             let _ = tx.send(buffer.clone());
@@ -371,13 +437,25 @@ impl Player {
         amount: i32,
         source_type_id: i32,
         source_cause_id: i32,
-        source_direct_id: i32
+        source_direct_id: i32,
     ) -> anyhow::Result<()> {
         self.health -= amount as f32;
-        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP
+            .read()
+            .await
+            .get(&self.uuid)
+            .unwrap()
+            .clone();
 
         let mut buffer = Vec::new();
-        send_damage_event(&mut buffer, self.id, source_type_id, source_cause_id, source_direct_id).await?;
+        send_damage_event(
+            &mut buffer,
+            self.id,
+            source_type_id,
+            source_cause_id,
+            source_direct_id,
+        )
+        .await?;
         let _ = tx.send(buffer);
 
         self.sync_player_health().await?;
@@ -387,13 +465,15 @@ impl Player {
             self.dead = true;
 
             for i in 0..45 {
-                if let Some(item) = self.inventory[i].take() && source_type_id != 32 {
+                if let Some(item) = self.inventory[i].take()
+                    && source_type_id != 32
+                {
                     crate::types::entity::spawn_item_drop(
                         item,
                         Some(self.uuid.clone()),
                         self.x + (rand::random::<f64>() - 0.5) * 2.0,
                         self.y + 1.0,
-                        self.z + (rand::random::<f64>() - 0.5) * 2.0
+                        self.z + (rand::random::<f64>() - 0.5) * 2.0,
                     );
                 }
             }
@@ -403,7 +483,12 @@ impl Player {
     }
 
     pub async fn respawn(&mut self) -> anyhow::Result<()> {
-        let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid).unwrap().clone();
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP
+            .read()
+            .await
+            .get(&self.uuid)
+            .unwrap()
+            .clone();
 
         let mut buffer = Vec::new();
         send_respawn(&mut buffer, self).await?;
@@ -504,7 +589,10 @@ impl Player {
 
             self.server_vy -= 0.08;
 
-            println!("vy: {}, server_vy: {}, fall_distance: {}, ignore_fall_for_ticks: {}", self.vy, self.server_vy, self.fall_distance, self.ignore_fall_for_ticks);
+            println!(
+                "vy: {}, server_vy: {}, fall_distance: {}, ignore_fall_for_ticks: {}",
+                self.vy, self.server_vy, self.fall_distance, self.ignore_fall_for_ticks
+            );
 
             if self.server_vy < 0.0 {
                 self.fall_distance += -self.server_vy;
@@ -512,7 +600,10 @@ impl Player {
                 self.fall_distance = 0.0;
             }
         } else if self.on_ground {
-            if self.gamemode == Gamemode::Survival && self.ignore_fall_for_ticks <= 0 && self.fall_distance > 3.0 {
+            if self.gamemode == Gamemode::Survival
+                && self.ignore_fall_for_ticks <= 0
+                && self.fall_distance > 3.0
+            {
                 let damage = (self.fall_distance - 3.0).ceil() as i32;
                 self.damage(damage, 10, 0, 0).await?;
             }
@@ -523,13 +614,9 @@ impl Player {
         }
 
         // void damage
-        if self.y < -64.0 && self.gamemode == Gamemode::Survival && self.ignore_fall_for_ticks <= 0 {
-            self.damage(
-                2,
-                32,
-                0,
-                0
-            ).await?;
+        if self.y < -64.0 && self.gamemode == Gamemode::Survival && self.ignore_fall_for_ticks <= 0
+        {
+            self.damage(2, 32, 0, 0).await?;
         }
 
         self.ignore_fall_for_ticks = self.ignore_fall_for_ticks.saturating_sub(1);
@@ -549,8 +636,14 @@ impl Player {
         let current_chunk_area_center_x = (self.x as i32) >> 4;
         let current_chunk_area_center_z = (self.z as i32) >> 4;
 
-        if last_chunk_area_center_x != current_chunk_area_center_x || last_chunk_area_center_z != current_chunk_area_center_z {
-            let tx = if let Some(player_tx) = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid) {
+        if last_chunk_area_center_x != current_chunk_area_center_x
+            || last_chunk_area_center_z != current_chunk_area_center_z
+        {
+            let tx = if let Some(player_tx) = crate::server::conn::PLAYER_SOCKET_MAP
+                .read()
+                .await
+                .get(&self.uuid)
+            {
                 player_tx.clone()
             } else {
                 return Ok(());
@@ -561,8 +654,9 @@ impl Player {
             send_set_center_chunk(
                 &mut buffer,
                 current_chunk_area_center_x,
-                current_chunk_area_center_z
-            ).await?;
+                current_chunk_area_center_z,
+            )
+            .await?;
 
             let _ = tx.send(buffer);
 
@@ -572,14 +666,19 @@ impl Player {
 
             let mut old_chunks = std::collections::HashSet::new();
             for cx in (last_chunk_area_center_x - radius)..=(last_chunk_area_center_x + radius) {
-                for cz in (last_chunk_area_center_z - radius)..=(last_chunk_area_center_z + radius) {
+                for cz in (last_chunk_area_center_z - radius)..=(last_chunk_area_center_z + radius)
+                {
                     old_chunks.insert((cx, cz));
                 }
             }
 
             let mut chunks_to_send = Vec::new();
-            for cx in (current_chunk_area_center_x - radius)..=(current_chunk_area_center_x + radius) {
-                for cz in (current_chunk_area_center_z - radius)..=(current_chunk_area_center_z + radius) {
+            for cx in
+                (current_chunk_area_center_x - radius)..=(current_chunk_area_center_x + radius)
+            {
+                for cz in
+                    (current_chunk_area_center_z - radius)..=(current_chunk_area_center_z + radius)
+                {
                     if !old_chunks.contains(&(cx, cz)) {
                         chunks_to_send.push((cx, cz));
                     }
@@ -604,9 +703,21 @@ impl Player {
                     let _ = tx.send(buffer);
 
                     if result.is_ok() {
-                        crate::log::log(fancy_log::LogLevel::Debug, &format!("Sent chunk {}, {} to player {}", cx, cz, username_clone));
+                        crate::log::log(
+                            fancy_log::LogLevel::Debug,
+                            &format!("Sent chunk {}, {} to player {}", cx, cz, username_clone),
+                        );
                     } else {
-                        crate::log::log(fancy_log::LogLevel::Warn, &format!("Failed to send chunk {}, {} to player {}: {:?}", cx, cz, username_clone, result.err().unwrap()));
+                        crate::log::log(
+                            fancy_log::LogLevel::Warn,
+                            &format!(
+                                "Failed to send chunk {}, {} to player {}: {:?}",
+                                cx,
+                                cz,
+                                username_clone,
+                                result.err().unwrap()
+                            ),
+                        );
                     }
                 }
             });
@@ -616,7 +727,11 @@ impl Player {
         }
 
         let all_entities = crate::types::entity::ENTITIES.read().await;
-        let tx = if let Some(tx) = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&self.uuid) {
+        let tx = if let Some(tx) = crate::server::conn::PLAYER_SOCKET_MAP
+            .read()
+            .await
+            .get(&self.uuid)
+        {
             tx.clone()
         } else {
             return Ok(());
@@ -629,8 +744,13 @@ impl Player {
                 continue;
             }
 
-            if !self.loaded_entities.contains(id) && (entity.x - self.x).abs() < 64.0 && (entity.z - self.z).abs() < 64.0 {
-                let distance_squared = (entity.x - self.x).powi(2) + (entity.y - self.y).powi(2) + (entity.z - self.z).powi(2);
+            if !self.loaded_entities.contains(id)
+                && (entity.x - self.x).abs() < 64.0
+                && (entity.z - self.z).abs() < 64.0
+            {
+                let distance_squared = (entity.x - self.x).powi(2)
+                    + (entity.y - self.y).powi(2)
+                    + (entity.z - self.z).powi(2);
 
                 if distance_squared < 64.0 * 64.0 && !self.loaded_entities.contains(id) {
                     let mut buffer = Vec::new();
@@ -649,12 +769,19 @@ impl Player {
         }
 
         let all_entity_ids = all_entities.keys().cloned().collect::<Vec<_>>();
-        to_remove.extend(self.loaded_entities.iter().filter(|id| !all_entity_ids.contains(id)).cloned());
+        to_remove.extend(
+            self.loaded_entities
+                .iter()
+                .filter(|id| !all_entity_ids.contains(id))
+                .cloned(),
+        );
         drop(all_entities);
 
         if !to_remove.is_empty() {
             let mut buffer = Vec::new();
-            send_remove_entities(&mut buffer, to_remove.clone()).await.unwrap();
+            send_remove_entities(&mut buffer, to_remove.clone())
+                .await
+                .unwrap();
             let _ = tx.send(buffer);
 
             self.loaded_entities.retain(|id| !to_remove.contains(id));
@@ -669,7 +796,7 @@ impl Player {
             entity.x = self.x;
             entity.y = self.y;
             entity.z = self.z;
-        
+
             entity.vx = self.vx;
             entity.vy = self.vy;
             entity.vz = self.vz;

@@ -1,6 +1,9 @@
 use tokio::io::AsyncReadExt;
 
-use crate::{net::codec::{read_position, read_var}, world::get_region};
+use crate::{
+    net::codec::{read_position, read_var},
+    world::get_region,
+};
 
 pub enum ActionStatus {
     StartedDigging = 0,
@@ -12,7 +15,10 @@ pub enum ActionStatus {
     //SwapItemInHand = 6,
 }
 
-pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player: &mut crate::types::player::Player) -> anyhow::Result<()> {
+pub async fn read_player_action<R: AsyncReadExt + Unpin>(
+    stream: &mut R,
+    player: &mut crate::types::player::Player,
+) -> anyhow::Result<()> {
     let status = read_var(stream).await?;
 
     let (x, y, z) = read_position(stream).await?;
@@ -29,11 +35,21 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
         let regions_lock = get_region(region_pos.0, region_pos.1).await;
         let mut region = regions_lock.lock().await;
 
-        if let Some(chunk) = region.chunks.iter_mut().find(|chunk| chunk.x == chunk_pos.0 && chunk.z == chunk_pos.1) {
+        if let Some(chunk) = region
+            .chunks
+            .iter_mut()
+            .find(|chunk| chunk.x == chunk_pos.0 && chunk.z == chunk_pos.1)
+        {
             if player.gamemode as u8 != 1 {
                 crate::types::entity::spawn_item_drop(
                     crate::types::items::ItemStack {
-                        item_id: crate::types::items::block_to_item_id(chunk.get_block((x & 15) as u8, y, (z & 15) as u8) as i32).unwrap_or(0) as i32,
+                        item_id: crate::types::items::block_to_item_id(chunk.get_block(
+                            (x & 15) as u8,
+                            y,
+                            (z & 15) as u8,
+                        )
+                            as i32)
+                        .unwrap_or(0) as i32,
                         count: 1,
                     },
                     None,
@@ -45,15 +61,27 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
 
             chunk.set_block((x & 15) as u8, y, (z & 15) as u8, 0);
 
-            let tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await.get(&player.uuid).cloned().unwrap();
+            let tx = crate::server::conn::PLAYER_SOCKET_MAP
+                .read()
+                .await
+                .get(&player.uuid)
+                .cloned()
+                .unwrap();
 
             let mut buffer = Vec::new();
-            crate::net::packets::clientbound::block_changed_ack::send_block_changed_ack(&mut buffer, sequence as i32).await?;
+            crate::net::packets::clientbound::block_changed_ack::send_block_changed_ack(
+                &mut buffer,
+                sequence as i32,
+            )
+            .await?;
             let _ = tx.send(buffer);
-            
-            crate::net::packets::clientbound::block_update::broadcast_block_update(x, y, z, 0).await?;
+
+            crate::net::packets::clientbound::block_update::broadcast_block_update(x, y, z, 0)
+                .await?;
         }
-    } else if status == ActionStatus::DropItemStack as u32 || status == ActionStatus::DropItem as u32 {
+    } else if status == ActionStatus::DropItemStack as u32
+        || status == ActionStatus::DropItem as u32
+    {
         let drop_all = status == ActionStatus::DropItemStack as u32;
         let held_slot = player.current_slot as usize + 36;
 
@@ -72,10 +100,7 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(stream: &mut R, player:
             };
 
             crate::types::entity::spawn_item_drop(
-                crate::types::items::ItemStack {
-                    item_id,
-                    count,
-                },
+                crate::types::items::ItemStack { item_id, count },
                 Some(player.uuid.clone()),
                 player.x + dx,
                 player.y + 1.0,

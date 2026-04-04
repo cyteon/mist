@@ -1,6 +1,10 @@
 use crate::net::codec::write_var;
 
-pub async fn send_set_center_chunk<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, x: i32, z: i32) -> anyhow::Result<()> {
+pub async fn send_set_center_chunk<W: tokio::io::AsyncWriteExt + Unpin>(
+    stream: &mut W,
+    x: i32,
+    z: i32,
+) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::SET_CHUNK_CACHE_CENTER as u8];
 
     write_var(&mut packet_data, x)?;

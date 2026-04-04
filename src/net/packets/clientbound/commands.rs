@@ -1,22 +1,24 @@
-use crate::net::codec::{write_var, write_string};
-use byteorder::{WriteBytesExt, BigEndian};
+use crate::net::codec::{write_string, write_var};
+use byteorder::{BigEndian, WriteBytesExt};
 
 enum Flags {
-    Root           = 0x00,
-    Literal        = 0x01,
-    Argument       = 0x02,
-    Executable     = 0x04,
+    Root = 0x00,
+    Literal = 0x01,
+    Argument = 0x02,
+    Executable = 0x04,
     //HasRedirect    = 0x08,
     //HasSuggestions = 0x10,
     //IsRestricted   = 0x20,
 }
 
-pub async fn send_commands<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
+pub async fn send_commands<W: tokio::io::AsyncWriteExt + Unpin>(
+    stream: &mut W,
+) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::COMMANDS as u8];
 
     // root + 4 commands + 3 args
     write_var(&mut packet_data, 8)?;
-    
+
     // root
     packet_data.push(Flags::Root as u8);
     write_var(&mut packet_data, 4)?; // 4 commands
@@ -69,7 +71,7 @@ pub async fn send_commands<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) 
 
     // root index
     write_var(&mut packet_data, 0)?;
-    
+
     stream.write_all(&packet_data).await?;
     stream.flush().await?;
 

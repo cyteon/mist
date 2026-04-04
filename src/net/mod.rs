@@ -1,3 +1,3 @@
 pub mod codec;
-pub mod packets;
 pub mod packet;
+pub mod packets;

@@ -1,8 +1,11 @@
 use byteorder::WriteBytesExt;
 
-use crate::net::codec::{write_var, write_string};
+use crate::net::codec::{write_string, write_var};
 
-pub async fn send_respawn<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, player: &crate::types::player::Player) -> anyhow::Result<()> {
+pub async fn send_respawn<W: tokio::io::AsyncWriteExt + Unpin>(
+    stream: &mut W,
+    player: &crate::types::player::Player,
+) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::RESPAWN as u8];
 
     write_var(&mut packet_data, 0)?; // dimension type

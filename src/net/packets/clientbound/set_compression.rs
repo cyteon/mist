@@ -1,6 +1,8 @@
 use crate::net::codec::write_var;
 
-pub async fn send_set_compression<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W) -> anyhow::Result<()> {
+pub async fn send_set_compression<W: tokio::io::AsyncWriteExt + Unpin>(
+    stream: &mut W,
+) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::login::clientbound::LOGIN_COMPRESSION as u8];
 
     write_var(&mut packet_data, 256)?;

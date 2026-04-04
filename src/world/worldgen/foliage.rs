@@ -18,7 +18,9 @@ pub fn place_foliage(chunk: &mut Chunk, heights: &[[i32; 16]; 16]) {
     for x in 2..14 {
         for z in 2..14 {
             let h = heights[x as usize][z as usize];
-            if h < super::SEA_LEVEL { continue; }
+            if h < super::SEA_LEVEL {
+                continue;
+            }
 
             if rng.gen_range(0..60) == 0 {
                 let block = chunk.get_block(x, h, z);
@@ -68,15 +70,25 @@ fn place_oak(chunk: &mut Chunk, x: u8, y: i32, z: u8, rng: &mut impl Rng) {
 
         for dx in -radius..=radius {
             for dz in -radius..=radius {
-                if dx * dx + dz * dz > radius * radius + 1 { continue; }
+                if dx * dx + dz * dz > radius * radius + 1 {
+                    continue;
+                }
 
                 let lx = x as i32 + dx;
                 let lz = z as i32 + dz;
 
-                if !(1..16).contains(&lx) || !(1..16).contains(&lz) { continue; }
+                if !(1..16).contains(&lx) || !(1..16).contains(&lz) {
+                    continue;
+                }
 
-                if chunk.get_block(lx as u8, leaf_base + dy, lz as u8) == crate::types::blocks::AIR {
-                    chunk.set_block(lx as u8, leaf_base + dy, lz as u8, crate::types::blocks::OAK_LEAVES);
+                if chunk.get_block(lx as u8, leaf_base + dy, lz as u8) == crate::types::blocks::AIR
+                {
+                    chunk.set_block(
+                        lx as u8,
+                        leaf_base + dy,
+                        lz as u8,
+                        crate::types::blocks::OAK_LEAVES,
+                    );
                 }
             }
         }

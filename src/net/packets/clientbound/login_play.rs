@@ -1,8 +1,14 @@
-use byteorder::{WriteBytesExt, BigEndian};
+use byteorder::{BigEndian, WriteBytesExt};
 
-use crate::{config::SERVER_CONFIG, net::codec::{write_var, write_string}};
+use crate::{
+    config::SERVER_CONFIG,
+    net::codec::{write_string, write_var},
+};
 
-pub async fn send_login_play<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, player: &crate::types::player::Player) -> anyhow::Result<()> {
+pub async fn send_login_play<W: tokio::io::AsyncWriteExt + Unpin>(
+    stream: &mut W,
+    player: &crate::types::player::Player,
+) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::LOGIN as u8];
 
     packet_data.write_i32::<BigEndian>(player.id)?;

@@ -1,7 +1,10 @@
-use byteorder::{WriteBytesExt, BigEndian};
 use crate::net::codec::write_var;
+use byteorder::{BigEndian, WriteBytesExt};
 
-pub async fn send_spawn_entity<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, entity: &crate::types::entity::Entity) -> anyhow::Result<()> {
+pub async fn send_spawn_entity<W: tokio::io::AsyncWriteExt + Unpin>(
+    stream: &mut W,
+    entity: &crate::types::entity::Entity,
+) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::ADD_ENTITY as u8];
 
     write_var(&mut packet_data, entity.id)?;

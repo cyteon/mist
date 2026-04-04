@@ -3,7 +3,7 @@ use crate::net::codec::write_var;
 pub async fn send_container_set_content<W: tokio::io::AsyncWriteExt + Unpin>(
     stream: &mut W,
     window_id: u8,
-    inventory: &[Option<crate::types::items::ItemStack>; 45]
+    inventory: &[Option<crate::types::items::ItemStack>; 45],
 ) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::CONTAINER_SET_CONTENT as u8];
 
@@ -19,7 +19,7 @@ pub async fn send_container_set_content<W: tokio::io::AsyncWriteExt + Unpin>(
 
                 packet_data.push(0x00);
                 packet_data.push(0x00);
-            },
+            }
 
             None => {
                 write_var(&mut packet_data, 0)?; // empty item stack

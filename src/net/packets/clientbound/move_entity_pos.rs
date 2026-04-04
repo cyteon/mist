@@ -1,8 +1,9 @@
-use byteorder::{WriteBytesExt, BigEndian};
 use crate::net::codec::write_var;
+use byteorder::{BigEndian, WriteBytesExt};
 
 pub async fn send_move_entity_pos<W: tokio::io::AsyncWriteExt + Unpin>(
-    stream: &mut W, entity: &crate::types::entity::Entity
+    stream: &mut W,
+    entity: &crate::types::entity::Entity,
 ) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::MOVE_ENTITY_POS as u8];
 

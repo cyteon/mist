@@ -1,11 +1,11 @@
-use byteorder::{WriteBytesExt, BigEndian};
 use crate::net::codec::write_var;
+use byteorder::{BigEndian, WriteBytesExt};
 
 pub async fn send_container_set_slot<W: tokio::io::AsyncWriteExt + Unpin>(
     stream: &mut W,
     window_id: u8,
     slot: i16,
-    item_stack: Option<crate::types::items::ItemStack>
+    item_stack: Option<crate::types::items::ItemStack>,
 ) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::CONTAINER_SET_SLOT as u8];
 
@@ -20,7 +20,7 @@ pub async fn send_container_set_slot<W: tokio::io::AsyncWriteExt + Unpin>(
 
             packet_data.push(0x00);
             packet_data.push(0x00);
-        },
+        }
 
         None => {
             write_var(&mut packet_data, 0)?; // empty item stack

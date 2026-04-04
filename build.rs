@@ -19,7 +19,7 @@ fn load_packets() {
 
     let json: HashMap<String, serde_json::Value> =
         serde_json::from_slice(&bytes).expect("Failed to parse packets.json");
-    
+
     let mut out = String::new();
 
     const PATHS: &[(&str, &str)] = &[
@@ -40,7 +40,11 @@ fn load_packets() {
 
         for (k, v) in obj {
             let protocol_id = v["protocol_id"].as_i64().unwrap();
-            tree.entry(state).or_default().entry(direction).or_default().push((k.clone(), protocol_id));
+            tree.entry(state)
+                .or_default()
+                .entry(direction)
+                .or_default()
+                .push((k.clone(), protocol_id));
         }
     }
 
@@ -51,13 +55,13 @@ fn load_packets() {
             out.push_str(&format!("    pub mod {} {{\n", direction));
 
             for (name, protocol_id) in packets {
-                out.push_str(
-                    &format!(
-                        "        pub const {}: u32 = {};\n", 
-                        name.to_uppercase().replace("MINECRAFT:", "").replace("/", "_"),
-                        protocol_id
-                    )
-                );
+                out.push_str(&format!(
+                    "        pub const {}: u32 = {};\n",
+                    name.to_uppercase()
+                        .replace("MINECRAFT:", "")
+                        .replace("/", "_"),
+                    protocol_id
+                ));
             }
 
             out.push_str("    }\n");
@@ -79,7 +83,7 @@ fn load_blocks() {
 
     let json: HashMap<String, serde_json::Value> =
         serde_json::from_slice(&bytes).expect("Failed to parse blocks.json");
-    
+
     let mut out = String::new();
 
     for (key, block) in json {
@@ -90,14 +94,14 @@ fn load_blocks() {
             .find(|state| state["default"].as_bool().unwrap_or(false))
             .expect("Block is missing a default state");
 
-        out.push_str(
-            &format!(
-                "pub const {}: u16 = {};\n",
-                key.to_uppercase().replace("MINECRAFT:", "").replace("/", "_"),
-                default_state["id"].as_u64().unwrap()
-            )
-        );
-    } 
+        out.push_str(&format!(
+            "pub const {}: u16 = {};\n",
+            key.to_uppercase()
+                .replace("MINECRAFT:", "")
+                .replace("/", "_"),
+            default_state["id"].as_u64().unwrap()
+        ));
+    }
 
     let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("blocks.rs");
     fs::write(out_path, out).unwrap();
@@ -116,26 +120,24 @@ fn load_items() {
     let mut out = String::new();
 
     for (key, item) in json["entries"].as_object().unwrap() {
-        out.push_str(
-            &format!(
-                "pub const {}: i32 = {};\n",
-                key.to_uppercase().replace("MINECRAFT:", "").replace("/", "_"),
-                item["protocol_id"].as_u64().unwrap()
-            )
-        );
+        out.push_str(&format!(
+            "pub const {}: i32 = {};\n",
+            key.to_uppercase()
+                .replace("MINECRAFT:", "")
+                .replace("/", "_"),
+            item["protocol_id"].as_u64().unwrap()
+        ));
     }
 
     out.push_str("pub fn get_item_id(name: &str) -> i32 {\n");
     out.push_str("    match name {\n");
 
     for (key, item) in json["entries"].as_object().unwrap() {
-        out.push_str(
-            &format!(
-                "        \"{}\" => {},\n",
-                key,
-                item["protocol_id"].as_u64().unwrap()
-            )
-        );
+        out.push_str(&format!(
+            "        \"{}\" => {},\n",
+            key,
+            item["protocol_id"].as_u64().unwrap()
+        ));
     }
 
     out.push_str("        _ => 0,\n"); // default is air
@@ -158,7 +160,7 @@ fn load_item_to_block() {
         serde_json::from_slice(&block_bytes).expect("Failed to parse blocks.json");
     let items: HashMap<String, serde_json::Value> =
         serde_json::from_slice(&item_bytes).expect("Failed to parse items.json");
-    
+
     let mut out = String::new();
     out.push_str("pub fn item_to_block(item_id: i32) -> Option<u16> {\n");
     out.push_str("    match item_id {\n");
@@ -172,13 +174,11 @@ fn load_item_to_block() {
                 .find(|state| state["default"].as_bool().unwrap_or(false))
                 .expect("Block is missing a default state");
 
-            out.push_str(
-                &format!(
-                    "        {} => Some({}),\n",
-                    iv["protocol_id"].as_u64().unwrap(),
-                    default_state["id"].as_u64().unwrap()
-                )
-            );
+            out.push_str(&format!(
+                "        {} => Some({}),\n",
+                iv["protocol_id"].as_u64().unwrap(),
+                default_state["id"].as_u64().unwrap()
+            ));
         }
     }
 
@@ -198,13 +198,11 @@ fn load_item_to_block() {
                 .find(|state| state["default"].as_bool().unwrap_or(false))
                 .expect("Block is missing a default state");
 
-            out.push_str(
-                &format!(
-                    "        {} => Some({}),\n",
-                    default_state["id"].as_u64().unwrap(),
-                    iv["protocol_id"].as_u64().unwrap()
-                )
-            );
+            out.push_str(&format!(
+                "        {} => Some({}),\n",
+                default_state["id"].as_u64().unwrap(),
+                iv["protocol_id"].as_u64().unwrap()
+            ));
         }
     }
 

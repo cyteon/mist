@@ -1,8 +1,9 @@
-use tokio::io::AsyncReadExt;
 use crate::types::player::Player;
+use tokio::io::AsyncReadExt;
 
 pub async fn read_set_player_position_and_rotation<R: AsyncReadExt + Unpin>(
-    stream: &mut R, player: &mut Player
+    stream: &mut R,
+    player: &mut Player,
 ) -> anyhow::Result<()> {
     let x = stream.read_f64().await?;
     let y = stream.read_f64().await?;

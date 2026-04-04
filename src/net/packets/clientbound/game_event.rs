@@ -16,7 +16,11 @@ pub enum GameEvent {
     //StartWaitingForLevelChunks = 13
 }
 
-pub async fn send_game_event<W: tokio::io::AsyncWriteExt + Unpin>(stream: &mut W, event: u8, value: f32) -> anyhow::Result<()> {
+pub async fn send_game_event<W: tokio::io::AsyncWriteExt + Unpin>(
+    stream: &mut W,
+    event: u8,
+    value: f32,
+) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::GAME_EVENT as u8];
 
     packet_data.push(event);

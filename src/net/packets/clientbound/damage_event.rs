@@ -6,7 +6,7 @@ pub async fn send_damage_event<W: tokio::io::AsyncWriteExt + Unpin>(
     source_type_id: i32,
     source_cause_id: i32,
     source_direct_id: i32,
-) -> anyhow::Result<()> {    
+) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::DAMAGE_EVENT as u8];
 
     write_var(&mut packet_data, entity_id)?;

@@ -5,7 +5,7 @@ pub mod ores;
 
 use rayon::prelude::*;
 
-use super::chunks::{Chunk, Section, Region};
+use super::chunks::{Chunk, Region, Section};
 
 const SEA_LEVEL: i32 = 62;
 
@@ -28,12 +28,18 @@ pub async fn initial_gen() {
                 .collect();
 
             region.save().await.unwrap();
-            crate::log::log(fancy_log::LogLevel::Info, &format!("Generated region {}, {}", x, z));
+            crate::log::log(
+                fancy_log::LogLevel::Info,
+                &format!("Generated region {}, {}", x, z),
+            );
         }
     }
 
     let duration = start_time.elapsed();
-    crate::log::log(fancy_log::LogLevel::Info, format!("World generated in {:.2?}", duration).as_str());
+    crate::log::log(
+        fancy_log::LogLevel::Info,
+        format!("World generated in {:.2?}", duration).as_str(),
+    );
 }
 
 pub fn generate(x: i32, z: i32) -> Chunk {

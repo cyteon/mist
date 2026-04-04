@@ -2,18 +2,17 @@ use byteorder::{BigEndian, WriteBytesExt};
 
 use crate::{
     net::{
-        codec::{write_var, write_string}, 
-        packets::serverbound::chat_message::Message
-    }, 
-
-    types::player::Player
+        codec::{write_string, write_var},
+        packets::serverbound::chat_message::Message,
+    },
+    types::player::Player,
 };
 
 pub async fn send_player_chat_message<W: tokio::io::AsyncWriteExt + Unpin>(
     stream: &mut W,
     player: &Player,
     target: &mut Player,
-    message: &Message
+    message: &Message,
 ) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::PLAYER_CHAT as u8];
 
@@ -53,13 +52,15 @@ pub async fn send_player_chat_message<W: tokio::io::AsyncWriteExt + Unpin>(
     // sector: chat formatting
 
     write_var(&mut packet_data, 1)?; // chat type
-    
-    let mut sender_nbt = Vec::<u8>::new(); 
+
+    let mut sender_nbt = Vec::<u8>::new();
     craftflow_nbt::to_writer(
-        &mut sender_nbt, &craftflow_nbt::DynNBT::String(player.username.clone())
-    ).expect("Failed to write sender NBT");
+        &mut sender_nbt,
+        &craftflow_nbt::DynNBT::String(player.username.clone()),
+    )
+    .expect("Failed to write sender NBT");
     packet_data.extend_from_slice(&sender_nbt);
-    
+
     packet_data.write_u8(0)?; // no target name
 
     stream.write_all(&packet_data).await?;
