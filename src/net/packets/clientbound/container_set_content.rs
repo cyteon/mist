@@ -4,6 +4,7 @@ pub async fn send_container_set_content<W: tokio::io::AsyncWriteExt + Unpin>(
     stream: &mut W,
     window_id: u8,
     inventory: &[Option<crate::types::items::ItemStack>; 46],
+    carried_item: Option<crate::types::items::ItemStack>,
 ) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::CONTAINER_SET_CONTENT as u8];
 
@@ -27,7 +28,15 @@ pub async fn send_container_set_content<W: tokio::io::AsyncWriteExt + Unpin>(
         }
     }
 
-    write_var(&mut packet_data, 0)?;
+    if let Some(carried) = carried_item {
+        write_var(&mut packet_data, carried.count as i32)?;
+        write_var(&mut packet_data, carried.item_id)?;
+
+        packet_data.push(0x00);
+        packet_data.push(0x00);
+    } else {
+        write_var(&mut packet_data, 0)?;
+    }
 
     stream.write_all(&packet_data).await?;
     stream.flush().await?;

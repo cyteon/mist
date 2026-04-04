@@ -52,6 +52,7 @@ pub struct Player {
     pub username: String,
 
     pub inventory: [Option<super::items::ItemStack>; 46],
+    pub carried_item: Option<super::items::ItemStack>,
     pub current_slot: i16,
 
     pub is_op: bool,
@@ -109,6 +110,7 @@ impl Player {
             username: username.clone(),
 
             inventory: [None; 46],
+            carried_item: None,
             current_slot: 0,
 
             is_op: false,
@@ -287,7 +289,7 @@ impl Player {
             .clone();
 
         let mut buffer = Vec::new();
-        send_container_set_content(&mut buffer, 0, &self.inventory).await?;
+        send_container_set_content(&mut buffer, 0, &self.inventory, self.carried_item).await?;
         let _ = tx.send(buffer);
 
         Ok(())

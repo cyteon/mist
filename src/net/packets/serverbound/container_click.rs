@@ -1,5 +1,6 @@
 use crate::net::codec::{read_hashed_slot, read_var};
 use crate::types::player::Player;
+use crate::types::recipes::check_2x2;
 use tokio::io::AsyncReadExt;
 
 pub async fn read_container_click<R: AsyncReadExt + Unpin>(
@@ -29,7 +30,24 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
         println!("Changed slot {} to {:?}", slot_index, item_stack);
     }
 
-    let _carried_item = read_hashed_slot(stream).await?;
+    let carried_item = read_hashed_slot(stream).await?;
+    player.carried_item = carried_item.clone();
+
+    let crafting_grid = [
+        player.inventory[1].as_ref().map(|s| s.item_id),
+        player.inventory[2].as_ref().map(|s| s.item_id),
+        player.inventory[3].as_ref().map(|s| s.item_id),
+        player.inventory[4].as_ref().map(|s| s.item_id),
+    ];
+
+    dbg!("Crafting grid: {:?}", crafting_grid);
+
+    player.inventory[0] = check_2x2(&crafting_grid)
+        .map(|(id, count)| crate::types::items::ItemStack { item_id: id, count });
+
+    dbg!("Crafting result: {:?}", player.inventory[0]);
+
+    player.sync_player_inventory().await?;
 
     Ok(())
 }

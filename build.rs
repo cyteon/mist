@@ -8,6 +8,7 @@ fn main() {
     load_blocks();
     load_items();
     load_item_to_block();
+    load_recipes();
 }
 
 fn load_packets() {
@@ -152,6 +153,7 @@ fn load_item_to_block() {
     let manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
     let blocks_json_path = Path::new(&manifest).join("src/assets/blocks.json");
     let items_json_path = Path::new(&manifest).join("src/assets/items.json");
+    println!("cargo:rerun-if-changed={}", blocks_json_path.display());
 
     let block_bytes = fs::read(&blocks_json_path).expect("Failed to read blocks.json");
     let item_bytes = fs::read(&items_json_path).expect("Failed to read items.json");
@@ -211,5 +213,65 @@ fn load_item_to_block() {
     out.push_str("}\n");
 
     let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("item_to_block.rs");
+    fs::write(out_path, out).unwrap();
+}
+
+fn load_recipes() {
+    let manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let json_path = Path::new(&manifest).join("src/assets/recipes.json");
+    println!("cargo:rerun-if-changed={}", json_path.display());
+
+    let bytes = fs::read(&json_path).expect("Failed to read recipes.json");
+    let json: serde_json::Value =
+        serde_json::from_slice(&bytes).expect("Failed to parse recipes.json");
+
+    let mut out = String::new();
+    out.push_str("pub static RECIPES: &[Recipe] = &[\n");
+
+    for (_, recipes) in json.as_object().unwrap() {
+        for recipe in recipes.as_array().unwrap() {
+            let result_id = recipe["result"]["id"].as_i64().unwrap();
+            let result_count = recipe["result"]["count"].as_i64().unwrap();
+
+            if let Some(in_shape) = recipe.get("inShape") {
+                let rows = in_shape.as_array().unwrap();
+                let height = rows.len() as i32;
+                let width = rows[0].as_array().unwrap().len() as i32;
+
+                let mut pattern = [0i32; 9];
+
+                for (r, row) in rows.iter().enumerate() {
+                    for (c, item) in row.as_array().unwrap().iter().enumerate() {
+                        pattern[r * 3 + c] = if item.is_null() {
+                            0
+                        } else {
+                            item.as_i64().unwrap() as i32
+                        };
+                    }
+                }
+
+                out.push_str(&format!(
+                    "    Recipe::Shaped(ShapedRecipe {{ pattern: {:?}, width: {}, height: {}, result_id: {}, result_count: {} }}),\n",
+                    pattern, width, height, result_id, result_count
+                ));
+            } else if let Some(ingredients) = recipe.get("ingredients") {
+                let items: Vec<i32> = ingredients
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|item| item.as_i64().unwrap() as i32)
+                    .collect();
+
+                out.push_str(&format!(
+                    "    Recipe::Shapeless(ShapelessRecipe {{ ingredients: &{:?}, result_id: {}, result_count: {} }}),\n",
+                    items, result_id, result_count
+                ));
+            }
+        }
+    }
+
+    out.push_str("];\n");
+
+    let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("recipes.rs");
     fs::write(out_path, out).unwrap();
 }
