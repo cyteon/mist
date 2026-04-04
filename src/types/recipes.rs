@@ -29,7 +29,7 @@ pub fn check_2x2(grid: &[Option<i32>; 4]) -> Option<(i32, u8)> {
             }
 
             Recipe::Shaped(r) => {
-                if r.width == 2 && r.height == 2 {
+                if r.width <= 2 && r.height <= 2 {
                     if match_2x2_shaped(grid, r) {
                         return Some((r.result_id, r.result_count as u8));
                     }

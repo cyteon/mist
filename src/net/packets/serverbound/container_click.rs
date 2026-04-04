@@ -40,12 +40,8 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
         player.inventory[4].as_ref().map(|s| s.item_id),
     ];
 
-    dbg!("Crafting grid: {:?}", crafting_grid);
-
     player.inventory[0] = check_2x2(&crafting_grid)
         .map(|(id, count)| crate::types::items::ItemStack { item_id: id, count });
-
-    dbg!("Crafting result: {:?}", player.inventory[0]);
 
     player.sync_player_inventory().await?;
 
