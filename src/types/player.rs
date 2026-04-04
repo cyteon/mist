@@ -45,11 +45,19 @@ pub enum Gamemode {
     Spectator,
 }
 
+#[derive(PartialEq, Clone, Copy)]
+pub enum WindowType {
+    CraftingTable([(usize, usize); 9]),
+}
+
 #[derive(Clone)]
 pub struct Player {
     pub id: i32,
     pub uuid: String,
     pub username: String,
+
+    pub current_window: Option<WindowType>,
+    pub window_id: i32,
 
     pub inventory: [Option<super::items::ItemStack>; 46],
     pub carried_item: Option<super::items::ItemStack>,
@@ -108,6 +116,9 @@ impl Player {
             id: super::entity::next_entity_id(),
             uuid,
             username: username.clone(),
+
+            current_window: None,
+            window_id: 0,
 
             inventory: [None; 46],
             carried_item: None,
@@ -262,6 +273,13 @@ impl Player {
         println!("Saved player entity for player {}", player.username);
 
         player
+    }
+
+    pub fn new_window_id(&mut self, window_type: WindowType) -> i32 {
+        self.window_id += 1;
+        self.current_window = Some(window_type);
+
+        self.window_id
     }
 
     pub async fn send_system_message(&self, message: String) -> anyhow::Result<()> {

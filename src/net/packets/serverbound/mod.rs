@@ -3,6 +3,7 @@ pub mod chat_message;
 pub mod client_status;
 pub mod confirm_teleportation;
 pub mod container_click;
+pub mod container_close;
 pub mod encryption_response;
 pub mod handshake;
 pub mod known_packs;

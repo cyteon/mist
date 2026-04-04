@@ -18,6 +18,7 @@ pub mod login_success;
 pub mod move_entity_pos;
 pub mod move_entity_pos_rot;
 pub mod move_entity_rot;
+pub mod open_screen;
 pub mod pickup_item;
 pub mod player_chat_message;
 pub mod player_info_remove;

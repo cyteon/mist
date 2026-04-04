@@ -35,6 +35,47 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
         _ => {}
     }
 
+    let chunk_pos = (bx.div_euclid(16), bz.div_euclid(16));
+    let region_pos = (chunk_pos.0.div_euclid(32), chunk_pos.1.div_euclid(32));
+
+    let region = get_region(region_pos.0, region_pos.1).await;
+    let mut region_lock = region.lock().await;
+
+    let tx = crate::server::conn::PLAYER_SOCKET_MAP
+        .read()
+        .await
+        .get(&player.uuid)
+        .cloned()
+        .unwrap();
+
+    if let Some(chunk) = region_lock
+        .chunks
+        .iter_mut()
+        .find(|chunk| chunk.x == chunk_pos.0 && chunk.z == chunk_pos.1)
+    {
+        match chunk.get_block((x & 15) as u8, y as i32, (z & 15) as u8) {
+            crate::types::blocks::CRAFTING_TABLE => {
+                let mut buffer = Vec::new();
+
+                crate::net::packets::clientbound::open_screen::send_open_screen(
+                    &mut buffer,
+                    player.new_window_id(crate::types::player::WindowType::CraftingTable(
+                        [(0, 0); 9],
+                    )),
+                    12,
+                    "Crafting",
+                )
+                .await?;
+
+                let _ = tx.send(buffer);
+
+                return Ok(());
+            }
+
+            _ => {}
+        }
+    }
+
     let block_id =
         if let Some(Some(item_stack)) = player.inventory.get(player.current_slot as usize + 36) {
             if let Some(block_id) = crate::types::items::item_to_block(item_stack.item_id) {
@@ -45,12 +86,6 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
         } else {
             return Ok(());
         };
-
-    let chunk_pos = (bx.div_euclid(16), bz.div_euclid(16));
-    let region_pos = (chunk_pos.0.div_euclid(32), chunk_pos.1.div_euclid(32));
-
-    let region = get_region(region_pos.0, region_pos.1).await;
-    let mut region_lock = region.lock().await;
 
     if let Some(chunk) = region_lock
         .chunks
@@ -74,13 +109,6 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                 player.inventory[player.current_slot as usize + 36] = None;
             }
         }
-
-        let tx = crate::server::conn::PLAYER_SOCKET_MAP
-            .read()
-            .await
-            .get(&player.uuid)
-            .cloned()
-            .unwrap();
 
         let mut buffer = Vec::new();
         crate::net::packets::clientbound::block_changed_ack::send_block_changed_ack(
