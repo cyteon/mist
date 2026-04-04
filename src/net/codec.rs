@@ -1,5 +1,5 @@
-use byteorder::{WriteBytesExt, BigEndian};
-use tokio::io::{AsyncReadExt};
+use byteorder::{BigEndian, WriteBytesExt};
+use tokio::io::AsyncReadExt;
 
 use crate::types::items::ItemStack;
 
@@ -30,7 +30,7 @@ pub async fn read_var<R: AsyncReadExt + Unpin>(reader: &mut R) -> anyhow::Result
 
 pub fn write_var<W: WriteBytesExt + Unpin>(stream: &mut W, value: i32) -> anyhow::Result<()> {
     let mut value = value as u32;
-    
+
     loop {
         let mut temp = (value & 0b01111111) as u8;
 
@@ -53,12 +53,17 @@ pub fn write_var<W: WriteBytesExt + Unpin>(stream: &mut W, value: i32) -> anyhow
 pub fn write_string<W: WriteBytesExt + Unpin>(stream: &mut W, value: &str) -> anyhow::Result<()> {
     write_var(stream, value.len() as i32)?;
     stream.write_all(value.as_bytes())?;
-    
+
     Ok(())
 }
 
 // x: 26 bits z: 26 bits, y: 12 bits,
-pub fn write_position<W: WriteBytesExt + Unpin>(stream: &mut W, x: i32, y: i32, z: i32) -> anyhow::Result<()> {
+pub fn write_position<W: WriteBytesExt + Unpin>(
+    stream: &mut W,
+    x: i32,
+    y: i32,
+    z: i32,
+) -> anyhow::Result<()> {
     let mut val = 0i64;
 
     val |= (x as i64 & 0x3FFFFFF) << 38;
@@ -72,7 +77,9 @@ pub fn write_position<W: WriteBytesExt + Unpin>(stream: &mut W, x: i32, y: i32, 
 
 // x: 26 bits z: 26 bits, y: 12 bits,
 // all signed integers, two's complement
-pub async fn read_position<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow::Result<(i32, i32, i32)> {
+pub async fn read_position<R: AsyncReadExt + Unpin>(
+    stream: &mut R,
+) -> anyhow::Result<(i32, i32, i32)> {
     let val = stream.read_i64().await?;
 
     let x = (val >> 38) as i32;
@@ -87,7 +94,9 @@ pub async fn read_position<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow::R
     Ok((x, y, z))
 }
 
-pub async fn read_slot<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow::Result<Option<ItemStack>> {
+pub async fn read_slot<R: AsyncReadExt + Unpin>(
+    stream: &mut R,
+) -> anyhow::Result<Option<ItemStack>> {
     let count = read_var(stream).await?;
 
     if count <= 0 {
@@ -104,4 +113,8 @@ pub async fn read_slot<R: AsyncReadExt + Unpin>(stream: &mut R) -> anyhow::Resul
         item_id,
         count: count as u8,
     }));
+}
+
+pub fn normalize_angle(angle: f32) -> u8 {
+    ((angle % 360.0 + 360.0) % 360.0 / 360.0 * 256.0) as u8
 }
