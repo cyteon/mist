@@ -1,6 +1,6 @@
 pub use items::*;
 
-#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ItemStack {
     pub item_id: i32,
     pub count: u8,

@@ -58,9 +58,10 @@ pub struct Entity {
 }
 
 impl Entity {
-    // TODO: update position for players in range
     pub async fn tick(&mut self) -> anyhow::Result<()> {
         if let EntityType::Player(player_entity) = &self.entity_type {
+            // TODO: sync pose (sneaking, swimming, etc)
+
             let mut packet_buffer = Vec::new();
 
             if self.x == self.last_x && self.y == self.last_y && self.z == self.last_z {

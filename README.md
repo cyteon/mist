@@ -33,4 +33,4 @@ An minecraft server implementation in rust for minecraft 1.21.11
 - [ ] Server-side action validation
 - [ ] Secure chat
 - [ ] Permissions
-- [ ] Whitelist
+- [ ] Whitelist

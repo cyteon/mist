@@ -97,7 +97,7 @@ pub async fn read_position<R: AsyncReadExt + Unpin>(
 pub async fn read_slot<R: AsyncReadExt + Unpin>(
     stream: &mut R,
 ) -> anyhow::Result<Option<ItemStack>> {
-    let count = read_var(stream).await?;
+    let count = read_var(stream).await? as u8;
 
     if count <= 0 {
         return Ok(None);
@@ -111,7 +111,37 @@ pub async fn read_slot<R: AsyncReadExt + Unpin>(
 
     return Ok(Some(ItemStack {
         item_id,
-        count: count as u8,
+        count: count,
+    }));
+}
+
+pub async fn read_hashed_slot<R: AsyncReadExt + Unpin>(
+    stream: &mut R,
+) -> anyhow::Result<Option<ItemStack>> {
+    let has_item = stream.read_u8().await?;
+
+    if has_item == 0 {
+        return Ok(None);
+    }
+
+    let item_id = read_var(stream).await? as i32;
+    let count = read_var(stream).await? as u8;
+
+    let components_to_add = read_var(stream).await?;
+    for _ in 0..components_to_add {
+        let _type = read_var(stream).await?;
+        let _hash = stream.read_i32().await?;
+    }
+
+    let components_to_remove = read_var(stream).await?;
+    for _ in 0..components_to_remove {
+        let _type = read_var(stream).await?;
+        let _hash = stream.read_i32().await?;
+    }
+
+    return Ok(Some(ItemStack {
+        item_id,
+        count: count,
     }));
 }
 

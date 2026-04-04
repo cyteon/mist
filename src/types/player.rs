@@ -51,7 +51,7 @@ pub struct Player {
     pub uuid: String,
     pub username: String,
 
-    pub inventory: [Option<super::items::ItemStack>; 45],
+    pub inventory: [Option<super::items::ItemStack>; 46],
     pub current_slot: i16,
 
     pub is_op: bool,
@@ -98,6 +98,9 @@ pub struct Player {
     pub loaded_entities: Vec<i32>,
 }
 
+// TODO: hunger
+// TODO: health regen
+
 impl Player {
     pub async fn new(uuid: String, username: String) -> Self {
         let mut player = Player {
@@ -105,7 +108,7 @@ impl Player {
             uuid,
             username: username.clone(),
 
-            inventory: [None; 45],
+            inventory: [None; 46],
             current_slot: 0,
 
             is_op: false,
@@ -176,7 +179,7 @@ impl Player {
         let player_save = crate::server::save::load_player(&player.uuid);
 
         if let Some(player_save) = player_save {
-            player.inventory = player_save.inventory.try_into().unwrap_or([None; 45]);
+            player.inventory = player_save.inventory.try_into().unwrap_or([None; 46]);
 
             player.is_op = player_save.is_op;
             player.gamemode = player_save.gamemode;
@@ -603,11 +606,6 @@ impl Player {
             }
 
             self.server_vy -= 0.08;
-
-            println!(
-                "vy: {}, server_vy: {}, fall_distance: {}, ignore_fall_for_ticks: {}",
-                self.vy, self.server_vy, self.fall_distance, self.ignore_fall_for_ticks
-            );
 
             if self.server_vy < 0.0 {
                 self.fall_distance += -self.server_vy;

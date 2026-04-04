@@ -23,6 +23,7 @@ pub enum ClientPacket {
     ChatCommand(std::io::Cursor<Vec<u8>>),         // 0x06 in play
     ChatMessage(std::io::Cursor<Vec<u8>>),         // 0x08 in play
     ClientStatus(std::io::Cursor<Vec<u8>>),        // 0x0B in play
+    ContainerClick(std::io::Cursor<Vec<u8>>),      // 0x11 in play
     PlayerAbilities(std::io::Cursor<Vec<u8>>),     // 0x27 in play
     PlayerAction(std::io::Cursor<Vec<u8>>),        // 0x28 in play
     SetCarriedItem(std::io::Cursor<Vec<u8>>),      // 0x34 in play
@@ -178,6 +179,8 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(
             play::serverbound::CLIENT_COMMAND => Ok(Some(ClientPacket::ClientStatus(cursor))),
 
             play::serverbound::SWING => Ok(Some(ClientPacket::SwingArm(cursor))),
+
+            play::serverbound::CONTAINER_CLICK => Ok(Some(ClientPacket::ContainerClick(cursor))),
 
             _ => Ok(None),
         },
