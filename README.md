@@ -18,7 +18,7 @@ An minecraft server implementation in rust for minecraft 1.21.11
 **World**
 - [x] Show players in tablist
 - [x] Spawning player
-- [ ] Synchronize players across all clients
+- [x] Synchronize players across all clients
 - [x] Player skins (in online mode)
 - [x] Sending chunks
 - [ ] Lighting engine
