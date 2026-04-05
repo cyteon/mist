@@ -354,13 +354,11 @@ fn load_tags() {
     let blocks: serde_json::Value =
         serde_json::from_slice(&block_bytes).expect("Failed to parse blocks.json");
 
-    let mut block_states: HashMap<String, Vec<i64>> = HashMap::new();
-    for block in blocks.as_array().unwrap() {
+    let mut block_reg_ids: HashMap<String, i64> = HashMap::new();
+    for (idx, block) in blocks.as_array().unwrap().iter().enumerate() {
         let name = block["name"].as_str().unwrap();
-        let min = block["minStateId"].as_i64().unwrap();
-        let max = block["maxStateId"].as_i64().unwrap();
 
-        block_states.insert(format!("minecraft:{}", name), (min..=max).collect());
+        block_reg_ids.insert(format!("minecraft:{}", name), idx as i64);
     }
 
     let tags = [
@@ -389,8 +387,8 @@ fn load_tags() {
                 continue;
             }
 
-            if let Some(states) = block_states.get(name) {
-                block_ids.extend(states.iter().map(|s| *s as i32));
+            if let Some(states) = block_reg_ids.get(name) {
+                block_ids.push(*states as i32);
             }
         }
 
@@ -405,9 +403,29 @@ fn load_tags() {
 
 // stuff for encoding stuff
 
+const KNOWN_TAGS: &[&str] = &[
+    "#minecraft:mineable/pickaxe",
+    "#minecraft:mineable/shovel",
+    "#minecraft:mineable/axe",
+    "#minecraft:mineable/hoe",
+];
+
 fn encode_tool_component(tool: &serde_json::Value) -> Vec<u8> {
     let mut buffer = Vec::new();
-    let rules = tool["rules"].as_array().unwrap();
+    let rules = tool["rules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|rule| {
+            let blocks = rule["blocks"].as_str().unwrap_or("");
+
+            if blocks.starts_with('#') {
+                KNOWN_TAGS.iter().any(|tag| *tag == blocks)
+            } else {
+                true
+            }
+        })
+        .collect::<Vec<_>>();
 
     write_var(&mut buffer, rules.len() as i32);
 
