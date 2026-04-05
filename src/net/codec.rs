@@ -57,6 +57,30 @@ pub fn write_string<W: WriteBytesExt + Unpin>(stream: &mut W, value: &str) -> an
     Ok(())
 }
 
+pub fn write_slot<W: WriteBytesExt + Unpin>(
+    stream: &mut W,
+    item_stack: Option<ItemStack>,
+) -> anyhow::Result<()> {
+    if let Some(item_stack) = item_stack {
+        write_var(stream, item_stack.count as i32)?;
+        write_var(stream, item_stack.item_id)?;
+
+        let components_data = crate::types::items::get_item_components(item_stack.item_id);
+
+        write_var(stream, components_data.len() as i32)?;
+        write_var(stream, 0)?;
+
+        for (t, b) in components_data {
+            write_var(stream, t)?;
+            stream.write_all(&b)?;
+        }
+    } else {
+        write_var(stream, 0)?;
+    }
+
+    Ok(())
+}
+
 // x: 26 bits z: 26 bits, y: 12 bits,
 pub fn write_position<W: WriteBytesExt + Unpin>(
     stream: &mut W,

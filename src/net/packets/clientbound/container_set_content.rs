@@ -1,4 +1,4 @@
-use crate::net::codec::write_var;
+use crate::net::codec::{write_slot, write_var};
 
 pub async fn send_container_set_content<W: tokio::io::AsyncWriteExt + Unpin>(
     stream: &mut W,
@@ -13,27 +13,11 @@ pub async fn send_container_set_content<W: tokio::io::AsyncWriteExt + Unpin>(
 
     write_var(&mut packet_data, inventory.len() as i32)?;
     for item in inventory.iter() {
-        match item {
-            Some(item_stack) => {
-                write_var(&mut packet_data, item_stack.count as i32)?;
-                write_var(&mut packet_data, item_stack.item_id)?;
-
-                packet_data.push(0x00);
-                packet_data.push(0x00);
-            }
-
-            None => {
-                write_var(&mut packet_data, 0)?; // empty item stack
-            }
-        }
+        write_slot(&mut packet_data, *item)?;
     }
 
-    if let Some(carried) = carried_item {
-        write_var(&mut packet_data, carried.count as i32)?;
-        write_var(&mut packet_data, carried.item_id)?;
-
-        packet_data.push(0x00);
-        packet_data.push(0x00);
+    if let Some(_) = carried_item {
+        write_slot(&mut packet_data, carried_item)?;
     } else {
         write_var(&mut packet_data, 0)?;
     }

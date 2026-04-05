@@ -12,3 +12,4 @@ mod items {
 }
 
 include!(concat!(env!("OUT_DIR"), "/item_to_block.rs"));
+include!(concat!(env!("OUT_DIR"), "/item_components.rs"));

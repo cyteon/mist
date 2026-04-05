@@ -1,4 +1,4 @@
-use crate::net::codec::write_var;
+use crate::net::codec::{write_slot, write_var};
 use byteorder::{BigEndian, WriteBytesExt};
 
 pub async fn send_container_set_slot<W: tokio::io::AsyncWriteExt + Unpin>(
@@ -15,11 +15,7 @@ pub async fn send_container_set_slot<W: tokio::io::AsyncWriteExt + Unpin>(
 
     match item_stack {
         Some(item_stack) => {
-            write_var(&mut packet_data, item_stack.count as i32)?;
-            write_var(&mut packet_data, item_stack.item_id)?;
-
-            packet_data.push(0x00);
-            packet_data.push(0x00);
+            write_slot(&mut packet_data, Some(item_stack))?;
         }
 
         None => {
