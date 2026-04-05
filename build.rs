@@ -210,7 +210,7 @@ fn load_item_to_block() {
 
     for (ik, iv) in items["entries"].as_object().unwrap() {
         let item_id = iv["protocol_id"].as_i64().unwrap() as i32;
-        let block_name = ik.replace("minecraft:", "minecraft:").replace("_", " ");
+        let block_name = ik.replace("minecraft:", "");
         let block_id = blocks
             .as_array()
             .unwrap()
