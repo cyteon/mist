@@ -27,8 +27,6 @@ pub async fn send_container_set_slot<W: tokio::io::AsyncWriteExt + Unpin>(
         }
     }
 
-    write_var(&mut packet_data, 0)?;
-
     stream.write_all(&packet_data).await?;
     stream.flush().await?;
 

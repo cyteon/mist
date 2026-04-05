@@ -45,9 +45,9 @@ pub enum Gamemode {
     Spectator,
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub enum WindowType {
-    CraftingTable([(usize, usize); 9]),
+    CraftingTable([Option<crate::types::items::ItemStack>; 10]),
 }
 
 #[derive(Clone)]

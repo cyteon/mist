@@ -59,9 +59,8 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
 
                 crate::net::packets::clientbound::open_screen::send_open_screen(
                     &mut buffer,
-                    player.new_window_id(crate::types::player::WindowType::CraftingTable(
-                        [(0, 0); 9],
-                    )),
+                    player
+                        .new_window_id(crate::types::player::WindowType::CraftingTable([None; 10])),
                     12,
                     "Crafting",
                 )
