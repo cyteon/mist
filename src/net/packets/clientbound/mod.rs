@@ -37,3 +37,4 @@ pub mod spawn_entity;
 pub mod status_response;
 pub mod sync_player_position;
 pub mod system_chat_message;
+pub mod update_tags;

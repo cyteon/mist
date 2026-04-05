@@ -10,6 +10,7 @@ fn main() {
     load_item_to_block();
     load_recipes();
     encode_item_components();
+    load_tags();
 }
 
 fn load_packets() {
@@ -342,6 +343,63 @@ fn encode_item_components() {
     out.push_str("}\n");
 
     let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("item_components.rs");
+    fs::write(out_path, out).unwrap();
+}
+
+fn load_tags() {
+    let manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let blocks_json_path = Path::new(&manifest).join("src/assets/blocks.json");
+
+    let block_bytes = fs::read(&blocks_json_path).expect("Failed to read blocks.json");
+    let blocks: serde_json::Value =
+        serde_json::from_slice(&block_bytes).expect("Failed to parse blocks.json");
+
+    let mut block_states: HashMap<String, Vec<i64>> = HashMap::new();
+    for block in blocks.as_array().unwrap() {
+        let name = block["name"].as_str().unwrap();
+        let min = block["minStateId"].as_i64().unwrap();
+        let max = block["maxStateId"].as_i64().unwrap();
+
+        block_states.insert(format!("minecraft:{}", name), (min..=max).collect());
+    }
+
+    let tags = [
+        ("pickaxe", "minecraft:mineable/pickaxe"),
+        ("shovel", "minecraft:mineable/shovel"),
+        ("axe", "minecraft:mineable/axe"),
+        ("hoe", "minecraft:mineable/hoe"),
+    ];
+
+    let mut out = String::new();
+    out.push_str("pub static BLOCK_TAGS: &[(&str, &[i32])] = &[\n");
+
+    for (file, tag) in tags {
+        let tag_path = Path::new(&manifest).join(format!("src/assets/tags/{}.json", file));
+        println!("cargo:rerun-if-changed={}", tag_path.display());
+
+        let tag_bytes = fs::read(&tag_path).unwrap();
+        let tag_json: serde_json::Value = serde_json::from_slice(&tag_bytes).unwrap();
+
+        let mut block_ids = Vec::new();
+
+        for value in tag_json["values"].as_array().unwrap() {
+            let name = value.as_str().unwrap();
+
+            if name.starts_with("#") {
+                continue;
+            }
+
+            if let Some(states) = block_states.get(name) {
+                block_ids.extend(states.iter().map(|s| *s as i32));
+            }
+        }
+
+        out.push_str(&format!("    (\"{}\", &{:?}),\n", tag, block_ids));
+    }
+
+    out.push_str("];\n");
+
+    let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("tags.rs");
     fs::write(out_path, out).unwrap();
 }
 

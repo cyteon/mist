@@ -10,7 +10,7 @@ use crate::{
             clientbound::{
                 finish_configuration::send_finish_configuration, known_packs::send_known_packs,
                 login_play::send_login_play, plugin_message::send_plugin_message,
-                registry_data::send_all_registers,
+                registry_data::send_all_registers, update_tags::send_update_tags,
             },
             serverbound::known_packs::read_known_packs,
         },
@@ -59,10 +59,15 @@ pub async fn configuration(
                     );
 
                     send_all_registers(&mut socket).await?;
-
                     crate::log::log(
                         LogLevel::Debug,
                         format!("Sent registry data to {}", player.username).as_str(),
+                    );
+
+                    send_update_tags(&mut socket).await?;
+                    crate::log::log(
+                        LogLevel::Debug,
+                        format!("Sent tags to {}", player.username).as_str(),
                     );
 
                     let mut buffer = Vec::new();
