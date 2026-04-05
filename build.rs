@@ -82,27 +82,66 @@ fn load_blocks() {
 
     let bytes = fs::read(&json_path).expect("Failed to read blocks.json");
 
-    let json: HashMap<String, serde_json::Value> =
+    let json: serde_json::Value =
         serde_json::from_slice(&bytes).expect("Failed to parse blocks.json");
 
     let mut out = String::new();
 
-    for (key, block) in json {
-        let default_state = block["states"]
+    for block in json.as_array().unwrap() {
+        out.push_str(&format!(
+            "pub const {}: u16 = {};\n",
+            block["name"].as_str().unwrap().to_uppercase(),
+            block["defaultState"].as_i64().unwrap()
+        ));
+    }
+
+    out.push_str("\npub fn get_block_drops(block_id: u16) -> &'static [i32] {\n");
+    out.push_str("    match block_id {\n");
+
+    for block in json.as_array().unwrap() {
+        let block_id = block["defaultState"].as_i64().unwrap();
+        let drops = block["drops"]
             .as_array()
             .unwrap()
             .iter()
-            .find(|state| state["default"].as_bool().unwrap_or(false))
-            .expect("Block is missing a default state");
+            .map(|item| item.as_i64().unwrap() as i32)
+            .collect::<Vec<_>>();
 
-        out.push_str(&format!(
-            "pub const {}: u16 = {};\n",
-            key.to_uppercase()
-                .replace("MINECRAFT:", "")
-                .replace("/", "_"),
-            default_state["id"].as_u64().unwrap()
-        ));
+        out.push_str(&format!("        {} => &{:?},\n", block_id, drops));
     }
+
+    out.push_str("        _ => &[],\n");
+    out.push_str("    }\n");
+    out.push_str("}\n");
+
+    out.push_str("\npub fn is_correct_tool(block_id: u16, item_id: i32) -> bool {\n");
+    out.push_str("    match block_id {\n");
+
+    for block in json.as_array().unwrap() {
+        let block_id = block["defaultState"].as_i64().unwrap();
+
+        if let Some(tools) = block["harvestTools"].as_object() {
+            if !tools.is_empty() {
+                let tool_ids: Vec<&str> = tools.keys().map(|k| k.as_str()).collect();
+
+                out.push_str(&format!(
+                    "        {} => matches!(item_id, {}),\n",
+                    block_id,
+                    tool_ids
+                        .iter()
+                        .map(|id| format!("{}", id))
+                        .collect::<Vec<_>>()
+                        .join(" | ")
+                ));
+            } else {
+                out.push_str(&format!("        {} => false,\n", block_id));
+            }
+        }
+    }
+
+    out.push_str("        _ => true,\n");
+    out.push_str("    }\n");
+    out.push_str("}\n");
 
     let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("blocks.rs");
     fs::write(out_path, out).unwrap();
@@ -158,7 +197,7 @@ fn load_item_to_block() {
     let block_bytes = fs::read(&blocks_json_path).expect("Failed to read blocks.json");
     let item_bytes = fs::read(&items_json_path).expect("Failed to read items.json");
 
-    let blocks: HashMap<String, serde_json::Value> =
+    let blocks: serde_json::Value =
         serde_json::from_slice(&block_bytes).expect("Failed to parse blocks.json");
     let items: HashMap<String, serde_json::Value> =
         serde_json::from_slice(&item_bytes).expect("Failed to parse items.json");
@@ -168,43 +207,18 @@ fn load_item_to_block() {
     out.push_str("    match item_id {\n");
 
     for (ik, iv) in items["entries"].as_object().unwrap() {
-        if let Some(block) = blocks.get(ik) {
-            let default_state = block["states"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|state| state["default"].as_bool().unwrap_or(false))
-                .expect("Block is missing a default state");
+        let item_id = iv["protocol_id"].as_i64().unwrap() as i32;
+        let block_name = ik.replace("minecraft:", "minecraft:").replace("_", " ");
+        let block_id = blocks
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|b| b["name"].as_str().unwrap() == block_name)
+            .and_then(|b| b["defaultState"].as_i64())
+            .unwrap_or(-1) as u16;
 
-            out.push_str(&format!(
-                "        {} => Some({}),\n",
-                iv["protocol_id"].as_u64().unwrap(),
-                default_state["id"].as_u64().unwrap()
-            ));
-        }
-    }
-
-    out.push_str("        _ => None,\n");
-    out.push_str("    }\n");
-    out.push_str("}\n");
-
-    out.push_str("pub fn block_to_item_id(block_id: i32) -> Option<u16> {\n");
-    out.push_str("    match block_id {\n");
-
-    for (ik, iv) in items["entries"].as_object().unwrap() {
-        if let Some(block) = blocks.get(ik) {
-            let default_state = block["states"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|state| state["default"].as_bool().unwrap_or(false))
-                .expect("Block is missing a default state");
-
-            out.push_str(&format!(
-                "        {} => Some({}),\n",
-                default_state["id"].as_u64().unwrap(),
-                iv["protocol_id"].as_u64().unwrap()
-            ));
+        if block_id != u16::MAX {
+            out.push_str(&format!("        {} => Some({}),\n", item_id, block_id));
         }
     }
 

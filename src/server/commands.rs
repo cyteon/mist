@@ -58,7 +58,12 @@ pub async fn handle_command(command: String, player: &mut Player) -> anyhow::Res
                 return Ok(());
             }
 
-            let item_name = command_parts[1];
+            let mut item_name = command_parts[1].to_lowercase();
+
+            if !item_name.starts_with("minecraft:") {
+                item_name = format!("minecraft:{}", item_name);
+            }
+
             let amount: i32 = match command_parts[2].parse() {
                 Ok(num) => num,
                 Err(_) => {
@@ -73,7 +78,7 @@ pub async fn handle_command(command: String, player: &mut Player) -> anyhow::Res
                 .send_system_message(format!("{}Giving you {} of {}", GREEN, amount, item_name))
                 .await?;
 
-            let item_id = crate::types::items::get_item_id(item_name);
+            let item_id = crate::types::items::get_item_id(&item_name);
             player.give_item(item_id, amount).await?;
         }
 

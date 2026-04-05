@@ -41,22 +41,29 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(
             .find(|chunk| chunk.x == chunk_pos.0 && chunk.z == chunk_pos.1)
         {
             if player.gamemode as u8 != 1 {
-                crate::types::entity::spawn_item_drop(
-                    crate::types::items::ItemStack {
-                        item_id: crate::types::items::block_to_item_id(chunk.get_block(
-                            (x & 15) as u8,
-                            y,
-                            (z & 15) as u8,
-                        )
-                            as i32)
-                        .unwrap_or(0) as i32,
-                        count: 1,
-                    },
-                    None,
-                    x as f64 + 0.5,
-                    y as f64 + 0.5,
-                    z as f64 + 0.5,
-                );
+                let block = chunk.get_block((x & 15) as u8, y as i32, (z & 15) as u8);
+
+                let current_item = player.inventory[player.current_slot as usize + 36]
+                    .as_ref()
+                    .map(|s| s.item_id)
+                    .unwrap_or(0);
+
+                if crate::types::blocks::is_correct_tool(block, current_item) {
+                    let drops = crate::types::blocks::get_block_drops(block);
+
+                    for id in drops {
+                        crate::types::entity::spawn_item_drop(
+                            crate::types::items::ItemStack {
+                                item_id: *id,
+                                count: 1,
+                            },
+                            None,
+                            x as f64 + 0.5,
+                            y as f64 + 0.5,
+                            z as f64 + 0.5,
+                        );
+                    }
+                }
             }
 
             chunk.set_block((x & 15) as u8, y, (z & 15) as u8, 0);
