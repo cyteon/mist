@@ -349,10 +349,16 @@ fn encode_item_components() {
 fn load_tags() {
     let manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
     let blocks_json_path = Path::new(&manifest).join("src/assets/blocks.json");
+    let registries_json_path = Path::new(&manifest).join("src/assets/registries.json");
 
     let block_bytes = fs::read(&blocks_json_path).expect("Failed to read blocks.json");
+    let registries_bytes = fs::read(&registries_json_path).expect("Failed to read registries.json");
+
     let blocks: serde_json::Value =
         serde_json::from_slice(&block_bytes).expect("Failed to parse blocks.json");
+
+    let registries: HashMap<String, serde_json::Value> =
+        serde_json::from_slice(&registries_bytes).expect("Failed to parse registries.json");
 
     let mut block_reg_ids: HashMap<String, i64> = HashMap::new();
     for (idx, block) in blocks.as_array().unwrap().iter().enumerate() {
@@ -361,38 +367,126 @@ fn load_tags() {
         block_reg_ids.insert(format!("minecraft:{}", name), idx as i64);
     }
 
-    let tags = [
-        ("pickaxe", "minecraft:mineable/pickaxe"),
-        ("shovel", "minecraft:mineable/shovel"),
-        ("axe", "minecraft:mineable/axe"),
-        ("hoe", "minecraft:mineable/hoe"),
+    let mut damage_type_reg_ids: HashMap<String, i64> = HashMap::new();
+    for (idx, key) in registries["damage_type"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .enumerate()
+    {
+        damage_type_reg_ids.insert(format!("minecraft:{}", key), idx as i64);
+    }
+
+    let mut banner_pattern_ids: HashMap<String, i64> = HashMap::new();
+    for (idx, key) in registries["banner_pattern"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .enumerate()
+    {
+        banner_pattern_ids.insert(format!("minecraft:{}", key), idx as i64);
+    }
+
+    let configs: &[(&str, &str, &HashMap<String, i64>)] = &[
+        ("minecraft:block", "src/assets/tags/block", &block_reg_ids),
+        (
+            "minecraft:damage_type",
+            "src/assets/tags/damage_type",
+            &damage_type_reg_ids,
+        ),
+        (
+            "minecraft:banner_pattern",
+            "src/assets/tags/banner_pattern",
+            &banner_pattern_ids,
+        ),
     ];
 
     let mut out = String::new();
-    out.push_str("pub static BLOCK_TAGS: &[(&str, &[i32])] = &[\n");
+    out.push_str("pub static TAGS: &[(&str, &[(&str, &[i32])])] = &[\n");
 
-    for (file, tag) in tags {
-        let tag_path = Path::new(&manifest).join(format!("src/assets/tags/{}.json", file));
-        println!("cargo:rerun-if-changed={}", tag_path.display());
+    for (name, dir, reg_ids) in configs {
+        let dir_path = Path::new(&manifest).join(dir);
+        println!("cargo:rerun-if-changed={}", dir_path.display());
 
-        let tag_bytes = fs::read(&tag_path).unwrap();
-        let tag_json: serde_json::Value = serde_json::from_slice(&tag_bytes).unwrap();
+        let mut tags = Vec::new();
 
-        let mut block_ids = Vec::new();
+        if let Ok(entries) = fs::read_dir(&dir_path) {
+            let mut paths: Vec<_> = entries.flatten().map(|e| e.path()).collect();
+            paths.sort();
 
-        for value in tag_json["values"].as_array().unwrap() {
-            let name = value.as_str().unwrap();
+            for path in paths {
+                if path.is_dir() {
+                    let subdir_name = path.file_name().unwrap().to_str().unwrap();
 
-            if name.starts_with("#") {
-                continue;
-            }
+                    if let Ok(subentries) = fs::read_dir(&path) {
+                        let mut subpaths: Vec<_> = subentries.flatten().map(|e| e.path()).collect();
+                        subpaths.sort();
 
-            if let Some(states) = block_reg_ids.get(name) {
-                block_ids.push(*states as i32);
+                        for subpath in subpaths {
+                            let file_name = subpath.file_name().unwrap().to_str().unwrap();
+                            let tag_name = format!(
+                                "minecraft:{}/{}",
+                                subdir_name,
+                                file_name.strip_suffix(".json").unwrap()
+                            );
+
+                            let bytes = fs::read(&subpath).expect("Failed to read tag file");
+                            let json: serde_json::Value =
+                                serde_json::from_slice(&bytes).expect("Failed to parse tag file");
+
+                            let mut ids = Vec::new();
+
+                            for value in json["values"].as_array().unwrap() {
+                                let name = value.as_str().unwrap_or("");
+
+                                if name.starts_with('#') {
+                                    // todo: nested tags
+                                    continue;
+                                }
+
+                                if let Some(&id) = reg_ids.get(name) {
+                                    ids.push(id as i32);
+                                }
+                            }
+
+                            tags.push((tag_name, ids));
+                        }
+                    }
+                } else {
+                    let file_name = path.file_name().unwrap().to_str().unwrap();
+                    let tag_name =
+                        format!("minecraft:{}", file_name.strip_suffix(".json").unwrap());
+
+                    let bytes = fs::read(&path).expect("Failed to read tag file");
+                    let json: serde_json::Value =
+                        serde_json::from_slice(&bytes).expect("Failed to parse tag file");
+
+                    let mut ids = Vec::new();
+
+                    for value in json["values"].as_array().unwrap() {
+                        let name = value.as_str().unwrap_or("");
+
+                        if name.starts_with('#') {
+                            continue;
+                        }
+
+                        if let Some(&id) = reg_ids.get(name) {
+                            ids.push(id as i32);
+                        }
+                    }
+
+                    tags.push((tag_name, ids));
+                }
             }
         }
 
-        out.push_str(&format!("    (\"{}\", &{:?}),\n", tag, block_ids));
+        out.push_str(&format!("    (\"{}\", &[\n", name));
+
+        for (tag_name, ids) in tags {
+            out.push_str(&format!("        (\"{}\", &{:?}),\n", tag_name, ids));
+        }
+
+        out.push_str("    ]),\n");
     }
 
     out.push_str("];\n");
