@@ -263,8 +263,6 @@ impl Player {
             on_ground: player.on_ground,
         };
 
-        println!("Player {} has entity id {}", player.username, entity.id);
-
         crate::types::entity::ENTITIES
             .write()
             .await

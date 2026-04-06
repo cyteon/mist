@@ -1,6 +1,6 @@
 [package]
 name = "mist"
-version = "0.0.0-1.21.11"
+version = "0.0.0-26.1"
 edition = "2024"
 
 [dependencies]
