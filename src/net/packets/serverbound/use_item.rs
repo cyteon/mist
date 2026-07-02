@@ -1,9 +1,8 @@
 use tokio::io::AsyncReadExt;
 
 use crate::{
-    net::codec::{read_position, read_var},
+    net::codec::read_var,
     types::{items::get_food_data, player::Player},
-    world::get_region,
 };
 
 pub async fn read_use_item<R: AsyncReadExt + Unpin>(
