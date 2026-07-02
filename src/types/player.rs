@@ -69,6 +69,12 @@ pub struct Player {
     pub health: f32,
     pub hunger: i32,
     pub saturation: f32,
+    pub stats_changed: bool,
+
+    pub exhaustion: f32, // resets to 0 and drains hunger when it hits 4
+    pub regen_timer: u32,
+    pub starvation_timer: u32,
+    // todo: food poisoning
     pub dead: bool,
     pub ignore_fall_for_ticks: u32,
 
@@ -111,6 +117,14 @@ pub struct Player {
 // TODO: health regen
 
 impl Player {
+    const EX_SPRINT: f32 = 0.1;
+    const EX_JUMP: f32 = 0.05;
+    const EX_SPRINT_JUMP: f32 = 0.2;
+    const EX_SWIM: f32 = 0.01;
+    const EX_ATTACK: f32 = 0.1;
+    const EX_DAMAGE_TAKEN: f32 = 0.1;
+    const EX_HEART_REGEN: f32 = 6.0;
+
     pub async fn new(uuid: String, username: String) -> Self {
         let mut player = Player {
             id: super::entity::next_entity_id(),
@@ -145,6 +159,11 @@ impl Player {
             health: 20.0,
             hunger: 20,
             saturation: 5.0,
+            stats_changed: false,
+
+            exhaustion: 0.0,
+            regen_timer: 0,
+            starvation_timer: 0,
 
             shared_secret: None,
             textures: None,
@@ -461,6 +480,7 @@ impl Player {
         source_type_id: i32,
         source_cause_id: i32,
         source_direct_id: i32,
+        skip_exhaustion: bool,
     ) -> anyhow::Result<()> {
         self.health -= amount as f32;
         let tx = crate::server::conn::PLAYER_SOCKET_MAP
@@ -481,7 +501,11 @@ impl Player {
         .await?;
         let _ = tx.send(buffer);
 
-        self.sync_player_health().await?;
+        if !skip_exhaustion {
+            self.add_exhaustion(Player::EX_DAMAGE_TAKEN).await;
+        }
+
+        self.stats_changed = true;
 
         if self.health <= 0.0 {
             self.health = 0.0;
@@ -559,9 +583,55 @@ impl Player {
         Ok(())
     }
 
+    pub async fn add_exhaustion(&mut self, amount: f32) {
+        if self.gamemode != Gamemode::Survival {
+            return;
+        }
+
+        self.exhaustion += amount;
+
+        while self.exhaustion >= 4.0 {
+            self.exhaustion -= 4.0;
+
+            if self.saturation > 0.0 {
+                self.saturation = (self.saturation - 1.0).max(0.0);
+            } else {
+                self.hunger = (self.hunger - 1).max(0);
+            }
+
+            self.stats_changed = true;
+        }
+    }
+
     pub async fn tick(&mut self) -> anyhow::Result<()> {
         if self.dead || !self.initial_sync_done {
             return Ok(());
+        }
+
+        if self.gamemode == Gamemode::Survival {
+            self.regen_timer = (self.regen_timer + 1).min(80);
+            self.starvation_timer = (self.starvation_timer + 1).min(80);
+
+            if self.hunger < 6 {
+                self.movement.sprinting = false;
+            }
+
+            if self.hunger >= 18 && self.health < 20.0 && self.regen_timer >= 80 {
+                self.regen_timer = 0;
+                self.health = (self.health + 1.0).min(20.0);
+                self.add_exhaustion(Player::EX_HEART_REGEN).await;
+                self.stats_changed = true;
+            }
+
+            if self.hunger == 0 && self.starvation_timer >= 80 {
+                self.starvation_timer = 0;
+                self.damage(1, 40, 0, 0, true).await?;
+            }
+
+            println!(
+                "Player {} hunger: {}, health: {}, exhaustion: {}, saturation: {}",
+                self.username, self.hunger, self.health, self.exhaustion, self.saturation
+            );
         }
 
         let mut move_x = 0.0;
@@ -595,6 +665,10 @@ impl Player {
                 move_z *= 0.3;
             }
 
+            if self.movement.sprinting && !self.movement.sneaking {
+                self.add_exhaustion(Player::EX_SPRINT * speed as f32).await;
+            }
+
             let yaw_rad = (self.yaw as f64).to_radians();
 
             self.vx = move_x * yaw_rad.cos() - move_z * yaw_rad.sin();
@@ -621,6 +695,12 @@ impl Player {
             if self.movement.jumping && !self.jump_applied {
                 self.server_vy = 0.42;
                 self.jump_applied = true;
+
+                if self.movement.sprinting {
+                    self.add_exhaustion(Player::EX_SPRINT_JUMP).await;
+                } else {
+                    self.add_exhaustion(Player::EX_JUMP).await;
+                }
             }
 
             self.server_vy -= 0.08;
@@ -636,7 +716,7 @@ impl Player {
                 && self.fall_distance > 3.0
             {
                 let damage = (self.fall_distance - 3.0).ceil() as i32;
-                self.damage(damage, 10, 0, 0).await?;
+                self.damage(damage, 10, 0, 0, false).await?;
             }
 
             self.fall_distance = 0.0;
@@ -647,7 +727,7 @@ impl Player {
         // void damage
         if self.y < -64.0 && self.gamemode == Gamemode::Survival && self.ignore_fall_for_ticks <= 0
         {
-            self.damage(2, 32, 0, 0).await?;
+            self.damage(2, 32, 0, 0, false).await?;
         }
 
         self.ignore_fall_for_ticks = self.ignore_fall_for_ticks.saturating_sub(1);
@@ -655,6 +735,11 @@ impl Player {
         if self.ignore_fall_for_ticks > 0 {
             self.fall_distance = 0.0;
             self.server_vy = 0.0;
+        }
+
+        if self.stats_changed {
+            self.sync_player_health().await?;
+            self.stats_changed = false;
         }
 
         if !self.chunks_loaded {
