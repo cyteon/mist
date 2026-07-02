@@ -13,7 +13,7 @@ An minecraft server implementation in rust for minecraft 1.21.11
 - [x] Enter play state
 - [x] Chat messages
 - [x] Basic commands
-- [ ] Extensive commands
+- [ ] Command framework
 
 **World**
 - [x] Show players in tablist

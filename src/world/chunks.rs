@@ -253,7 +253,6 @@ impl BlockStorage {
 
     pub fn resize_and_repack(&mut self, new_bits_per_block: u8) {
         let old_bits = self.bits_per_block as usize;
-        let new_bits = new_bits_per_block as usize;
 
         // 16x16x16 = 4096 blocks per section
         let mut indices = Vec::with_capacity(4096);
@@ -261,8 +260,8 @@ impl BlockStorage {
             indices.push(self.get_palette_index(i, old_bits));
         }
 
-        let total_bits = 4096 * new_bits;
-        let new_size = (total_bits + 63) / 64;
+        let entries_per_long = 64 / new_bits_per_block as usize;
+        let new_size = (4096 + entries_per_long - 1) / entries_per_long;
 
         self.data = vec![0i64; new_size];
         self.bits_per_block = new_bits_per_block;
@@ -277,18 +276,12 @@ impl BlockStorage {
             return 0;
         }
 
-        let bit_idx = idx * bits;
-        let data_idx = bit_idx / 64;
-        let bit_offset = bit_idx % 64;
+        let entries_per_long = 64 / bits;
+        let data_idx = idx / entries_per_long;
+        let bit_offset = (idx % entries_per_long) * bits;
         let mask = (1i64 << bits) - 1;
 
-        let mut value = (self.data[data_idx] >> bit_offset) & mask;
-
-        if bit_offset + bits > 64 {
-            let extra_bits = bit_offset + bits - 64;
-            value |= (self.data[data_idx + 1] & ((1i64 << extra_bits) - 1)) << (bits - extra_bits);
-        }
-
+        let value = (self.data[data_idx] >> bit_offset) & mask;
         value as u16
     }
 
@@ -298,20 +291,15 @@ impl BlockStorage {
         }
 
         let bits = self.bits_per_block as usize;
-        let bit_idx = idx * bits;
-        let data_idx = bit_idx / 64;
-        let bit_offset = bit_idx % 64;
-        let mask = (1i64 << bits) - 1;
+        let entries_per_long = 64 / bits;
+        let data_idx = idx / entries_per_long;
+        let bit_offset = (idx % entries_per_long) * bits;
+        let mask = (1u64 << bits) - 1;
 
-        self.data[data_idx] &= !(mask << bit_offset);
-        self.data[data_idx] |= ((palette_index as i64) & mask) << bit_offset;
-
-        if bit_offset + bits > 64 {
-            let extra_bits = bit_offset + bits - 64;
-            let extra_mask = (1i64 << extra_bits) - 1;
-            self.data[data_idx + 1] &= !extra_mask;
-            self.data[data_idx + 1] |= (palette_index as i64 >> (bits - extra_bits)) & extra_mask;
-        }
+        let mut long = self.data[data_idx] as u64;
+        long &= !(mask << bit_offset) - 1;
+        long |= (palette_index as u64 & mask) << bit_offset;
+        self.data[data_idx] = long as i64;
     }
 
     pub fn write_paletted_container<W: WriteBytesExt + Unpin>(
@@ -337,7 +325,26 @@ impl BlockStorage {
             }
 
             15 => {
-                todo!("Direct palette storage not implemented");
+                let entries_per_long = 64 / 15;
+                let mask = (1i64 << 15) - 1;
+
+                for i in 0..4096 {
+                    let mut long = 0u64;
+
+                    for j in 0..entries_per_long {
+                        let idx = i + j;
+
+                        if idx >= 4096 {
+                            break;
+                        }
+
+                        let palette_idx = self.get_palette_index(idx, 15);
+                        let global = self.palette[palette_idx as usize] as u64;
+                        long |= (global & mask as u64) << (j * 15);
+                    }
+
+                    writer.write_i64::<BigEndian>(long as i64)?;
+                }
             }
 
             _ => {
