@@ -7,6 +7,7 @@ use crate::{
         container_set_content::send_container_set_content,
         container_set_slot::send_container_set_slot,
         damage_event::send_damage_event,
+        entity_event::send_entity_event,
         game_event::{GameEvent, send_game_event},
         level_chunk_with_light::send_level_chunk_with_light,
         player_info_update::{PlayerAction, send_player_info_update},
@@ -639,14 +640,24 @@ impl Player {
         if self.eating_ticks_left > 0 {
             self.eating_ticks_left -= 1;
 
-            println!("Eating ticks left: {}", self.eating_ticks_left);
-
             if self.eating_ticks_left == 0 {
                 if let Some(item) = self.inventory[self.eating_slot as usize + 36].take() {
                     if let Some(food_data) = get_food_data(item.item_id) {
                         self.hunger = (self.hunger + food_data.0).min(20);
                         self.saturation = (self.saturation + food_data.1).min(self.hunger as f32);
                         self.stats_changed = true;
+
+                        let tx = crate::server::conn::PLAYER_SOCKET_MAP
+                            .read()
+                            .await
+                            .get(&self.uuid)
+                            .unwrap()
+                            .clone();
+
+                        let mut buffer = Vec::new();
+                        send_entity_event(&mut buffer, self.id, 9).await?;
+
+                        let _ = tx.send(buffer);
 
                         if item.count > 1 {
                             self.inventory[self.eating_slot as usize + 36] =

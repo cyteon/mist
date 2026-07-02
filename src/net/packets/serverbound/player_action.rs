@@ -2,6 +2,7 @@ use tokio::io::AsyncReadExt;
 
 use crate::{
     net::codec::{read_position, read_var},
+    types::player::Gamemode,
     world::get_region,
 };
 
@@ -11,7 +12,7 @@ pub enum ActionStatus {
     FinishedDigging = 2,
     DropItemStack = 3,
     DropItem = 4,
-    //ShootArrowFinishEating = 5,
+    ShootArrowFinishEating = 5,
     //SwapItemInHand = 6,
 }
 
@@ -26,7 +27,15 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(
     let _face = stream.read_u8().await?;
     let sequence = read_var(stream).await?;
 
-    let instant_dig = status == ActionStatus::StartedDigging as u32 && player.gamemode as u8 == 1;
+    if status == ActionStatus::ShootArrowFinishEating as u32 {
+        player.eating_ticks_left = 0;
+        player.eating_slot = 0;
+
+        return Ok(());
+    }
+
+    let instant_dig =
+        status == ActionStatus::StartedDigging as u32 && player.gamemode == Gamemode::Creative;
 
     if instant_dig || status == ActionStatus::FinishedDigging as u32 {
         let chunk_pos = (x.div_euclid(16), z.div_euclid(16));
@@ -40,7 +49,7 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(
             .iter_mut()
             .find(|chunk| chunk.x == chunk_pos.0 && chunk.z == chunk_pos.1)
         {
-            if player.gamemode as u8 != 1 {
+            if player.gamemode != Gamemode::Creative {
                 let block = chunk.get_block((x & 15) as u8, y as i32, (z & 15) as u8);
 
                 let current_item = player.inventory[player.current_slot as usize + 36]

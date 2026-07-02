@@ -7,6 +7,7 @@ pub mod container_set_slot;
 pub mod damage_event;
 pub mod disconnect;
 pub mod encryption_request;
+pub mod entity_event;
 pub mod entity_position_sync;
 pub mod finish_configuration;
 pub mod game_event;
