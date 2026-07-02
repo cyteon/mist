@@ -30,6 +30,7 @@ pub enum ClientPacket {
     SetCarriedItem(std::io::Cursor<Vec<u8>>),      // 0x34 in play
     SetCreativeModeSlot(std::io::Cursor<Vec<u8>>), // 0x37 in play
     UseItemOn(std::io::Cursor<Vec<u8>>),           // 0x3F in play
+    UseItem(std::io::Cursor<Vec<u8>>),             // 0x40 in play
     SetPlayerPosition(std::io::Cursor<Vec<u8>>),   // 0x1D in play
     SetPlayerPositionAndRotation(std::io::Cursor<Vec<u8>>), // 0x1E in play
     PlayerInput(std::io::Cursor<Vec<u8>>),         // 0x2A in play
@@ -158,6 +159,8 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(
             play::serverbound::PLAYER_ACTION => Ok(Some(ClientPacket::PlayerAction(cursor))),
 
             play::serverbound::USE_ITEM_ON => Ok(Some(ClientPacket::UseItemOn(cursor))),
+
+            play::serverbound::USE_ITEM => Ok(Some(ClientPacket::UseItem(cursor))),
 
             play::serverbound::MOVE_PLAYER_POS => Ok(Some(ClientPacket::SetPlayerPosition(cursor))),
 

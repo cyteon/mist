@@ -33,7 +33,7 @@ use crate::{
                 set_player_position::read_set_player_position,
                 set_player_position_and_rotation::read_set_player_position_and_rotation,
                 set_player_rotation::read_set_player_rotation, swing_arm::read_swing_arm,
-                use_item_on::read_use_item_on,
+                use_item::read_use_item, use_item_on::read_use_item_on,
             },
         },
     },
@@ -335,6 +335,12 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                     let players_locked = PLAYERS.read().await;
                     let mut player = players_locked.get(&uuid).unwrap().lock().await;
                     read_use_item_on(&mut cursor, &mut player).await?;
+                }
+
+                ClientPacket::UseItem(mut cursor) => {
+                    let players_locked = PLAYERS.read().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    read_use_item(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::ChatCommand(mut cursor) => {

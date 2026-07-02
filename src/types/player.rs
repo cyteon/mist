@@ -19,6 +19,7 @@ use crate::{
         sync_player_position::send_sync_player_position,
         system_chat_message::send_system_chat_message,
     },
+    types::items::get_food_data,
     world::{get_chunk, get_region},
 };
 
@@ -70,6 +71,9 @@ pub struct Player {
     pub hunger: i32,
     pub saturation: f32,
     pub stats_changed: bool,
+
+    pub eating_ticks_left: u32,
+    pub eating_slot: i16,
 
     pub exhaustion: f32, // resets to 0 and drains hunger when it hits 4
     pub regen_timer: u32,
@@ -160,6 +164,9 @@ impl Player {
             hunger: 20,
             saturation: 5.0,
             stats_changed: false,
+
+            eating_ticks_left: 0,
+            eating_slot: 0,
 
             exhaustion: 0.0,
             regen_timer: 0,
@@ -627,11 +634,32 @@ impl Player {
                 self.starvation_timer = 0;
                 self.damage(1, 40, 0, 0, true).await?;
             }
+        }
 
-            println!(
-                "Player {} hunger: {}, health: {}, exhaustion: {}, saturation: {}",
-                self.username, self.hunger, self.health, self.exhaustion, self.saturation
-            );
+        if self.eating_ticks_left > 0 {
+            self.eating_ticks_left -= 1;
+
+            println!("Eating ticks left: {}", self.eating_ticks_left);
+
+            if self.eating_ticks_left == 0 {
+                if let Some(item) = self.inventory[self.eating_slot as usize + 36].take() {
+                    if let Some(food_data) = get_food_data(item.item_id) {
+                        self.hunger = (self.hunger + food_data.0).min(20);
+                        self.saturation = (self.saturation + food_data.1).min(self.hunger as f32);
+                        self.stats_changed = true;
+
+                        if item.count > 1 {
+                            self.inventory[self.eating_slot as usize + 36] =
+                                Some(crate::types::items::ItemStack {
+                                    item_id: item.item_id,
+                                    count: item.count - 1,
+                                });
+                        }
+
+                        self.sync_player_inventory().await?;
+                    }
+                }
+            }
         }
 
         let mut move_x = 0.0;

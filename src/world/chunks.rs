@@ -297,7 +297,7 @@ impl BlockStorage {
         let mask = (1u64 << bits) - 1;
 
         let mut long = self.data[data_idx] as u64;
-        long &= !(mask << bit_offset) - 1;
+        long &= !(mask << bit_offset);
         long |= (palette_index as u64 & mask) << bit_offset;
         self.data[data_idx] = long as i64;
     }
@@ -328,7 +328,7 @@ impl BlockStorage {
                 let entries_per_long = 64 / 15;
                 let mask = (1i64 << 15) - 1;
 
-                for i in 0..4096 {
+                for i in (0..4096).step_by(entries_per_long) {
                     let mut long = 0u64;
 
                     for j in 0..entries_per_long {

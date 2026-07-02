@@ -18,4 +18,5 @@ pub mod set_player_position;
 pub mod set_player_position_and_rotation;
 pub mod set_player_rotation;
 pub mod swing_arm;
+pub mod use_item;
 pub mod use_item_on;
