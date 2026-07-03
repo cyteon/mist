@@ -24,13 +24,12 @@ pub async fn send_commands<W: tokio::io::AsyncWriteExt + Unpin>(
 
     let mut next_index = 1;
     let mut literals = Vec::with_capacity(COMMANDS.len());
-    for _ in COMMANDS.iter() {
+    for cmd in COMMANDS.iter() {
         literals.push(next_index);
-        next_index += 1;
+        next_index += 1 + cmd.args.len() as i32;
     }
 
     packet_data.push(Flags::Root as u8);
-
     write_var(&mut packet_data, COMMANDS.len() as i32)?;
     for &i in &literals {
         write_var(&mut packet_data, i)?;

@@ -213,7 +213,7 @@ fn density(wx: f64, y: f64, wz: f64, s: &Shape) -> (f64, f64) {
         return (d, d);
     }
 
-    (d, d.min(cave_density(wx, y, wz, s.offset, s.factor)))
+    (d, d.min(cave_density(wx, y, wz, depth, s.factor)))
 }
 
 fn cave_density(wx: f64, y: f64, wz: f64, depth_v: f64, factor: f64) -> f64 {

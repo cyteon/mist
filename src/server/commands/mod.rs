@@ -5,8 +5,10 @@ use byteorder::{BigEndian, WriteBytesExt};
 use crate::types::colors::RED;
 use crate::types::player::Player;
 
-pub mod tps;
-pub mod version;
+mod gamemode;
+mod give;
+mod tps;
+mod version;
 
 pub type Handler = for<'a> fn(
     &'a [&'a str],
@@ -71,6 +73,31 @@ pub struct Command {
 }
 
 pub static COMMANDS: &[Command] = &[
+    Command {
+        name: "gamemode",
+        args: &[Arg {
+            name: "mode",
+            parser: Parser::Gamemode,
+        }],
+        handler: gamemode::run,
+    },
+    Command {
+        name: "give",
+        args: &[
+            Arg {
+                name: "item",
+                parser: Parser::ItemStack,
+            },
+            Arg {
+                name: "amount",
+                parser: Parser::Integer {
+                    min: Some(1),
+                    max: None,
+                },
+            },
+        ],
+        handler: give::run,
+    },
     Command {
         name: "tps",
         args: &[],
