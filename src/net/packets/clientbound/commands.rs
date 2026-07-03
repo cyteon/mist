@@ -1,5 +1,7 @@
-use crate::net::codec::{write_string, write_var};
-use byteorder::{BigEndian, WriteBytesExt};
+use crate::{
+    net::codec::{write_string, write_var},
+    server::commands::COMMANDS,
+};
 
 enum Flags {
     Root = 0x00,
@@ -16,60 +18,56 @@ pub async fn send_commands<W: tokio::io::AsyncWriteExt + Unpin>(
 ) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::COMMANDS as u8];
 
-    // root + 4 commands + 3 args
-    write_var(&mut packet_data, 8)?;
+    let total =
+        1 + COMMANDS.len() as i32 + COMMANDS.iter().map(|c| c.args.len() as i32).sum::<i32>();
+    write_var(&mut packet_data, total)?;
 
-    // root
+    let mut next_index = 1;
+    let mut literals = Vec::with_capacity(COMMANDS.len());
+    for _ in COMMANDS.iter() {
+        literals.push(next_index);
+        next_index += 1;
+    }
+
     packet_data.push(Flags::Root as u8);
-    write_var(&mut packet_data, 4)?; // 4 commands
-    write_var(&mut packet_data, 1)?; // tps
-    write_var(&mut packet_data, 2)?; // version
-    write_var(&mut packet_data, 3)?; // give
-    write_var(&mut packet_data, 6)?; // gamemode
 
-    // command 1: /tps
-    packet_data.push(Flags::Literal as u8 | Flags::Executable as u8);
-    write_var(&mut packet_data, 0)?; // no children
-    write_string(&mut packet_data, "tps")?;
+    write_var(&mut packet_data, COMMANDS.len() as i32)?;
+    for &i in &literals {
+        write_var(&mut packet_data, i)?;
+    }
 
-    // command 2: /version
-    packet_data.push(Flags::Literal as u8 | Flags::Executable as u8);
-    write_var(&mut packet_data, 0)?; // no children
-    write_string(&mut packet_data, "version")?;
+    for (cmd, &literal) in COMMANDS.iter().zip(literals.iter()) {
+        let arg_indices: Vec<i32> = (0..cmd.args.len())
+            .map(|i| literal + 1 + i as i32)
+            .collect();
 
-    // command 3: /give
-    packet_data.push(Flags::Literal as u8);
-    write_var(&mut packet_data, 1)?;
-    write_var(&mut packet_data, 4)?; // item node
-    write_string(&mut packet_data, "give")?;
+        let exec = cmd.args.is_empty();
+        packet_data.push(Flags::Literal as u8 | if exec { Flags::Executable as u8 } else { 0u8 });
 
-    // /give <item> arg
-    packet_data.push(Flags::Argument as u8);
-    write_var(&mut packet_data, 1)?;
-    write_var(&mut packet_data, 5)?; // amount node
-    write_string(&mut packet_data, "item")?;
-    write_var(&mut packet_data, 14)?; // minecraft:item_stack parser
+        write_var(&mut packet_data, arg_indices.len() as i32)?;
+        for &i in &arg_indices {
+            write_var(&mut packet_data, i)?;
+        }
 
-    // /give <item> <amount> arg
-    packet_data.push(Flags::Argument as u8 | Flags::Executable as u8);
-    write_var(&mut packet_data, 0)?;
-    write_string(&mut packet_data, "amount")?;
-    write_var(&mut packet_data, 3)?; // brigadier:integer parser
-    packet_data.push(0x03);
-    packet_data.write_i32::<BigEndian>(1)?; // min value
-    packet_data.write_i32::<BigEndian>(64)?; // max value
+        write_string(&mut packet_data, cmd.name)?;
 
-    packet_data.push(Flags::Literal as u8);
-    write_var(&mut packet_data, 1)?; // 1 child
-    write_var(&mut packet_data, 7)?; // target node
-    write_string(&mut packet_data, "gamemode")?;
+        for (i, arg) in cmd.args.iter().enumerate() {
+            let last = i + 1 == cmd.args.len();
+            packet_data
+                .push(Flags::Argument as u8 | if last { Flags::Executable as u8 } else { 0u8 });
 
-    packet_data.push(Flags::Argument as u8 | Flags::Executable as u8);
-    write_var(&mut packet_data, 0)?; // no children
-    write_string(&mut packet_data, "gamemode")?;
-    write_var(&mut packet_data, 42)?; // minecraft:gamemode parser
+            write_var(&mut packet_data, if last { 0 } else { 1 })?;
 
-    // root index
+            if !last {
+                write_var(&mut packet_data, arg_indices[i + 1])?;
+            }
+
+            write_string(&mut packet_data, arg.name)?;
+            write_var(&mut packet_data, arg.parser.id())?;
+            arg.parser.write_props(&mut packet_data)?
+        }
+    }
+
     write_var(&mut packet_data, 0)?;
 
     stream.write_all(&packet_data).await?;

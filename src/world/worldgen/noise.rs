@@ -5,30 +5,76 @@ fn seeded(offset: u32) -> Perlin {
     Perlin::new((crate::config::SERVER_CONFIG.world_seed as u32).wrapping_add(offset))
 }
 
-pub static CONTINENTS: Lazy<Perlin> = Lazy::new(|| seeded(0));
-pub static EROSION: Lazy<Perlin> = Lazy::new(|| seeded(1));
-pub static RIDGES: Lazy<Perlin> = Lazy::new(|| seeded(2));
 pub static DENSITY: Lazy<Perlin> = Lazy::new(|| seeded(3));
 pub static ENTRANCES: Lazy<Perlin> = Lazy::new(|| seeded(4));
 pub static SPAGHETTI_A: Lazy<Perlin> = Lazy::new(|| seeded(5));
 pub static SPAGHETTI_B: Lazy<Perlin> = Lazy::new(|| seeded(6));
 pub static CHEESE: Lazy<Perlin> = Lazy::new(|| seeded(7));
 
-pub fn fbm2(perlin: &Perlin, x: f64, z: f64, octaves: u32, freq: f64) -> f64 {
-    let mut value = 0.0;
-    let mut f = freq;
-    let mut amp = 1.0;
-    let mut norm = 0.0;
+const CONTINENTS_CAL: f64 = 1.71;
+const EROSION_CAL: f64 = 1.37;
+const RIDGES_CAL: f64 = 1.45;
+const JAGGED_CAL: f64 = 1.62;
 
-    for _ in 0..octaves {
-        value += perlin.get([x * f, z * f]) * amp;
-        norm += amp;
-        f *= 2.0;
-        amp *= 0.5;
+pub struct Octaves {
+    octs: Vec<(Perlin, f64, f64)>,
+}
+
+impl Octaves {
+    fn new(seed_base: u32, first: i32, amps: &[f64], xz_scale: f64, cal: f64) -> Self {
+        let n = amps.len() as i32;
+        let lowest = 2f64.powi(n - 1) / (2f64.powi(n) - 1.0);
+        let mut octs = vec![];
+        let mut wsum = 0.0;
+
+        for (i, &a) in amps.iter().enumerate() {
+            if a == 0.0 {
+                continue;
+            }
+
+            let w = a * lowest / 2f64.powi(i as i32);
+            wsum += w;
+
+            octs.push((
+                seeded(seed_base + i as u32),
+                xz_scale * 2f64.powi(first + i as i32),
+                w,
+            ));
+        }
+
+        for o in octs.iter_mut() {
+            o.2 *= cal / wsum;
+        }
+
+        Octaves { octs }
     }
 
-    value / norm
+    pub fn sample(&self, x: f64, z: f64) -> f64 {
+        self.octs
+            .iter()
+            .map(|(p, f, w)| p.get([x * f, z * f]) * w)
+            .sum()
+    }
 }
+
+pub static CONTINENTS: Lazy<Octaves> = Lazy::new(|| {
+    Octaves::new(
+        100,
+        -9,
+        &[1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0],
+        0.25,
+        CONTINENTS_CAL,
+    )
+});
+
+pub static EROSION: Lazy<Octaves> =
+    Lazy::new(|| Octaves::new(120, -9, &[1.0, 1.0, 0.0, 1.0, 1.0], 0.25, EROSION_CAL));
+
+pub static RIDGES: Lazy<Octaves> =
+    Lazy::new(|| Octaves::new(140, -7, &[1.0, 2.0, 1.0, 0.0, 0.0, 0.0], 0.25, RIDGES_CAL));
+
+pub static JAGGED: Lazy<Octaves> =
+    Lazy::new(|| Octaves::new(160, -16, &[1.0; 8], 1500.0, JAGGED_CAL));
 
 pub fn fbm3(perlin: &Perlin, x: f64, y: f64, z: f64, octaves: u32, freq: f64) -> f64 {
     let mut value = 0.0;
@@ -44,20 +90,6 @@ pub fn fbm3(perlin: &Perlin, x: f64, y: f64, z: f64, octaves: u32, freq: f64) ->
     }
 
     value / norm
-}
-
-fn continental_height(c: f64) -> f64 {
-    if c < -0.45 {
-        32.0
-    } else if c < -0.15 {
-        lerp(32.0, 56.0, (c + 0.45) / 0.3)
-    } else if c < -0.02 {
-        lerp(56.0, 62.0, (c + 0.15) / 0.13)
-    } else if c < 0.25 {
-        lerp(64.0, 78.0, (c + 0.02) / 0.27)
-    } else {
-        lerp(78.0, 110.0, (c - 0.25) / 0.75)
-    }
 }
 
 fn lerp(a: f64, b: f64, t: f64) -> f64 {
@@ -88,21 +120,24 @@ pub fn trilerp(
     lerp(z0, z1, ty)
 }
 
-pub fn sample_shape(wx: f64, wz: f64) -> (f64, f64) {
-    let c = fbm2(&CONTINENTS, wx, wz, 6, 1.0 / 2048.0);
-    let e = fbm2(&EROSION, wx, wz, 4, 1.0 / 1024.0);
-    let w = fbm2(&RIDGES, wx, wz, 4, 1.0 / 512.0);
+#[derive(Clone, Copy, Default)]
+pub struct Shape {
+    pub offset: f64,
+    pub factor: f64,
+    pub jaggedness: f64,
+}
 
-    let pv = -((w.abs() - 2.0 / 3.0).abs() - 1.0 / 3.0) * 3.0;
+pub fn sample_shape(wx: f64, wz: f64) -> Shape {
+    let c = CONTINENTS.sample(wx, wz).clamp(-1.5, 1.5) as f32;
+    let e = EROSION.sample(wx, wz).clamp(-1.5, 1.5) as f32;
+    let w = RIDGES.sample(wx, wz).clamp(-1.5, 1.5) as f32;
 
-    let base = continental_height(c);
+    let cv = [c, e, super::vanilla::peaks_valleys(w), w];
 
-    let mountain = (-e).clamp(0.0, 1.0);
-    let mountain = mountain * mountain;
-    let inland = ((c + 0.05) / 0.3).clamp(0.0, 1.0);
-
-    let offset = base + pv * inland * (6.0 + 80.0 * mountain);
-    let factor = 3.0 + 22.0 * mountain * inland;
-
-    (offset, factor)
+    Shape {
+        offset: super::vanilla::OFFSET_ADD as f64
+            + super::vanilla::eval(super::vanilla::OFFSET, &cv) as f64,
+        factor: super::vanilla::eval(super::vanilla::FACTOR, &cv) as f64,
+        jaggedness: super::vanilla::eval(super::vanilla::JAGGEDNESS, &cv) as f64,
+    }
 }

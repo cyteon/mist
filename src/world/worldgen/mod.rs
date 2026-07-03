@@ -1,8 +1,9 @@
 pub mod foliage;
 pub mod noise;
 pub mod ores;
+pub mod vanilla;
 
-use crate::world::worldgen::noise::trilerp;
+use crate::world::worldgen::noise::{Shape, trilerp};
 
 use super::chunks::{Chunk, Region, Section};
 use noise::NoiseFn;
@@ -59,7 +60,7 @@ pub fn generate(x: i32, z: i32) -> Chunk {
     let wx0 = x << 4;
     let wz0 = z << 4;
 
-    let mut shapes = [[(0.0, 0.0); COLS]; COLS];
+    let mut shapes = [[Shape::default(); COLS]; COLS];
 
     for i in 0..COLS {
         for j in 0..COLS {
@@ -79,8 +80,7 @@ pub fn generate(x: i32, z: i32) -> Chunk {
                     (wx0 + i as i32 * 4) as f64,
                     y,
                     (wz0 + j as i32 * 4) as f64,
-                    shapes[i][j].0,
-                    shapes[i][j].1,
+                    &shapes[i][j],
                 )
             }
         }
@@ -101,6 +101,25 @@ pub fn generate(x: i32, z: i32) -> Chunk {
                 let d011 = lattice[r + 1][i][j + 1];
                 let d111 = lattice[r + 1][i + 1][j + 1];
 
+                let all_terrain_solid = d000.0 > 0.0
+                    && d100.0 > 0.0
+                    && d001.0 > 0.0
+                    && d101.0 > 0.0
+                    && d010.0 > 0.0
+                    && d110.0 > 0.0
+                    && d011.0 > 0.0
+                    && d111.0 > 0.0;
+
+                let all_final_solid = all_terrain_solid
+                    && d000.1 > 0.0
+                    && d100.1 > 0.0
+                    && d001.1 > 0.0
+                    && d101.1 > 0.0
+                    && d010.1 > 0.0
+                    && d110.1 > 0.0
+                    && d011.1 > 0.0
+                    && d111.1 > 0.0;
+
                 for by in 0..8 {
                     let ty = by as f64 / 8.0;
                     let y = MIN_Y + r as i32 * 8 + by;
@@ -113,10 +132,14 @@ pub fn generate(x: i32, z: i32) -> Chunk {
                             let tz = bz as f64 / 4.0;
                             let lz = (j * 4 + bz) as u8;
 
-                            let t = trilerp(
-                                d000.0, d100.0, d001.0, d101.0, d010.0, d110.0, d011.0, d111.0, tx,
-                                ty, tz,
-                            );
+                            let t = if all_terrain_solid {
+                                1.0
+                            } else {
+                                trilerp(
+                                    d000.0, d100.0, d001.0, d101.0, d010.0, d110.0, d011.0, d111.0,
+                                    tx, ty, tz,
+                                )
+                            };
 
                             if t <= 0.0 {
                                 continue;
@@ -126,10 +149,14 @@ pub fn generate(x: i32, z: i32) -> Chunk {
                                 terrain_heights[lx as usize][lz as usize] = y;
                             }
 
-                            let d = trilerp(
-                                d000.1, d100.1, d001.1, d101.1, d010.1, d110.1, d011.1, d111.1, tx,
-                                ty, tz,
-                            );
+                            let d = if all_final_solid {
+                                1.0
+                            } else {
+                                trilerp(
+                                    d000.1, d100.1, d001.1, d101.1, d010.1, d110.1, d011.1, d111.1,
+                                    tx, ty, tz,
+                                )
+                            };
 
                             if d > 0.0 {
                                 let block = if is_deepslate(wx0 + lx as i32, y, wz0 + lz as i32) {
@@ -171,45 +198,47 @@ fn fill_fluids(chunk: &mut Chunk, heights: &[[i32; 16]; 16]) {
     }
 }
 
-fn density(wx: f64, y: f64, wz: f64, offset: f64, factor: f64) -> (f64, f64) {
-    let grad = if y < offset {
-        (offset - y) * 0.8
+fn density(wx: f64, y: f64, wz: f64, s: &Shape) -> (f64, f64) {
+    let jag = if s.jaggedness > 0.0 {
+        s.jaggedness * half_negative(noise::JAGGED.sample(wx, wz))
     } else {
-        (offset - y) * 1.4
+        0.0
     };
 
-    let n = noise::fbm3(&noise::DENSITY, wx, y * 2.0, wz, 4, 1.0 / 128.0);
-    let d = grad + n * factor;
+    let depth = 1.5 - 3.0 * (y + 64.0) / 384.0 + s.offset + jag;
+    let n = noise::fbm3(&noise::DENSITY, wx, y * 0.5, wz, 4, 1.0 / 128.0) * 0.35;
+    let d = 4.0 * quarter_negative(depth * s.factor) + n;
 
     if d <= 0.0 {
         return (d, d);
     }
 
-    (d, d.min(cave_density(wx, y, wz, offset, factor)))
+    (d, d.min(cave_density(wx, y, wz, s.offset, s.factor)))
 }
 
-fn cave_density(wx: f64, y: f64, wz: f64, offset: f64, factor: f64) -> f64 {
-    let depth = offset - factor - y;
+fn cave_density(wx: f64, y: f64, wz: f64, depth_v: f64, factor: f64) -> f64 {
+    let depth = depth_v * 128.0 - 14.0 / factor.max(0.8);
 
     if depth < -2.0 {
         return 100.0;
     }
 
-    let entrance = ((noise::ENTRANCES.get([wx / 128.0, wz / 128.0]) - 0.25) / 2.0).clamp(0.0, 1.0);
-    let land = ((offset - (SEA_LEVEL as f64 + 4.0)) / 6.0).clamp(0.0, 1.0);
+    let surface_y = y + depth;
+    let entrance = ((noise::ENTRANCES.get([wx / 128.0, wz / 128.0]) - 0.25) / 0.2).clamp(0.0, 1.0);
+    let land = ((surface_y - (SEA_LEVEL as f64 + 4.0)) / 6.0).clamp(0.0, 1.0);
     let spaghetti_min = 9.0 * (1.0 - entrance * land);
 
     let a = noise::SPAGHETTI_A.get([wx / 96.0, y / 48.0, wz / 96.0]);
     let b = noise::SPAGHETTI_B.get([wx / 96.0, y / 48.0, wz / 96.0]);
     let spaghetti = (a * a + b * b) * 280.0 - 5.5 + ((spaghetti_min - depth) * 4.0).max(0.0);
 
-    let c = noise::fbm3(&noise::CHEESE, wx, y * 2.2, wz, 4, 1.0 / 96.0);
+    let c = noise::fbm3(&noise::CHEESE, wx, y * 2.2, wz, 3, 1.0 / 96.0);
     let grow = (depth / 200.0).clamp(0.0, 0.1);
     let cheese = (0.42 - grow - c) * 60.0 + ((16.0 - depth) * 4.0).max(0.0);
 
     let floor = ((-59.0 - y) * 4.0).max(0.0);
 
-    spaghetti.min(cheese) + floor
+    (spaghetti.min(cheese) + floor) * 0.125
 }
 
 pub fn surface_height(wx: i32, wz: i32) -> i32 {
@@ -226,14 +255,7 @@ pub fn surface_height(wx: i32, wz: i32) -> i32 {
     ];
 
     let sample = |si: usize, dx: i32, dz: i32, y: i32| {
-        density(
-            (x0 + dx) as f64,
-            y as f64,
-            (z0 + dz) as f64,
-            shapes[si].0,
-            shapes[si].1,
-        )
-        .1
+        density((x0 + dx) as f64, y as f64, (z0 + dz) as f64, &shapes[si]).1
     };
 
     for r in (0..ROWS - 1).rev() {
@@ -322,4 +344,12 @@ fn hash3(x: i32, y: i32, z: i32) -> u64 {
     h ^= h >> 29;
     h = h.wrapping_mul(0xBF58476D1CE4E5B9);
     h ^ (h >> 32)
+}
+
+fn half_negative(x: f64) -> f64 {
+    if x > 0.0 { x } else { x * 0.5 }
+}
+
+fn quarter_negative(x: f64) -> f64 {
+    if x > 0.0 { x } else { x * 0.25 }
 }
