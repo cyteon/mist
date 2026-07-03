@@ -1,4 +1,3 @@
-pub mod caves;
 pub mod foliage;
 pub mod noise;
 pub mod ores;
@@ -9,10 +8,12 @@ use super::chunks::{Chunk, Region, Section};
 use noise::NoiseFn;
 use rayon::prelude::*;
 
+pub const LAVA_LEVEL: i32 = -54;
 pub const SEA_LEVEL: i32 = 62;
 pub const MIN_Y: i32 = -64;
 pub const MAX_Y: i32 = 319;
 
+const COLS: usize = (16 / 4) as usize + 1;
 const ROWS: usize = ((MAX_Y + 1 - MIN_Y) / 8) as usize + 1;
 
 pub async fn initial_gen() {
@@ -56,58 +57,107 @@ pub fn generate(x: i32, z: i32) -> Chunk {
         sections: (0..24).map(|y| Section::new(y)).collect(),
     };
 
-    let heights = noise::get_height_map(x, z);
-    let mut cave_tops = [[0; 16]; 16];
+    let wx0 = x << 4;
+    let wz0 = z << 4;
 
-    for x in 0..16 {
-        for z in 0..16 {
-            let wx = (chunk.x << 4) + x;
-            let wz = (chunk.z << 4) + z;
+    let mut shapes = [[(0.0, 0.0); COLS]; COLS];
 
-            let height = heights[x as usize][z as usize];
-
-            use noise::NoiseFn;
-            let entrance_noise = noise::PERLIN.get([wx as f64 / 128.0, wz as f64 / 128.0]);
-
-            cave_tops[x as usize][z as usize] = if entrance_noise > 0.5 {
-                height
-            } else {
-                height - 8
-            };
-
-            place_column(&mut chunk, x as u8, z as u8, height);
+    for i in 0..COLS {
+        for j in 0..COLS {
+            shapes[i][j] =
+                noise::sample_shape((wx0 + i as i32 * 4) as f64, (wz0 + j as i32 * 4) as f64);
         }
     }
 
-    caves::carve_caves(&mut chunk, &cave_tops);
+    let mut lattice = [[[0.0; COLS]; COLS]; ROWS];
+
+    for r in 0..ROWS {
+        let y = (MIN_Y + r as i32 * 8) as f64;
+
+        for i in 0..COLS {
+            for j in 0..COLS {
+                lattice[r][i][j] = density(
+                    (wx0 + i as i32 * 4) as f64,
+                    y,
+                    (wz0 + j as i32 * 4) as f64,
+                    shapes[i][j].0,
+                    shapes[i][j].1,
+                )
+            }
+        }
+    }
+
+    let mut heights = [[MIN_Y; 16]; 16];
+
+    for r in 0..ROWS - 1 {
+        for i in 0..COLS - 1 {
+            for j in 0..COLS - 1 {
+                let d000 = lattice[r][i][j];
+                let d100 = lattice[r][i + 1][j];
+                let d001 = lattice[r][i][j + 1];
+                let d101 = lattice[r][i + 1][j + 1];
+                let d010 = lattice[r + 1][i][j];
+                let d110 = lattice[r + 1][i + 1][j];
+                let d011 = lattice[r + 1][i][j + 1];
+                let d111 = lattice[r + 1][i + 1][j + 1];
+
+                for by in 0..8 {
+                    let ty = by as f64 / 8.0;
+                    let y = MIN_Y + r as i32 * 8 + by;
+
+                    for bx in 0..4 {
+                        let tx = bx as f64 / 4.0;
+                        let lx = (i * 4 + bx) as u8;
+
+                        for bz in 0..4 {
+                            let tz = bz as f64 / 4.0;
+                            let lz = (j * 4 + bz) as u8;
+
+                            let d =
+                                trilerp(d000, d100, d001, d101, d010, d110, d011, d111, tx, ty, tz);
+
+                            if d > 0.0 {
+                                let block = if is_deepslate(wx0 + lx as i32, y, wz0 + lz as i32) {
+                                    crate::types::blocks::DEEPSLATE
+                                } else {
+                                    crate::types::blocks::STONE
+                                };
+
+                                chunk.set_block(lx, y, lz, block);
+
+                                if y > heights[lx as usize][lz as usize] {
+                                    heights[lx as usize][lz as usize] = y;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    apply_surface(&mut chunk, &heights);
+    fill_fluids(&mut chunk, &heights);
     ores::place_ores(&mut chunk);
     foliage::place_foliage(&mut chunk, &heights);
 
     chunk
 }
 
-fn place_column(chunk: &mut Chunk, x: u8, z: u8, height: i32) {
-    chunk.set_block(x, -64, z, crate::types::blocks::BEDROCK);
+fn fill_fluids(chunk: &mut Chunk, heights: &[[i32; 16]; 16]) {
+    for x in 0..16u8 {
+        for z in 0..16u8 {
+            let h = heights[x as usize][z as usize];
 
-    for y in -63..=height {
-        let block_id = match y {
-            y if y >= SEA_LEVEL && y == height => crate::types::blocks::GRASS_BLOCK,
-            y if y < SEA_LEVEL && y == height => crate::types::blocks::SAND,
-            y if y < SEA_LEVEL && y > height - 4 => crate::types::blocks::SAND,
-            y if y > height - 4 => crate::types::blocks::DIRT,
-            _ => crate::types::blocks::STONE,
-        };
+            for y in (h + 1)..=SEA_LEVEL {
+                chunk.set_block(x, y, z, crate::types::blocks::WATER);
+            }
 
-        if y < 0 {
-            chunk.set_block(x, y, z, crate::types::blocks::DEEPSLATE);
-        } else {
-            chunk.set_block(x, y, z, block_id);
-        }
-    }
-
-    if height < SEA_LEVEL {
-        for y in (height + 1)..SEA_LEVEL {
-            chunk.set_block(x, y, z, crate::types::blocks::WATER);
+            for y in (MIN_Y + 1)..=LAVA_LEVEL {
+                if chunk.get_block(x, y, z) == crate::types::blocks::AIR {
+                    chunk.set_block(x, y, z, crate::types::blocks::LAVA);
+                }
+            }
         }
     }
 }
@@ -120,7 +170,7 @@ fn density(wx: f64, y: f64, wz: f64, offset: f64, factor: f64) -> f64 {
     };
 
     let n = noise::fbm3(&noise::DENSITY, wx, y * 2.0, wz, 4, 1.0 / 128.0);
-    let d = grad * n * factor;
+    let d = grad + n * factor;
 
     if d <= 0.0 {
         return d;
@@ -205,4 +255,66 @@ pub fn surface_height(wx: i32, wz: i32) -> i32 {
     }
 
     MIN_Y
+}
+
+fn apply_surface(chunk: &mut Chunk, heights: &[[i32; 16]; 16]) {
+    for x in 0..16u8 {
+        for z in 0..16u8 {
+            chunk.set_block(x, MIN_Y, z, crate::types::blocks::BEDROCK);
+
+            let h = heights[x as usize][z as usize];
+
+            if h <= MIN_Y {
+                continue;
+            }
+
+            let beach = h <= SEA_LEVEL + 1;
+
+            let top = if beach {
+                crate::types::blocks::SAND
+            } else {
+                crate::types::blocks::GRASS_BLOCK
+            };
+
+            let under = if beach {
+                crate::types::blocks::SAND
+            } else {
+                crate::types::blocks::DIRT
+            };
+
+            chunk.set_block(x, h, z, top);
+
+            for y in (h - 3)..h {
+                if y <= MIN_Y {
+                    continue;
+                }
+
+                if chunk.get_block(x, y, z) != crate::types::blocks::AIR {
+                    chunk.set_block(x, y, z, under);
+                }
+            }
+        }
+    }
+}
+
+fn is_deepslate(x: i32, y: i32, z: i32) -> bool {
+    if y >= 0 {
+        return false;
+    }
+
+    if y < -8 {
+        return true;
+    }
+
+    ((hash3(x, y, z) & 0xff) as i32) < -y * 32
+}
+
+fn hash3(x: i32, y: i32, z: i32) -> u64 {
+    let mut h = (x as u64).wrapping_mul(0x9E3779B97F4A7C15)
+        ^ (y as u64).wrapping_mul(0xC2B2AE3D27D4EB4F)
+        ^ (z as u64).wrapping_mul(0x165667B19E3779F9);
+
+    h ^= h >> 29;
+    h = h.wrapping_mul(0xBF58476D1CE4E5B9);
+    h ^ (h >> 32)
 }
