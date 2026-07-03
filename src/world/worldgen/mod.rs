@@ -8,7 +8,6 @@ use super::chunks::{Chunk, Region, Section};
 use noise::NoiseFn;
 use rayon::prelude::*;
 
-pub const LAVA_LEVEL: i32 = -54;
 pub const SEA_LEVEL: i32 = 62;
 pub const MIN_Y: i32 = -64;
 pub const MAX_Y: i32 = 319;
@@ -69,7 +68,7 @@ pub fn generate(x: i32, z: i32) -> Chunk {
         }
     }
 
-    let mut lattice = [[[0.0; COLS]; COLS]; ROWS];
+    let mut lattice = [[[(0.0, 0.0); COLS]; COLS]; ROWS];
 
     for r in 0..ROWS {
         let y = (MIN_Y + r as i32 * 8) as f64;
@@ -88,6 +87,7 @@ pub fn generate(x: i32, z: i32) -> Chunk {
     }
 
     let mut heights = [[MIN_Y; 16]; 16];
+    let mut terrain_heights = [[MIN_Y; 16]; 16];
 
     for r in 0..ROWS - 1 {
         for i in 0..COLS - 1 {
@@ -113,8 +113,23 @@ pub fn generate(x: i32, z: i32) -> Chunk {
                             let tz = bz as f64 / 4.0;
                             let lz = (j * 4 + bz) as u8;
 
-                            let d =
-                                trilerp(d000, d100, d001, d101, d010, d110, d011, d111, tx, ty, tz);
+                            let t = trilerp(
+                                d000.0, d100.0, d001.0, d101.0, d010.0, d110.0, d011.0, d111.0, tx,
+                                ty, tz,
+                            );
+
+                            if t <= 0.0 {
+                                continue;
+                            }
+
+                            if y > terrain_heights[lx as usize][lz as usize] {
+                                terrain_heights[lx as usize][lz as usize] = y;
+                            }
+
+                            let d = trilerp(
+                                d000.1, d100.1, d001.1, d101.1, d010.1, d110.1, d011.1, d111.1, tx,
+                                ty, tz,
+                            );
 
                             if d > 0.0 {
                                 let block = if is_deepslate(wx0 + lx as i32, y, wz0 + lz as i32) {
@@ -137,7 +152,7 @@ pub fn generate(x: i32, z: i32) -> Chunk {
     }
 
     apply_surface(&mut chunk, &heights);
-    fill_fluids(&mut chunk, &heights);
+    fill_fluids(&mut chunk, &terrain_heights);
     ores::place_ores(&mut chunk);
     foliage::place_foliage(&mut chunk, &heights);
 
@@ -152,17 +167,11 @@ fn fill_fluids(chunk: &mut Chunk, heights: &[[i32; 16]; 16]) {
             for y in (h + 1)..=SEA_LEVEL {
                 chunk.set_block(x, y, z, crate::types::blocks::WATER);
             }
-
-            for y in (MIN_Y + 1)..=LAVA_LEVEL {
-                if chunk.get_block(x, y, z) == crate::types::blocks::AIR {
-                    chunk.set_block(x, y, z, crate::types::blocks::LAVA);
-                }
-            }
         }
     }
 }
 
-fn density(wx: f64, y: f64, wz: f64, offset: f64, factor: f64) -> f64 {
+fn density(wx: f64, y: f64, wz: f64, offset: f64, factor: f64) -> (f64, f64) {
     let grad = if y < offset {
         (offset - y) * 0.8
     } else {
@@ -173,39 +182,34 @@ fn density(wx: f64, y: f64, wz: f64, offset: f64, factor: f64) -> f64 {
     let d = grad + n * factor;
 
     if d <= 0.0 {
-        return d;
+        return (d, d);
     }
 
-    d.min(cave_density(wx, y, wz, offset))
+    (d, d.min(cave_density(wx, y, wz, offset, factor)))
 }
 
-fn cave_density(wx: f64, y: f64, wz: f64, offset: f64) -> f64 {
-    if y < -59.0 {
-        return 1.0;
+fn cave_density(wx: f64, y: f64, wz: f64, offset: f64, factor: f64) -> f64 {
+    let depth = offset - factor - y;
+
+    if depth < -2.0 {
+        return 100.0;
     }
 
-    let depth = offset - y;
-    let underwater = offset < SEA_LEVEL as f64 + 2.0;
-    let entrance = noise::ENTRANCES.get([wx / 128.0, wz / 128.0]);
-
-    let min_depth = if !underwater && entrance > 0.35 {
-        0.0
-    } else {
-        9.0
-    };
-    if depth < min_depth {
-        return 1.0;
-    }
+    let entrance = ((noise::ENTRANCES.get([wx / 128.0, wz / 128.0]) - 0.25) / 2.0).clamp(0.0, 1.0);
+    let land = ((offset - (SEA_LEVEL as f64 + 4.0)) / 6.0).clamp(0.0, 1.0);
+    let spaghetti_min = 9.0 * (1.0 - entrance * land);
 
     let a = noise::SPAGHETTI_A.get([wx / 96.0, y / 48.0, wz / 96.0]);
     let b = noise::SPAGHETTI_B.get([wx / 96.0, y / 48.0, wz / 96.0]);
-    let spaghetti = (a * a + b * b) * 400.0 - 5.5;
+    let spaghetti = (a * a + b * b) * 280.0 - 5.5 + ((spaghetti_min - depth) * 4.0).max(0.0);
 
-    let c = noise::fbm3(&noise::CHEESE, wx, y, wz, 3, 1.0 / 192.0);
-    let grow = (depth / 160.0).clamp(0.0, 0.16);
-    let cheese = (0.26 - grow - c) * 60.0;
+    let c = noise::fbm3(&noise::CHEESE, wx, y * 2.2, wz, 4, 1.0 / 96.0);
+    let grow = (depth / 200.0).clamp(0.0, 0.1);
+    let cheese = (0.42 - grow - c) * 60.0 + ((16.0 - depth) * 4.0).max(0.0);
 
-    spaghetti.min(cheese)
+    let floor = ((-59.0 - y) * 4.0).max(0.0);
+
+    spaghetti.min(cheese) + floor
 }
 
 pub fn surface_height(wx: i32, wz: i32) -> i32 {
@@ -229,6 +233,7 @@ pub fn surface_height(wx: i32, wz: i32) -> i32 {
             shapes[si].0,
             shapes[si].1,
         )
+        .1
     };
 
     for r in (0..ROWS - 1).rev() {
