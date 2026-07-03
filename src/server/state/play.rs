@@ -21,6 +21,7 @@ use crate::{
                 player_info_remove::send_player_info_remove,
                 player_info_update::{PlayerAction, send_player_info_update},
                 set_center_chunk::send_set_center_chunk,
+                set_ticking_state::send_set_ticking_state,
             },
             serverbound::{
                 chat_command::read_chat_command, chat_message::read_chat_message,
@@ -199,6 +200,10 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
     let mut buffer = Vec::new();
     send_commands(&mut buffer).await?;
+    let _ = tx.send(buffer);
+
+    let mut buffer = Vec::new();
+    send_set_ticking_state(&mut buffer).await?;
     let _ = tx.send(buffer);
 
     let player = Arc::new(Mutex::new(player));

@@ -3,10 +3,7 @@ use std::time::Duration;
 use fancy_log::LogLevel;
 use tokio::{task, try_join};
 
-use crate::{
-    net::packets::clientbound::disconnect::send_disconnect_play,
-    server::save::{self, save, save_player},
-};
+use crate::server::save::{self, save, save_player};
 
 pub async fn run() -> anyhow::Result<()> {
     crate::log::log(

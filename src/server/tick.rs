@@ -1,5 +1,5 @@
 use fancy_log::LogLevel;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
 use tokio::time;
 use tokio::time::Duration;
 
@@ -9,8 +9,13 @@ pub static TPS_5S: AtomicU32 = AtomicU32::new(20);
 pub static TPS_1M: AtomicU32 = AtomicU32::new(20);
 pub static TPS_5M: AtomicU32 = AtomicU32::new(20);
 
+pub static TIMESTAMP: AtomicI64 = AtomicI64::new(0);
+
 pub async fn start_tick_loop() -> anyhow::Result<()> {
     crate::log::log(LogLevel::Info, "Tick loop started");
+
+    let world_save = crate::server::save::load_world_data();
+    TIMESTAMP.store(world_save.timestamp, Ordering::Relaxed);
 
     let mut interval = time::interval(Duration::from_millis(50)); // 20 tps
     let mut ticks_until_autosave = 100; // so it autosaves 5 seconds after start
@@ -25,6 +30,8 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
     let mut ticks_5m = 0;
 
     loop {
+        TIMESTAMP.fetch_add(100, Ordering::Relaxed);
+
         if ticks_until_autosave == 0 {
             ticks_until_autosave = 6000; // 5 mins
             save().await;

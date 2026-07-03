@@ -1,5 +1,5 @@
 use once_cell::sync::Lazy;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::atomic::Ordering};
 use tokio::sync::RwLock;
 
 use crate::{
@@ -19,6 +19,7 @@ use crate::{
         spawn_entity::send_spawn_entity,
         sync_player_position::send_sync_player_position,
         system_chat_message::send_system_chat_message,
+        update_time::send_update_time,
     },
     types::items::get_food_data,
     world::{get_chunk, get_region},
@@ -116,6 +117,7 @@ pub struct Player {
     pub chunks_loaded: bool,
     pub chat_index: i32,
     pub loaded_entities: Vec<i32>,
+    pub ticks_since_time_update: u32,
 }
 
 // TODO: hunger
@@ -214,6 +216,7 @@ impl Player {
             chat_index: -1,
             chunks_loaded: false,
             loaded_entities: Vec::new(),
+            ticks_since_time_update: 0,
         };
 
         let player_save = crate::server::save::load_player(&player.uuid);
@@ -305,6 +308,19 @@ impl Player {
         self.current_window = Some(window_type);
 
         self.window_id
+    }
+
+    pub async fn send_packet(&self, packet: Vec<u8>) -> anyhow::Result<()> {
+        let tx = crate::server::conn::PLAYER_SOCKET_MAP
+            .read()
+            .await
+            .get(&self.uuid)
+            .unwrap()
+            .clone();
+
+        let _ = tx.send(packet);
+
+        Ok(())
     }
 
     pub async fn send_system_message(&self, message: String) -> anyhow::Result<()> {
@@ -960,6 +976,21 @@ impl Player {
             entity.pitch = self.pitch;
 
             entity.on_ground = self.on_ground;
+        }
+
+        self.ticks_since_time_update += 1;
+
+        if self.ticks_since_time_update >= 20 {
+            self.ticks_since_time_update = 0;
+
+            let mut buffer = Vec::new();
+            send_update_time(
+                &mut buffer,
+                crate::server::tick::TIMESTAMP.load(Ordering::Relaxed) as i64,
+            )
+            .await?;
+
+            self.send_packet(buffer).await?;
         }
 
         Ok(())

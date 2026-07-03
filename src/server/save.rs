@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use fancy_log::LogLevel;
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -71,6 +73,17 @@ impl Default for PlayerSave {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct WorldSave {
+    pub timestamp: i64,
+}
+
+impl Default for WorldSave {
+    fn default() -> Self {
+        Self { timestamp: 0 }
+    }
+}
+
 pub fn ensure_save_folders() {
     std::fs::create_dir_all(crate::config::SERVER_CONFIG.world_name.clone()).unwrap();
     std::fs::create_dir_all(format!(
@@ -126,6 +139,10 @@ pub async fn save() {
     for handle in handles {
         let _ = tokio::time::timeout(std::time::Duration::from_secs(5), handle).await;
     }
+
+    save_world_data(&WorldSave {
+        timestamp: crate::server::tick::TIMESTAMP.load(Ordering::Relaxed),
+    });
 
     let duration = start.elapsed();
 
@@ -187,4 +204,28 @@ pub fn load_player(uuid: &str) -> Option<PlayerSave> {
     let player_save: PlayerSave = serde_json::from_str(&player_json).unwrap();
 
     Some(player_save)
+}
+
+pub fn save_world_data(world_save: &WorldSave) {
+    let world_path = format!(
+        "{}/world.json",
+        crate::config::SERVER_CONFIG.world_name.clone()
+    );
+
+    let world_json = serde_json::to_string_pretty(world_save).unwrap();
+    std::fs::write(world_path, world_json).unwrap();
+}
+
+pub fn load_world_data() -> WorldSave {
+    let world_path = format!(
+        "{}/world.json",
+        crate::config::SERVER_CONFIG.world_name.clone()
+    );
+
+    if !std::path::Path::new(&world_path).exists() {
+        return WorldSave::default();
+    }
+
+    let world_json = std::fs::read_to_string(world_path).unwrap();
+    serde_json::from_str(&world_json).unwrap()
 }

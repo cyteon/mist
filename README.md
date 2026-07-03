@@ -19,12 +19,12 @@ An minecraft server implementation in rust for minecraft 1.21.11
 - [x] Spawning player
 - [x] Synchronize players across all clients
 - [x] Player skins (in online mode)
-- [x] Sending chunks
-- [ ] Lighting engine
 - [x] Procedual worldgen
+- [x] World saving
+- [ ] Lighting engine
 - [ ] Biomes
 - [ ] Structures
-- [x] World saving
+- [ ] Block entities
 - [ ] Mobs
 - [ ] Dimensions
 

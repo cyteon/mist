@@ -2372,6 +2372,7 @@
   },
   "dimension_type": {
     "overworld": {
+      "has_fixed_time": false,
       "has_skylight": true,
       "has_ceiling": false,
       "coordinate_scale": 1.0,
