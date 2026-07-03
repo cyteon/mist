@@ -1,7 +1,12 @@
+use std::time::Duration;
+
 use fancy_log::LogLevel;
 use tokio::{task, try_join};
 
-use crate::server::save;
+use crate::{
+    net::packets::clientbound::disconnect::send_disconnect_play,
+    server::save::{self, save, save_player},
+};
 
 pub async fn run() -> anyhow::Result<()> {
     crate::log::log(
@@ -28,4 +33,40 @@ pub async fn run() -> anyhow::Result<()> {
     let _ = try_join!(listener_task, tick_task)?;
 
     Ok(())
+}
+
+pub async fn stop() {
+    crate::log::log(LogLevel::Info, "Stopping server...");
+
+    let players = crate::server::state::play::PLAYERS
+        .write()
+        .await
+        .drain()
+        .map(|(_, p)| p)
+        .collect::<Vec<_>>();
+
+    crate::server::conn::PLAYER_SOCKET_MAP.write().await.clear();
+
+    for player in players {
+        match tokio::time::timeout(Duration::from_millis(500), player.lock()).await {
+            Ok(player) => {
+                save_player(&player).await;
+            }
+
+            Err(_) => {
+                crate::log::log(
+                    LogLevel::Warn,
+                    format!(
+                        "Timeout while saving player {}",
+                        player.lock().await.username
+                    )
+                    .as_str(),
+                );
+            }
+        }
+    }
+
+    crate::log::log(LogLevel::Info, "Saving world...");
+
+    save().await;
 }

@@ -24,3 +24,20 @@ pub async fn send_disconnect_login<W: tokio::io::AsyncWriteExt + Unpin>(
 
     Ok(())
 }
+
+pub async fn send_disconnect_play<W: tokio::io::AsyncWriteExt + Unpin>(
+    stream: &mut W,
+    reason: &str,
+) -> anyhow::Result<()> {
+    let mut packet_data = vec![crate::net::packet::play::clientbound::DISCONNECT as u8];
+
+    craftflow_nbt::to_writer(
+        &mut packet_data,
+        &craftflow_nbt::DynNBT::String(reason.to_string()),
+    )?;
+
+    stream.write_all(&packet_data).await?;
+    stream.flush().await?;
+
+    Ok(())
+}

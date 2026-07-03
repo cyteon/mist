@@ -103,17 +103,32 @@ pub async fn save() {
 
     let start = std::time::Instant::now();
 
+    let mut handles = Vec::new();
+
     for player in crate::server::state::play::PLAYERS.read().await.values() {
-        let player = player.lock().await;
-        save_player(&player).await;
+        let player = player.clone();
+
+        handles.push(tokio::spawn(async move {
+            let player = player.lock().await;
+            save_player(&player).await;
+        }))
     }
 
     for region in crate::world::REGIONS.lock().await.values() {
-        let region = region.lock().await;
-        let _ = region.save().await;
+        let region = region.clone();
+
+        handles.push(tokio::spawn(async move {
+            let region = region.lock().await;
+            let _ = region.save().await;
+        }))
+    }
+
+    for handle in handles {
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(5), handle).await;
     }
 
     let duration = start.elapsed();
+
     crate::log::log(
         LogLevel::Info,
         format!("Save complete in {:.2?}", duration).as_str(),

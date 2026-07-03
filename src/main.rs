@@ -50,11 +50,12 @@ async fn main() -> anyhow::Result<()> {
             "Received shutdown signal, stopping server...",
         );
 
-        if timeout(Duration::from_secs(5), crate::server::save::save())
+        if timeout(Duration::from_secs(5), crate::server::run::stop())
             .await
             .is_err()
         {
-            log::log(LogLevel::Error, "Timeout while saving server :(");
+            log::log(LogLevel::Error, "Timeout while stopping server :(");
+            log::log(LogLevel::Error, "Killing...");
         }
 
         std::process::exit(0);

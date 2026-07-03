@@ -12,8 +12,7 @@ An minecraft server implementation in rust for minecraft 1.21.11
 - [x] Mojang authentication
 - [x] Enter play state
 - [x] Chat messages
-- [x] Basic commands
-- [ ] Command framework
+- [x] Command system
 
 **World**
 - [x] Show players in tablist
@@ -22,11 +21,12 @@ An minecraft server implementation in rust for minecraft 1.21.11
 - [x] Player skins (in online mode)
 - [x] Sending chunks
 - [ ] Lighting engine
-- [x] Basic worldgen
+- [x] Procedual worldgen
 - [ ] Biomes
 - [ ] Structures
 - [x] World saving
 - [ ] Mobs
+- [ ] Dimensions
 
 **Security**
 - [ ] Server-side movement validation
