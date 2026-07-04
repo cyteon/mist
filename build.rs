@@ -98,11 +98,55 @@ fn load_blocks() {
         ));
     }
 
+    out.push_str("\npub static BLOCKS: &[Block] = &[\n");
+
+    for block in json.as_array().unwrap() {
+        let name = block["name"].as_str().unwrap();
+        let min_state_id = block["minStateId"].as_i64().unwrap() as u16;
+        let default_state = block["defaultState"].as_i64().unwrap() as u16;
+
+        out.push_str(&format!(
+            "    Block {{ name: \"{}\", min_state_id: {}, default_state: {}, properties: &[",
+            name, min_state_id, default_state
+        ));
+
+        for state in block["states"].as_array().unwrap() {
+            let prop_name = state["name"].as_str().unwrap();
+
+            let values: Vec<String> = if state["type"].as_str() == Some("bool") {
+                vec!["true".to_string(), "false".to_string()]
+            } else {
+                state["values"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_str().unwrap().to_string())
+                    .collect()
+            };
+
+            out.push_str(&format!(
+                "Property {{ name: \"{}\", values: &[{}] }}, ",
+                prop_name,
+                values
+                    .iter()
+                    .map(|v| format!("\"{}\"", v))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+
+        out.push_str("] },\n");
+    }
+
+    out.push_str("];\n");
+
     out.push_str("\npub fn get_block_drops(block_id: u16) -> &'static [i32] {\n");
     out.push_str("    match block_id {\n");
 
     for block in json.as_array().unwrap() {
-        let block_id = block["defaultState"].as_i64().unwrap();
+        let min_state_id = block["minStateId"].as_i64().unwrap() as u16;
+        let max_state_id = block["maxStateId"].as_i64().unwrap() as u16;
+
         let drops = block["drops"]
             .as_array()
             .unwrap()
@@ -110,7 +154,10 @@ fn load_blocks() {
             .map(|item| item.as_i64().unwrap() as i32)
             .collect::<Vec<_>>();
 
-        out.push_str(&format!("        {} => &{:?},\n", block_id, drops));
+        out.push_str(&format!(
+            "        {}..{} => &{:?},\n",
+            min_state_id, max_state_id, drops
+        ));
     }
 
     out.push_str("        _ => &[],\n");
@@ -121,15 +168,17 @@ fn load_blocks() {
     out.push_str("    match block_id {\n");
 
     for block in json.as_array().unwrap() {
-        let block_id = block["defaultState"].as_i64().unwrap();
+        let min_state_id = block["minStateId"].as_i64().unwrap() as u16;
+        let max_state_id = block["maxStateId"].as_i64().unwrap() as u16;
 
         if let Some(tools) = block["harvestTools"].as_object() {
             if !tools.is_empty() {
                 let tool_ids: Vec<&str> = tools.keys().map(|k| k.as_str()).collect();
 
                 out.push_str(&format!(
-                    "        {} => matches!(item_id, {}),\n",
-                    block_id,
+                    "        {}..{} => matches!(item_id, {}),\n",
+                    min_state_id,
+                    max_state_id,
                     tool_ids
                         .iter()
                         .map(|id| format!("{}", id))
@@ -137,7 +186,10 @@ fn load_blocks() {
                         .join(" | ")
                 ));
             } else {
-                out.push_str(&format!("        {} => false,\n", block_id));
+                out.push_str(&format!(
+                    "        {}..{} => false,\n",
+                    min_state_id, max_state_id
+                ));
             }
         }
     }

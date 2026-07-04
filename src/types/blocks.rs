@@ -1,7 +1,21 @@
 pub use blocks::*;
 
+pub struct Property {
+    pub name: &'static str,
+    pub values: &'static [&'static str],
+}
+
+pub struct Block {
+    pub name: &'static str,
+    pub min_state_id: u16,
+    pub default_state: u16,
+    pub properties: &'static [Property],
+}
+
 #[allow(unused)]
 mod blocks {
+    use super::{Block, Property};
+
     include!(concat!(env!("OUT_DIR"), "/blocks.rs"));
 }
 
