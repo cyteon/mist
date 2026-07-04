@@ -2,7 +2,10 @@ use tokio::io::AsyncReadExt;
 
 use crate::{
     net::codec::{read_position, read_var},
-    types::player::Player,
+    types::{
+        blocks::{block_by_state_id, compute_overrides, resolve_state},
+        player::Player,
+    },
     world::get_region,
 };
 
@@ -64,7 +67,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
         }
     }
 
-    let block_id =
+    let default_block_id =
         if let Some(Some(item_stack)) = player.inventory.get(player.current_slot as usize + 36) {
             if let Some(block_id) = crate::types::items::item_to_block(item_stack.item_id) {
                 block_id
@@ -80,6 +83,12 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
         .iter_mut()
         .find(|chunk| chunk.x == chunk_pos.0 && chunk.z == chunk_pos.1)
     {
+        let block =
+            block_by_state_id(default_block_id).expect("Block ID not found in block registry");
+
+        let overrides = compute_overrides(&block, face, player.yaw);
+        let block_id = resolve_state(block, overrides);
+
         chunk.set_block((bx & 15) as u8, by as i32, (bz & 15) as u8, block_id as u16);
 
         if player.gamemode as u8 != 1 {

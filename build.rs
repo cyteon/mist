@@ -154,10 +154,14 @@ fn load_blocks() {
             .map(|item| item.as_i64().unwrap() as i32)
             .collect::<Vec<_>>();
 
-        out.push_str(&format!(
-            "        {}..{} => &{:?},\n",
-            min_state_id, max_state_id, drops
-        ));
+        if max_state_id > min_state_id {
+            out.push_str(&format!(
+                "        {}..={} => &{:?},\n",
+                min_state_id, max_state_id, drops
+            ));
+        } else {
+            out.push_str(&format!("        {} => &{:?},\n", min_state_id, drops));
+        }
     }
 
     out.push_str("        _ => &[],\n");
@@ -175,19 +179,31 @@ fn load_blocks() {
             if !tools.is_empty() {
                 let tool_ids: Vec<&str> = tools.keys().map(|k| k.as_str()).collect();
 
-                out.push_str(&format!(
-                    "        {}..{} => matches!(item_id, {}),\n",
-                    min_state_id,
-                    max_state_id,
-                    tool_ids
-                        .iter()
-                        .map(|id| format!("{}", id))
-                        .collect::<Vec<_>>()
-                        .join(" | ")
-                ));
+                if max_state_id > min_state_id {
+                    out.push_str(&format!(
+                        "        {}..={} => matches!(item_id, {}),\n",
+                        min_state_id,
+                        max_state_id,
+                        tool_ids
+                            .iter()
+                            .map(|id| format!("{}", id))
+                            .collect::<Vec<_>>()
+                            .join(" | ")
+                    ));
+                } else {
+                    out.push_str(&format!(
+                        "        {} => matches!(item_id, {}),\n",
+                        min_state_id,
+                        tool_ids
+                            .iter()
+                            .map(|id| format!("{}", id))
+                            .collect::<Vec<_>>()
+                            .join(" | ")
+                    ));
+                }
             } else {
                 out.push_str(&format!(
-                    "        {}..{} => false,\n",
+                    "        {}..={} => false,\n",
                     min_state_id, max_state_id
                 ));
             }
