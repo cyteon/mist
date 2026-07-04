@@ -1,15 +1,15 @@
 use std::pin::Pin;
 
+use crate::server::commands::CommandInvoker;
 use crate::types::colors::GREEN;
-use crate::types::player::Player;
 
-pub fn run<'a>(
+pub fn run<'a, 'b>(
     _args: &'a [&'a str],
-    player: &'a mut Player,
+    invoker: &'a mut CommandInvoker<'b>,
 ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>> {
     Box::pin(async move {
-        player
-            .send_system_message(format!(
+        invoker
+            .send_message(format!(
                 "{}Mist Server v{}",
                 GREEN,
                 env!("CARGO_PKG_VERSION"),

@@ -39,7 +39,11 @@ use crate::{
             },
         },
     },
-    server::{commands::handle_command, conn::PLAYER_SOCKET_MAP, encryption::EncryptedStream},
+    server::{
+        commands::{CommandInvoker, handle_command},
+        conn::PLAYER_SOCKET_MAP,
+        encryption::EncryptedStream,
+    },
     types::player::Player,
     world::{get_chunk, get_region},
 };
@@ -389,7 +393,14 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
                     let players_locked = PLAYERS.read().await;
                     let mut player = players_locked.get(&uuid).unwrap().lock().await;
-                    handle_command(command, &mut player).await?;
+
+                    handle_command(
+                        command,
+                        &mut CommandInvoker::Player {
+                            player: &mut *player,
+                        },
+                    )
+                    .await?;
                 }
 
                 ClientPacket::ChatMessage(mut cursor) => {

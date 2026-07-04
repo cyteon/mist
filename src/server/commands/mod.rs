@@ -1,7 +1,9 @@
 use std::pin::Pin;
 
 use byteorder::{BigEndian, WriteBytesExt};
+use fancy_log::LogLevel;
 
+use crate::log;
 use crate::types::colors::RED;
 use crate::types::player::Player;
 
@@ -12,9 +14,9 @@ mod op;
 mod tps;
 mod version;
 
-pub type Handler = for<'a> fn(
+pub type Handler = for<'a, 'b> fn(
     &'a [&'a str],
-    &'a mut Player,
+    &'a mut CommandInvoker<'b>,
 ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>>;
 
 // the mc client will use this for autocomplete and stuff
@@ -77,6 +79,39 @@ pub struct Command {
     pub handler: Handler,
 }
 
+pub enum CommandInvoker<'b> {
+    Player { player: &'b mut Player },
+    Console,
+}
+
+impl<'b> CommandInvoker<'b> {
+    pub fn is_op(&self) -> bool {
+        match self {
+            CommandInvoker::Player { player } => player.is_op,
+            CommandInvoker::Console => true,
+        }
+    }
+
+    pub fn send_message(
+        &mut self,
+        message: String,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + '_>> {
+        Box::pin(async move {
+            match self {
+                CommandInvoker::Player { player } => {
+                    player.send_system_message(message).await?;
+                }
+
+                CommandInvoker::Console => {
+                    log::log(LogLevel::Info, &message);
+                }
+            }
+
+            Ok(())
+        })
+    }
+}
+
 pub static COMMANDS: &[Command] = &[
     Command {
         name: "deop",
@@ -137,14 +172,17 @@ pub static COMMANDS: &[Command] = &[
     },
 ];
 
-pub async fn handle_command(command: String, player: &mut Player) -> anyhow::Result<()> {
+pub async fn handle_command(
+    command: String,
+    invoker: &mut CommandInvoker<'_>,
+) -> anyhow::Result<()> {
     let command_parts = command.split_whitespace().collect::<Vec<&str>>();
 
     for cmd in COMMANDS {
         if cmd.name == command_parts[0] {
-            if cmd.requires_op && !player.is_op {
-                player
-                    .send_system_message(format!(
+            if cmd.requires_op && !invoker.is_op() {
+                invoker
+                    .send_message(format!(
                         "{}You do not have permission to use this command.",
                         RED
                     ))
@@ -153,12 +191,12 @@ pub async fn handle_command(command: String, player: &mut Player) -> anyhow::Res
                 return Ok(());
             }
 
-            return (cmd.handler)(&command_parts[1..], player).await;
+            return (cmd.handler)(&command_parts[1..], invoker).await;
         }
     }
 
-    player
-        .send_system_message(format!("{}Unknown command: {}", RED, command_parts[0]))
+    invoker
+        .send_message(format!("{}Unknown command: {}", RED, command_parts[0]))
         .await?;
 
     Ok(())

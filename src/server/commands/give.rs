@@ -1,13 +1,22 @@
 use std::pin::Pin;
 
+use crate::server::commands::CommandInvoker;
 use crate::types::colors::{GREEN, RED};
 use crate::types::player::Player;
 
-pub fn run<'a>(
+pub fn run<'a, 'b>(
     args: &'a [&'a str],
-    player: &'a mut Player,
+    invoker: &'a mut CommandInvoker<'b>,
 ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>> {
     Box::pin(async move {
+        // TODO: make it /give <player> <item> <amount>
+        let CommandInvoker::Player { player } = invoker else {
+            invoker
+                .send_message(format!("{}This command can only be ran by a player", RED))
+                .await?;
+            return Ok(());
+        };
+
         if args.len() < 2 {
             return player
                 .send_system_message(format!("{}Usage: /give <item> <amount>", RED))

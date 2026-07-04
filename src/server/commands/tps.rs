@@ -1,11 +1,11 @@
 use std::pin::Pin;
 
+use crate::server::commands::CommandInvoker;
 use crate::types::colors::{GREEN, RED, YELLOW};
-use crate::types::player::Player;
 
-pub fn run<'a>(
+pub fn run<'a, 'b>(
     _args: &'a [&'a str],
-    player: &'a mut Player,
+    invoker: &'a mut CommandInvoker<'b>,
 ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>> {
     Box::pin(async move {
         let tps_5s = crate::server::tick::TPS_5S.load(std::sync::atomic::Ordering::Relaxed);
@@ -34,8 +34,8 @@ pub fn run<'a>(
             RED
         };
 
-        player
-            .send_system_message(format!(
+        invoker
+            .send_message(format!(
                 "TPS (last 5s): {}{}§f, TPS (last 1m): {}{}§f, TPS (last 5m): {}{}§f",
                 tps_5s_color, tps_5s, tps_1m_color, tps_1m, tps_5m_color, tps_5m
             ))

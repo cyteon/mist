@@ -1,29 +1,31 @@
 use std::pin::Pin;
 
+use crate::server::commands::CommandInvoker;
 use crate::server::state::play::{NAME_TO_UUID, PLAYERS};
 use crate::types::colors::{GREEN, YELLOW};
-use crate::types::player::Player;
 
-pub fn run<'a>(
+pub fn run<'a, 'b>(
     args: &'a [&'a str],
-    player: &'a mut Player,
+    invoker: &'a mut CommandInvoker<'b>,
 ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>> {
     Box::pin(async move {
         if args.len() < 1 {
-            player
-                .send_system_message(format!("{}Usage: /op <player>", GREEN))
+            invoker
+                .send_message(format!("{}Usage: /op <player>", GREEN))
                 .await?;
             return Ok(());
         }
 
         let target_username = args[0];
 
-        if target_username.to_lowercase() == player.username.to_lowercase() {
-            player
-                .send_system_message(format!("{}You cannot op yourself", YELLOW))
-                .await?;
+        if let CommandInvoker::Player { player } = invoker {
+            if target_username.to_lowercase() == player.username.to_lowercase() {
+                player
+                    .send_system_message(format!("{}You cannot op yourself", YELLOW))
+                    .await?;
 
-            return Ok(());
+                return Ok(());
+            }
         }
 
         let uuid = {
@@ -32,8 +34,8 @@ pub fn run<'a>(
         };
 
         let Some(uuid) = uuid else {
-            player
-                .send_system_message(format!("{}Player not found: {}", YELLOW, target_username))
+            invoker
+                .send_message(format!("{}Player not found: {}", YELLOW, target_username))
                 .await?;
 
             return Ok(());
@@ -45,8 +47,8 @@ pub fn run<'a>(
         };
 
         let Some(target) = target else {
-            player
-                .send_system_message(format!("{}Player not found: {}", YELLOW, target_username))
+            invoker
+                .send_message(format!("{}Player not found: {}", YELLOW, target_username))
                 .await?;
 
             return Ok(());
@@ -61,8 +63,8 @@ pub fn run<'a>(
                 .await?;
         }
 
-        player
-            .send_system_message(format!(
+        invoker
+            .send_message(format!(
                 "{}You have made {} an operator",
                 GREEN, target_username
             ))
