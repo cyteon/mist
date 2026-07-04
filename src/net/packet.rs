@@ -48,33 +48,33 @@ pub enum ProtocolState {
     Play,
 }
 
-pub fn encode_packet(data: &[u8]) -> Vec<u8> {
+pub fn encode_packet(data: &[u8]) -> anyhow::Result<Vec<u8>> {
     let mut result = Vec::new();
 
     if data.len() > 256 {
         let uncompressed_len = data.len();
 
         let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::fast());
-        encoder.write_all(&data).unwrap();
+        encoder.write_all(&data)?;
 
-        let compressed = encoder.finish().unwrap();
+        let compressed = encoder.finish()?;
 
         let mut inner = Vec::with_capacity(5 + compressed.len());
-        write_var(&mut inner, uncompressed_len as i32).unwrap();
+        write_var(&mut inner, uncompressed_len as i32)?;
         inner.extend_from_slice(&compressed);
 
-        write_var(&mut result, inner.len() as i32).unwrap();
+        write_var(&mut result, inner.len() as i32)?;
         result.extend_from_slice(&inner);
     } else {
         let mut inner = Vec::with_capacity(5);
-        write_var(&mut inner, 0).unwrap();
+        write_var(&mut inner, 0)?;
         inner.extend_from_slice(&data);
 
-        write_var(&mut result, inner.len() as i32).unwrap();
+        write_var(&mut result, inner.len() as i32)?;
         result.extend_from_slice(&inner);
     }
 
-    result
+    Ok(result)
 }
 
 pub async fn read_packet<R: AsyncReadExt + Unpin>(
@@ -85,6 +85,18 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(
     let packet_len = read_var(stream)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to read packet length: {}", e))?;
+
+    if packet_len <= 0 {
+        return Err(anyhow::anyhow!("Invalid packet length: {}", packet_len));
+    }
+
+    // 8mb max
+    if packet_len > 8 * 1024 * 1024 {
+        return Err(anyhow::anyhow!(
+            "Packet length exceeds maximum allowed size: {}",
+            packet_len
+        ));
+    }
 
     let mut packet_buf = vec![0u8; packet_len as usize];
     stream

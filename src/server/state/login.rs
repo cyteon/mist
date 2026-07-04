@@ -70,7 +70,25 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
 
     let mut buffer = Vec::new();
     send_login_success(&mut buffer, &player).await?;
-    let encoded = encode_packet(&buffer);
+
+    let encoded = match encode_packet(&buffer) {
+        Ok(packet) => packet,
+
+        Err(e) => {
+            crate::log::log(
+                LogLevel::Error,
+                format!(
+                    "Failed to encode login success packet for {}: {}",
+                    player.username, e
+                )
+                .as_str(),
+            );
+
+            socket.shutdown().await?;
+            return Ok(());
+        }
+    };
+
     socket.write_all(&encoded).await?;
 
     crate::log::log(

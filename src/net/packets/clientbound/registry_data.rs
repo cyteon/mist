@@ -77,7 +77,23 @@ pub async fn send_all_registers<W: AsyncWriteExt + Unpin>(stream: &mut W) -> any
             }
         }
 
-        let encoded = encode_packet(&packet_data);
+        let encoded = match encode_packet(&packet_data) {
+            Ok(packet) => packet,
+
+            Err(e) => {
+                crate::log::log(
+                    fancy_log::LogLevel::Error,
+                    format!(
+                        "Failed to encode registry data packet for {}: {}",
+                        packet.registry_id, e
+                    )
+                    .as_str(),
+                );
+
+                return Err(e);
+            }
+        };
+
         stream.write_all(&encoded).await?;
         stream.flush().await?;
     }

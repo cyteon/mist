@@ -139,13 +139,6 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
                             )
                             .await?;
 
-                        let tx = crate::server::conn::PLAYER_SOCKET_MAP
-                            .read()
-                            .await
-                            .get(&player_lock.uuid)
-                            .cloned()
-                            .unwrap();
-
                         let mut buffer = Vec::new();
                         crate::net::packets::clientbound::pickup_item::send_pickup_item(
                             &mut buffer,
@@ -155,7 +148,8 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
                         )
                         .await
                         .unwrap();
-                        let _ = tx.send(buffer);
+
+                        player_lock.send_packet(buffer).await?;
                     }
 
                     drop(players);

@@ -1,4 +1,9 @@
-use crate::net::codec::{write_position, write_var};
+use fancy_log::LogLevel;
+
+use crate::{
+    log,
+    net::codec::{write_position, write_var},
+};
 
 pub async fn broadcast_block_update(x: i32, y: i32, z: i32, block_id: i32) -> anyhow::Result<()> {
     let player_positions = crate::types::player::PLAYER_POSITIONS.read().await;
@@ -8,12 +13,24 @@ pub async fn broadcast_block_update(x: i32, y: i32, z: i32, block_id: i32) -> an
         let distance_squared = (pos.0 - x as f64).powi(2) + (pos.2 - z as f64).powi(2);
 
         if distance_squared < (view_distance_blocks as f64).powi(2) {
-            let tx = crate::server::conn::PLAYER_SOCKET_MAP
+            let tx = match crate::server::conn::PLAYER_SOCKET_MAP
                 .read()
                 .await
                 .get(uuid)
                 .cloned()
-                .unwrap();
+            {
+                Some(tx) => tx,
+                None => {
+                    log::log(
+                        LogLevel::Warn,
+                        &format!(
+                            "Player {} not found in socket map, possibly disconnected?",
+                            uuid
+                        ),
+                    );
+                    continue;
+                }
+            };
 
             let mut buffer = Vec::new();
             send_block_update(&mut buffer, x, y, z, block_id).await?;

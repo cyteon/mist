@@ -30,12 +30,48 @@ pub async fn configuration(
 
     let mut buffer = Vec::new();
     send_plugin_message(&mut buffer).await?;
-    let encoded = encode_packet(&buffer);
+
+    let encoded = match encode_packet(&buffer) {
+        Ok(packet) => packet,
+
+        Err(e) => {
+            crate::log::log(
+                LogLevel::Error,
+                format!(
+                    "Failed to encode plugin message packet for {}: {}",
+                    player.username, e
+                )
+                .as_str(),
+            );
+
+            socket.shutdown().await?;
+            return Ok(());
+        }
+    };
+
     socket.write_all(&encoded).await?;
 
     let mut buffer = Vec::new();
     send_known_packs(&mut buffer).await?;
-    let encoded = encode_packet(&buffer);
+
+    let encoded = match encode_packet(&buffer) {
+        Ok(packet) => packet,
+
+        Err(e) => {
+            crate::log::log(
+                LogLevel::Error,
+                format!(
+                    "Failed to encode known packs packet for {}: {}",
+                    player.username, e
+                )
+                .as_str(),
+            );
+
+            socket.shutdown().await?;
+            return Ok(());
+        }
+    };
+
     socket.write_all(&encoded).await?;
 
     crate::log::log(
@@ -72,7 +108,24 @@ pub async fn configuration(
 
                     let mut buffer = Vec::new();
                     send_finish_configuration(&mut buffer).await?;
-                    let encoded = encode_packet(&buffer);
+
+                    let encoded = match encode_packet(&buffer) {
+                        Ok(packet) => packet,
+
+                        Err(e) => {
+                            crate::log::log(
+                                LogLevel::Error,
+                                format!(
+                                    "Failed to encode finish configuration packet for {}: {}",
+                                    player.username, e
+                                )
+                                .as_str(),
+                            );
+                            socket.shutdown().await?;
+                            break;
+                        }
+                    };
+
                     socket.write_all(&encoded).await?;
 
                     crate::log::log(
@@ -89,7 +142,24 @@ pub async fn configuration(
 
                     let mut buffer = Vec::new();
                     send_login_play(&mut buffer, &player).await?;
-                    let encoded = encode_packet(&buffer);
+
+                    let encoded = match encode_packet(&buffer) {
+                        Ok(packet) => packet,
+
+                        Err(e) => {
+                            crate::log::log(
+                                LogLevel::Error,
+                                format!(
+                                    "Failed to encode login play packet for {}: {}",
+                                    player.username, e
+                                )
+                                .as_str(),
+                            );
+                            socket.shutdown().await?;
+                            break;
+                        }
+                    };
+
                     socket.write_all(&encoded).await?;
 
                     crate::log::log(

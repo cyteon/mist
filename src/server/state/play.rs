@@ -143,14 +143,34 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         let mut write = write;
 
         while let Some(buffer) = rx.recv().await {
-            let packet = encode_packet(&buffer);
+            let packet = match encode_packet(&buffer) {
+                Ok(p) => p,
+
+                Err(e) => {
+                    crate::log::log(
+                        LogLevel::Error,
+                        format!("Failed to encode packet: {}", e).as_str(),
+                    );
+                    break;
+                }
+            };
 
             if let Err(_) = write.write_all(&packet).await {
                 break;
             }
 
             while let Ok(buffer) = rx.try_recv() {
-                let packet = encode_packet(&buffer);
+                let packet = match encode_packet(&buffer) {
+                    Ok(p) => p,
+
+                    Err(e) => {
+                        crate::log::log(
+                            LogLevel::Error,
+                            format!("Failed to encode packet: {}", e).as_str(),
+                        );
+                        break;
+                    }
+                };
 
                 if let Err(_) = write.write_all(&packet).await {
                     break;

@@ -1,3 +1,5 @@
+use fancy_log::LogLevel;
+
 use crate::net::codec::{write_string, write_var};
 use crate::net::packet::encode_packet;
 use crate::types::tags::TAGS;
@@ -25,7 +27,18 @@ pub async fn send_update_tags<W: tokio::io::AsyncWriteExt + Unpin>(
         }
     }
 
-    let encoded = encode_packet(&packet_data);
+    let encoded = match encode_packet(&packet_data) {
+        Ok(packet) => packet,
+
+        Err(e) => {
+            crate::log::log(
+                LogLevel::Error,
+                format!("Failed to encode update tags packet: {}", e).as_str(),
+            );
+
+            return Err(e);
+        }
+    };
 
     stream.write_all(&encoded).await?;
     stream.flush().await?;

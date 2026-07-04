@@ -77,13 +77,6 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
             grid[0] = check_3x3(&crafting_grid)
                 .map(|(id, count)| crate::types::items::ItemStack { item_id: id, count });
 
-            let tx = crate::server::conn::PLAYER_SOCKET_MAP
-                .read()
-                .await
-                .get(&player.uuid)
-                .unwrap()
-                .clone();
-
             let mut buffer = Vec::new();
 
             crate::net::packets::clientbound::container_set_slot::send_container_set_slot(
@@ -94,7 +87,7 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
             )
             .await?;
 
-            let _ = tx.send(buffer);
+            player.send_packet(buffer).await?;
         }
     }
 

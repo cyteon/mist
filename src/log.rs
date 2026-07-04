@@ -29,8 +29,9 @@ pub fn log(level: LogLevel, message: &str) {
         let timestamp = Local::now().format("%H:%M:%S");
         let log_message = format!("[{:?}] [{}] {}\n", level, timestamp, message);
 
-        let mut file = LOG_FILE.lock().unwrap();
-        file.write_all(log_message.as_bytes())
-            .expect("Failed to write to log file");
+        if let Ok(mut file) = LOG_FILE.lock() {
+            file.write_all(log_message.as_bytes())
+                .expect("Failed to write to log file");
+        }
     }
 }

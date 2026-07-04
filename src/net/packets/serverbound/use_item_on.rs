@@ -41,13 +41,6 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
     let region = get_region(region_pos.0, region_pos.1).await;
     let mut region_lock = region.lock().await;
 
-    let tx = crate::server::conn::PLAYER_SOCKET_MAP
-        .read()
-        .await
-        .get(&player.uuid)
-        .cloned()
-        .unwrap();
-
     if let Some(chunk) = region_lock.get_chunk(chunk_pos.0, chunk_pos.1) {
         match chunk.get_block((x & 15) as u8, y as i32, (z & 15) as u8) {
             crate::types::blocks::CRAFTING_TABLE => {
@@ -62,7 +55,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                 )
                 .await?;
 
-                let _ = tx.send(buffer);
+                player.send_packet(buffer).await?;
 
                 return Ok(());
             }
@@ -111,7 +104,8 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
             sequence as i32,
         )
         .await?;
-        let _ = tx.send(buffer);
+
+        player.send_packet(buffer).await?;
 
         crate::net::packets::clientbound::block_update::broadcast_block_update(
             bx,

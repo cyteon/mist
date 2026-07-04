@@ -28,26 +28,24 @@ pub fn load_config() -> ServerConfig {
     let file_exists = std::path::Path::new(path).exists();
 
     if file_exists {
-        let config_str = std::fs::read_to_string(path);
+        if let Ok(config_str) = std::fs::read_to_string(path) {
+            match toml::from_str::<ServerConfig>(&config_str) {
+                Ok(config) => config,
+                Err(e) => {
+                    crate::log::log(
+                        LogLevel::Error,
+                        format!("Failed to parse config:\n\n{}", e).as_str(),
+                    );
+                    crate::log::log(LogLevel::Info, "Stopping server");
 
-        if config_str.is_err() {
+                    exit(1);
+                }
+            }
+        } else {
             crate::log::log(LogLevel::Error, "Failed to read config");
             crate::log::log(LogLevel::Error, "Stopping server");
 
             exit(1);
-        }
-
-        match toml::from_str::<ServerConfig>(&config_str.unwrap()) {
-            Ok(config) => config,
-            Err(e) => {
-                crate::log::log(
-                    LogLevel::Error,
-                    format!("Failed to parse config:\n\n{}", e).as_str(),
-                );
-                crate::log::log(LogLevel::Info, "Stopping server");
-
-                exit(1);
-            }
         }
     } else {
         let random_seed = rand::random::<u64>();
@@ -60,7 +58,7 @@ host = "0.0.0.0"
 port = 25565
 
 # server details
-motd = "An mist server"
+motd = "A mist server"
 max_players = 10
 online_mode = true
 

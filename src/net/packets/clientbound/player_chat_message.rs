@@ -1,6 +1,8 @@
 use byteorder::{BigEndian, WriteBytesExt};
+use fancy_log::LogLevel;
 
 use crate::{
+    log,
     net::{
         codec::{write_string, write_var},
         packets::serverbound::chat_message::Message,
@@ -25,7 +27,19 @@ pub async fn send_player_chat_message<W: tokio::io::AsyncWriteExt + Unpin>(
     write_var(&mut packet_data, global_message_index)?;
 
     let uuid = player.uuid.replace("-", "");
-    let uuid_bytes = hex::decode(uuid).unwrap();
+
+    let uuid_bytes = match hex::decode(uuid.clone()) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            log::log(
+                LogLevel::Error,
+                &format!("Failed to decode UUID {}: {}", uuid, e),
+            );
+
+            return Err(anyhow::anyhow!("Failed to decode UUID"));
+        }
+    };
+
     packet_data.extend_from_slice(&uuid_bytes);
 
     write_var(&mut packet_data, 0)?; // "index", has no usage description
