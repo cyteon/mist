@@ -298,8 +298,6 @@ impl Player {
             .await
             .insert(entity.id, entity);
 
-        println!("Saved player entity for player {}", player.username);
-
         player
     }
 

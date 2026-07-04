@@ -47,6 +47,9 @@ use crate::{
 pub static PLAYERS: Lazy<RwLock<HashMap<String, Arc<Mutex<Player>>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
+pub static NAME_TO_UUID: Lazy<RwLock<HashMap<String, String>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
+
 pub async fn send_chunks_to_player(
     tx: mpsc::UnboundedSender<Vec<u8>>,
     player: Arc<Mutex<Player>>,
@@ -95,8 +98,6 @@ pub async fn send_chunks_to_player(
             tokio::spawn(async move {
                 let mut buffer = Vec::new();
                 send_level_chunk_with_light(&mut buffer, &chunk).await?;
-
-                println!("Sent chunk {}, {}", chunk.x, chunk.z);
 
                 Ok::<Vec<u8>, anyhow::Error>(buffer)
             })
@@ -220,7 +221,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     }
 
     let mut buffer = Vec::new();
-    send_commands(&mut buffer).await?;
+    send_commands(&mut buffer, player.is_op).await?;
     let _ = tx.send(buffer);
 
     let mut buffer = Vec::new();
@@ -229,15 +230,24 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
     let player = Arc::new(Mutex::new(player));
 
-    PLAYER_SOCKET_MAP
-        .write()
-        .await
-        .insert(player.lock().await.uuid.clone(), tx.clone());
+    {
+        let player_lock = player.lock().await;
 
-    PLAYERS
-        .write()
-        .await
-        .insert(player.lock().await.uuid.clone(), Arc::clone(&player));
+        PLAYER_SOCKET_MAP
+            .write()
+            .await
+            .insert(player_lock.uuid.clone(), tx.clone());
+
+        PLAYERS
+            .write()
+            .await
+            .insert(player_lock.uuid.clone(), Arc::clone(&player));
+
+        NAME_TO_UUID.write().await.insert(
+            player_lock.username.clone().to_lowercase(),
+            player_lock.uuid.clone(),
+        );
+    }
 
     {
         let player_guard = player.lock().await;
@@ -598,6 +608,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     }
 
     PLAYERS.write().await.remove(&uuid);
+    NAME_TO_UUID.write().await.remove(&username.to_lowercase());
 
     Ok(())
 }

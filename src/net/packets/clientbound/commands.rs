@@ -15,27 +15,38 @@ enum Flags {
 
 pub async fn send_commands<W: tokio::io::AsyncWriteExt + Unpin>(
     stream: &mut W,
+    is_op: bool,
 ) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::COMMANDS as u8];
 
-    let total =
-        1 + COMMANDS.len() as i32 + COMMANDS.iter().map(|c| c.args.len() as i32).sum::<i32>();
+    let allowed_commands = COMMANDS
+        .iter()
+        .filter(|c| c.requires_op == false || is_op)
+        .clone()
+        .collect::<Vec<_>>();
+
+    let total = 1
+        + allowed_commands.len() as i32
+        + allowed_commands
+            .iter()
+            .map(|c| c.args.len() as i32)
+            .sum::<i32>();
     write_var(&mut packet_data, total)?;
 
     let mut next_index = 1;
-    let mut literals = Vec::with_capacity(COMMANDS.len());
-    for cmd in COMMANDS.iter() {
+    let mut literals = Vec::with_capacity(allowed_commands.len());
+    for cmd in allowed_commands.iter() {
         literals.push(next_index);
         next_index += 1 + cmd.args.len() as i32;
     }
 
     packet_data.push(Flags::Root as u8);
-    write_var(&mut packet_data, COMMANDS.len() as i32)?;
+    write_var(&mut packet_data, allowed_commands.len() as i32)?;
     for &i in &literals {
         write_var(&mut packet_data, i)?;
     }
 
-    for (cmd, &literal) in COMMANDS.iter().zip(literals.iter()) {
+    for (cmd, &literal) in allowed_commands.iter().zip(literals.iter()) {
         let arg_indices: Vec<i32> = (0..cmd.args.len())
             .map(|i| literal + 1 + i as i32)
             .collect();
