@@ -48,11 +48,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
         .cloned()
         .unwrap();
 
-    if let Some(chunk) = region_lock
-        .chunks
-        .iter_mut()
-        .find(|chunk| chunk.x == chunk_pos.0 && chunk.z == chunk_pos.1)
-    {
+    if let Some(chunk) = region_lock.get_chunk(chunk_pos.0, chunk_pos.1) {
         match chunk.get_block((x & 15) as u8, y as i32, (z & 15) as u8) {
             crate::types::blocks::CRAFTING_TABLE => {
                 let mut buffer = Vec::new();

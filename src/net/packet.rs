@@ -12,30 +12,31 @@ use crate::net::codec::{read_var, write_var};
 
 pub enum ClientPacket {
     // status state
-    Ping, // 0x01 in status
+    Ping,
 
     // config state
-    AcknowledgeFinishConfiguration,       // 0x03 in configuration
-    KnownPacks(std::io::Cursor<Vec<u8>>), // 0x07 in configuration
+    AcknowledgeFinishConfiguration,
+    KnownPacks(std::io::Cursor<Vec<u8>>),
 
     // play state
-    ConfirmTeleprortion(std::io::Cursor<Vec<u8>>), // 0x00 in play
-    ChatCommand(std::io::Cursor<Vec<u8>>),         // 0x06 in play
-    ChatMessage(std::io::Cursor<Vec<u8>>),         // 0x08 in play
-    ClientStatus(std::io::Cursor<Vec<u8>>),        // 0x0B in play
-    ContainerClick(std::io::Cursor<Vec<u8>>),      // 0x11 in play
-    ContainerClose(std::io::Cursor<Vec<u8>>),      // 0x12 in play
-    PlayerAbilities(std::io::Cursor<Vec<u8>>),     // 0x27 in play
-    PlayerAction(std::io::Cursor<Vec<u8>>),        // 0x28 in play
-    SetCarriedItem(std::io::Cursor<Vec<u8>>),      // 0x34 in play
-    SetCreativeModeSlot(std::io::Cursor<Vec<u8>>), // 0x37 in play
-    UseItemOn(std::io::Cursor<Vec<u8>>),           // 0x3F in play
-    UseItem(std::io::Cursor<Vec<u8>>),             // 0x40 in play
-    SetPlayerPosition(std::io::Cursor<Vec<u8>>),   // 0x1D in play
-    SetPlayerPositionAndRotation(std::io::Cursor<Vec<u8>>), // 0x1E in play
-    PlayerInput(std::io::Cursor<Vec<u8>>),         // 0x2A in play
-    SetPlayerRotation(std::io::Cursor<Vec<u8>>),   // 0x1F in play
-    SwingArm(std::io::Cursor<Vec<u8>>),            // 0x3C in play
+    ConfirmTeleprortion(std::io::Cursor<Vec<u8>>),
+    ChatCommand(std::io::Cursor<Vec<u8>>),
+    ChatMessage(std::io::Cursor<Vec<u8>>),
+    ClientStatus(std::io::Cursor<Vec<u8>>),
+    ContainerClick(std::io::Cursor<Vec<u8>>),
+    ContainerClose(std::io::Cursor<Vec<u8>>),
+    PlayerAbilities(std::io::Cursor<Vec<u8>>),
+    PlayerAction(std::io::Cursor<Vec<u8>>),
+    SetCarriedItem(std::io::Cursor<Vec<u8>>),
+    SetCreativeModeSlot(std::io::Cursor<Vec<u8>>),
+    UseItemOn(std::io::Cursor<Vec<u8>>),
+    UseItem(std::io::Cursor<Vec<u8>>),
+    SetPlayerPosition(std::io::Cursor<Vec<u8>>),
+    SetPlayerPositionAndRotation(std::io::Cursor<Vec<u8>>),
+    PickItemFromBlock(std::io::Cursor<Vec<u8>>),
+    PlayerInput(std::io::Cursor<Vec<u8>>),
+    SetPlayerRotation(std::io::Cursor<Vec<u8>>),
+    SwingArm(std::io::Cursor<Vec<u8>>),
 }
 
 #[allow(unused)]
@@ -176,6 +177,10 @@ pub async fn read_packet<R: AsyncReadExt + Unpin>(
 
             play::serverbound::SET_CREATIVE_MODE_SLOT => {
                 Ok(Some(ClientPacket::SetCreativeModeSlot(cursor)))
+            }
+
+            play::serverbound::PICK_ITEM_FROM_BLOCK => {
+                Ok(Some(ClientPacket::PickItemFromBlock(cursor)))
             }
 
             play::serverbound::PLAYER_ABILITIES => Ok(Some(ClientPacket::PlayerAbilities(cursor))),

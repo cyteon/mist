@@ -9,6 +9,7 @@ pub mod handshake;
 pub mod known_packs;
 pub mod login_acknowledged;
 pub mod login_start;
+pub mod pick_item_from_block;
 pub mod player_abilities;
 pub mod player_action;
 pub mod player_input;

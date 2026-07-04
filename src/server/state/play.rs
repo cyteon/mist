@@ -28,6 +28,7 @@ use crate::{
                 client_status::read_client_status,
                 confirm_teleportation::read_confirm_teleportation,
                 container_click::read_container_click, container_close::read_container_close,
+                pick_item_from_block::read_pick_item_from_block,
                 player_abilities::read_player_abilities, player_action::read_player_action,
                 player_input::read_player_input, set_carried_item::read_set_carried_item,
                 set_creative_mode_slot::read_set_creative_mode_slot,
@@ -448,6 +449,13 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                     let mut player = players_locked.get(&uuid).unwrap().lock().await;
 
                     read_set_creative_mode_slot(&mut cursor, &mut player).await?;
+                }
+
+                ClientPacket::PickItemFromBlock(mut cursor) => {
+                    let players_locked = PLAYERS.read().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+
+                    read_pick_item_from_block(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::PlayerAbilities(mut cursor) => {

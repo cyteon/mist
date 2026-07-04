@@ -229,6 +229,30 @@ fn load_item_to_block() {
     out.push_str("    }\n");
     out.push_str("}\n");
 
+    out.push_str("pub fn block_to_item(block_id: u16) -> Option<i32> {\n");
+    out.push_str("    match block_id {\n");
+
+    for block in blocks.as_array().unwrap() {
+        let block_id = block["defaultState"].as_i64().unwrap() as u16;
+        let block_name = block["name"].as_str().unwrap();
+
+        let item_id = items["entries"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .find(|(ik, _)| ik.replace("minecraft:", "") == block_name)
+            .and_then(|(_, iv)| iv["protocol_id"].as_i64())
+            .unwrap_or(-1) as i32;
+
+        if item_id != -1 {
+            out.push_str(&format!("        {} => Some({}),\n", block_id, item_id));
+        }
+    }
+
+    out.push_str("        _ => None,\n");
+    out.push_str("    }\n");
+    out.push_str("}\n");
+
     let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("item_to_block.rs");
     fs::write(out_path, out).unwrap();
 }
