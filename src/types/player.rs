@@ -216,7 +216,7 @@ impl Player {
             chat_index: -1,
             chunks_loaded: false,
             loaded_entities: Vec::new(),
-            ticks_since_time_update: 0,
+            ticks_since_time_update: 20,
         };
 
         let player_save = crate::server::save::load_player(&player.uuid);

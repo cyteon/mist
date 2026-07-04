@@ -30,7 +30,7 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
     let mut ticks_5m = 0;
 
     loop {
-        TIMESTAMP.fetch_add(100, Ordering::Relaxed);
+        TIMESTAMP.fetch_add(1, Ordering::Relaxed);
 
         if ticks_until_autosave == 0 {
             ticks_until_autosave = 6000; // 5 mins
