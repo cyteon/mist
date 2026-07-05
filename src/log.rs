@@ -84,7 +84,7 @@ pub fn log(level: LogLevel, message: &str) {
 
     let mut guard = PRINTER.lock().unwrap();
     if let Some(printer) = guard.as_mut() {
-        printer.print(line);
+        let _ = printer.print(line);
     } else {
         println!("{}", line);
     }

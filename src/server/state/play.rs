@@ -391,8 +391,8 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                         format!("{} issued command /{}", username, command).as_str(),
                     );
 
-                    let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let player_arc = PLAYERS.read().await.get(&uuid).unwrap().clone();
+                    let mut player = player_arc.lock().await;
 
                     handle_command(
                         command,

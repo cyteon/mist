@@ -56,7 +56,7 @@ pub fn run<'a, 'b>(
 
         {
             let mut target = target.lock().await;
-            target.is_op = true;
+            target.set_op(true).await?;
 
             target
                 .send_system_message(format!("{}You are now an operator", GREEN))

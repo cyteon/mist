@@ -20,8 +20,10 @@ pub fn run<'a, 'b>(
 
         if let CommandInvoker::Player { player } = invoker {
             if target_username.to_lowercase() == player.username.to_lowercase() {
+                player.set_op(false).await?;
+
                 player
-                    .send_system_message(format!("{}You cannot deop yourself", YELLOW))
+                    .send_system_message(format!("{}You are no longer an operator", YELLOW))
                     .await?;
 
                 return Ok(());
@@ -56,7 +58,7 @@ pub fn run<'a, 'b>(
 
         {
             let mut target = target.lock().await;
-            target.is_op = false;
+            target.set_op(false).await?;
 
             target
                 .send_system_message(format!("{}You are no longer an operator", YELLOW))

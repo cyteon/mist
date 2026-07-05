@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::atomic::Ordering};
 use tokio::sync::RwLock;
 
 use crate::log::LogLevel;
+use crate::net::packets::clientbound::commands::send_commands;
 use crate::{
     net::packets::clientbound::{
         container_set_content::send_container_set_content,
@@ -379,6 +380,16 @@ impl Player {
         let mut buffer = Vec::new();
         send_container_set_slot(&mut buffer, 0, slot, self.inventory[slot as usize]).await?;
 
+        self.send_packet(buffer).await?;
+
+        Ok(())
+    }
+
+    pub async fn set_op(&mut self, op: bool) -> anyhow::Result<()> {
+        self.is_op = op;
+
+        let mut buffer = Vec::new();
+        send_commands(&mut buffer, self.is_op).await?;
         self.send_packet(buffer).await?;
 
         Ok(())
