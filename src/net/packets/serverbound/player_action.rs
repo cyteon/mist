@@ -76,6 +76,7 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(
             }
 
             chunk.set_block((x & 15) as u8, y, (z & 15) as u8, 0);
+            chunk.block_entities.remove(&(x & 15, y, z & 15));
 
             let mut buffer = Vec::new();
             crate::net::packets::clientbound::block_changed_ack::send_block_changed_ack(

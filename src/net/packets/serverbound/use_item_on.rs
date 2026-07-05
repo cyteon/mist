@@ -53,7 +53,12 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
     if let Some(chunk) = region_lock.get_chunk(chunk_pos.0, chunk_pos.1)
         && !player.movement.sneaking
     {
-        match chunk.get_block((x & 15) as u8, y as i32, (z & 15) as u8) {
+        let block_id = chunk.get_block((x & 15) as u8, y as i32, (z & 15) as u8);
+        let default_block_id = block_by_state_id(block_id)
+            .map(|block| block.default_state)
+            .unwrap_or(0);
+
+        match default_block_id {
             blocks::CRAFTING_TABLE => {
                 let mut buffer = Vec::new();
 
@@ -75,15 +80,15 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                 let mut buffer = Vec::new();
 
                 let Some(BlockEntityData::Chest { inventory }) =
-                    chunk.block_entities.get(&((bx & 15), by, (bz & 15)))
+                    chunk.block_entities.get(&((x & 15), y, (z & 15)))
                 else {
                     log::log(
                         LogLevel::Warn,
                         &format!(
                             "Block entity data for chest at ({}, {}, {}) not found",
-                            bx & 15,
-                            by,
-                            bz & 15
+                            x & 15,
+                            y,
+                            z & 15
                         ),
                     );
 
@@ -92,7 +97,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
 
                 let window_id = player.new_window_id(crate::types::player::WindowType::Chest {
                     items: inventory.clone(),
-                    cords: (bx, by, bz),
+                    cords: (x, y, z),
                 });
 
                 open_screen::send_open_screen(

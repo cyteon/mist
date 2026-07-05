@@ -8,7 +8,7 @@ use crate::{
     world::chunks::Chunk,
 };
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub enum BlockEntityData {
     Chest { inventory: [Option<ItemStack>; 27] },
 }
