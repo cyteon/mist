@@ -2,7 +2,6 @@ use std::pin::Pin;
 
 use crate::server::commands::CommandInvoker;
 use crate::types::colors::{GREEN, RED};
-use crate::types::player::Player;
 
 pub fn run<'a, 'b>(
     args: &'a [&'a str],

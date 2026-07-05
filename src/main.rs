@@ -3,6 +3,7 @@ use std::time::Duration;
 use log::{LogLevel, set_log_level};
 use once_cell::sync::Lazy;
 use rustyline::{DefaultEditor, error::ReadlineError};
+use tokio::sync::mpsc;
 use tokio::time::timeout;
 
 use crate::server::commands::{CommandInvoker, handle_command};
@@ -24,6 +25,11 @@ pub static RSA_PUBLIC_KEY: Lazy<rsa::RsaPublicKey> =
 
 pub static SERVER_PROTOCOL_VERSION: i32 = 774;
 pub static SERVER_VERSION: &str = "1.21.11";
+
+enum ConsoleEvent {
+    Line(String),
+    Shutdown,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -51,16 +57,39 @@ async fn main() -> anyhow::Result<()> {
 
     log::set_printer(printer);
 
-    tokio::spawn(async move {
+    let (console_tx, mut console_rx) = mpsc::unbounded_channel::<ConsoleEvent>();
+
+    tokio::task::spawn_blocking(move || {
         loop {
             match rl.readline("> ") {
                 Ok(line) => {
                     let _ = rl.add_history_entry(&line);
-                    let _ = handle_command(line, &mut CommandInvoker::Console).await;
-                    println!(""); // force flush
+
+                    if console_tx.send(ConsoleEvent::Line(line)).is_err() {
+                        break;
+                    }
                 }
 
                 Err(ReadlineError::Interrupted) => {
+                    let _ = console_tx.send(ConsoleEvent::Shutdown);
+                    break;
+                }
+
+                Err(ReadlineError::Eof) => break,
+                Err(_) => {}
+            }
+        }
+    });
+
+    tokio::spawn(async move {
+        while let Some(event) = console_rx.recv().await {
+            match event {
+                ConsoleEvent::Line(line) => {
+                    let mut invoker = CommandInvoker::Console;
+                    let _ = handle_command(line, &mut invoker).await;
+                }
+
+                ConsoleEvent::Shutdown => {
                     log::log(
                         LogLevel::Info,
                         "Received shutdown signal, stopping server...\n",
@@ -76,9 +105,6 @@ async fn main() -> anyhow::Result<()> {
 
                     std::process::exit(0);
                 }
-
-                Err(ReadlineError::Eof) => break,
-                Err(_) => {}
             }
         }
     });
