@@ -19,10 +19,10 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
 
     let changed_slots_len = read_var(stream).await?;
 
+    // todo: the client is a liar, dont trust the client, never trust the client, the client is a liar
+    // only trust the server, the server dosent lie, trust the server
     match &mut player.current_window {
         None => {
-            // todo: the client is a liar, dont trust the client, never trust the client, the client is a liar
-            // only trust the server, the server dosent lie, trust the server
             for _ in 0..changed_slots_len {
                 let slot_index = stream.read_i16().await?;
                 let item_stack = read_hashed_slot(stream).await?;
@@ -41,7 +41,7 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
             }
 
             let carried_item = read_hashed_slot(stream).await?;
-            player.carried_item = carried_item.clone();
+            player.carried_item = carried_item;
 
             let crafting_grid = [
                 player.inventory[1].as_ref().map(|s| s.item_id),
@@ -148,6 +148,9 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
                     inventory: items.clone(),
                 },
             );
+
+            let carried_item = read_hashed_slot(stream).await?;
+            player.carried_item = carried_item;
         }
 
         _ => {}
