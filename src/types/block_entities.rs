@@ -1,6 +1,12 @@
 use std::collections::HashMap;
 
-use crate::types::items::ItemStack;
+use crate::{
+    types::{
+        blocks::{self, block_by_state_id},
+        items::ItemStack,
+    },
+    world::chunks::Chunk,
+};
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum BlockEntityData {
@@ -20,5 +26,21 @@ impl BlockEntityData {
             }
         }
         Ok(())
+    }
+
+    pub fn type_id(&self) -> i32 {
+        match self {
+            BlockEntityData::Chest { .. } => 1,
+        }
+    }
+}
+
+pub fn get_block_entity(block_id: u16) -> Option<BlockEntityData> {
+    match block_by_state_id(block_id).map(|b| b.default_state) {
+        Some(blocks::CHEST) => Some(BlockEntityData::Chest {
+            inventory: [None; 27],
+        }),
+
+        _ => None,
     }
 }

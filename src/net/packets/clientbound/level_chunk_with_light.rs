@@ -43,7 +43,7 @@ pub async fn send_level_chunk_with_light<W: tokio::io::AsyncWriteExt + Unpin>(
         packet_data.write_u8(xz)?;
         packet_data.write_i16::<BigEndian>(cords.1 as i16)?;
 
-        write_var(&mut packet_data, 0)?;
+        write_var(&mut packet_data, block_entity.1.type_id())?;
 
         block_entity.1.write_nbt(&mut packet_data)?;
     }

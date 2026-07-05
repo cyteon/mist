@@ -1,5 +1,7 @@
 use crate::log::LogLevel;
 
+use crate::net::packets::clientbound::block_entity_data::send_block_entity_data;
+use crate::types::block_entities::get_block_entity;
 use crate::{
     log,
     net::codec::{write_position, write_var},
@@ -35,6 +37,12 @@ pub async fn broadcast_block_update(x: i32, y: i32, z: i32, block_id: i32) -> an
             let mut buffer = Vec::new();
             send_block_update(&mut buffer, x, y, z, block_id).await?;
             let _ = tx.send(buffer);
+
+            if let Some(be) = get_block_entity(block_id as u16) {
+                let mut buffer = Vec::new();
+                send_block_entity_data(&mut buffer, (x, y, z), be).await?;
+                let _ = tx.send(buffer);
+            }
         }
     }
 

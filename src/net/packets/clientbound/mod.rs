@@ -1,5 +1,6 @@
 pub mod animate;
 pub mod block_changed_ack;
+pub mod block_entity_data;
 pub mod block_update;
 pub mod commands;
 pub mod container_set_content;
