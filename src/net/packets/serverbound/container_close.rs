@@ -1,4 +1,5 @@
 use crate::net::codec::read_var;
+use crate::net::packets::clientbound::block_action::send_block_action;
 use crate::types::player::{Player, WindowType};
 use tokio::io::AsyncReadExt;
 
@@ -20,7 +21,11 @@ pub async fn read_container_close<R: AsyncReadExt + Unpin>(
                 }
             }
 
-            _ => {}
+            WindowType::Chest { cords, .. } => {
+                let mut buffer = Vec::new();
+                send_block_action(&mut buffer, cords, 1, 0).await?;
+                player.send_packet(buffer).await?;
+            }
         },
 
         None => {}

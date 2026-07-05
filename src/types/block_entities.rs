@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{
-    types::{
-        blocks::{self, block_by_state_id},
-        items::ItemStack,
-    },
-    world::chunks::Chunk,
+use crate::types::{
+    blocks::{self, block_by_state_id},
+    items::ItemStack,
 };
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]

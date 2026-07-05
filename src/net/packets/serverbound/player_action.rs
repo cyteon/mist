@@ -2,7 +2,7 @@ use tokio::io::AsyncReadExt;
 
 use crate::{
     net::codec::{read_position, read_var},
-    types::player::Gamemode,
+    types::{block_entities::BlockEntityData, player::Gamemode},
     world::get_region,
 };
 
@@ -76,6 +76,25 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(
             }
 
             chunk.set_block((x & 15) as u8, y, (z & 15) as u8, 0);
+
+            if let Some(be) = chunk.block_entities.get(&(x & 15, y, z & 15)) {
+                match be {
+                    BlockEntityData::Chest { inventory, .. } => {
+                        for item in inventory.iter() {
+                            if let Some(item_stack) = item {
+                                crate::types::entity::spawn_item_drop(
+                                    item_stack.clone(),
+                                    None,
+                                    x as f64 + 0.5,
+                                    y as f64 + 0.5,
+                                    z as f64 + 0.5,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+
             chunk.block_entities.remove(&(x & 15, y, z & 15));
 
             let mut buffer = Vec::new();

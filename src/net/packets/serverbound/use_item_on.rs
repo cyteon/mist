@@ -4,7 +4,10 @@ use crate::{
     log::{self, LogLevel},
     net::{
         codec::{read_position, read_var},
-        packets::clientbound::{container_set_content::send_container_set_content, open_screen},
+        packets::clientbound::{
+            block_action::send_block_action, container_set_content::send_container_set_content,
+            open_screen,
+        },
     },
     types::{
         block_entities::{BlockEntityData, get_block_entity},
@@ -77,8 +80,6 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
             }
 
             blocks::CHEST => {
-                let mut buffer = Vec::new();
-
                 let Some(BlockEntityData::Chest { inventory }) =
                     chunk.block_entities.get(&((x & 15), y, (z & 15)))
                 else {
@@ -95,6 +96,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                     return Ok(());
                 };
 
+                let mut buffer = Vec::new();
                 let window_id = player.new_window_id(crate::types::player::WindowType::Chest {
                     items: inventory.clone(),
                     cords: (x, y, z),
@@ -107,7 +109,6 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                     "Chest",
                 )
                 .await?;
-
                 player.send_packet(buffer).await?;
 
                 let mut chest_container: [Option<ItemStack>; 63] = [None; 63];
@@ -128,7 +129,10 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                     None,
                 )
                 .await?;
+                player.send_packet(buffer).await?;
 
+                let mut buffer = Vec::new();
+                send_block_action(&mut buffer, (x, y, z), 1, 1).await?;
                 player.send_packet(buffer).await?;
 
                 return Ok(());

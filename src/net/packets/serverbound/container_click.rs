@@ -152,8 +152,6 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
             let carried_item = read_hashed_slot(stream).await?;
             player.carried_item = carried_item;
         }
-
-        _ => {}
     }
 
     Ok(())
