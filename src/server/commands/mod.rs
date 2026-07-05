@@ -1,7 +1,7 @@
 use std::pin::Pin;
 
+use crate::log::LogLevel;
 use byteorder::{BigEndian, WriteBytesExt};
-use fancy_log::LogLevel;
 
 use crate::log;
 use crate::types::colors::RED;

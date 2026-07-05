@@ -1,8 +1,7 @@
 use std::time::Duration;
-
-use fancy_log::LogLevel;
 use tokio::{task, try_join};
 
+use crate::log::LogLevel;
 use crate::server::save::{self, save, save_player};
 
 pub async fn run() -> anyhow::Result<()> {
@@ -33,7 +32,7 @@ pub async fn run() -> anyhow::Result<()> {
 }
 
 pub async fn stop() {
-    crate::log::log(LogLevel::Info, "Stopping server...");
+    crate::log::log(LogLevel::Info, "Stopping server...\n");
 
     let players = crate::server::state::play::PLAYERS
         .write()
@@ -63,7 +62,7 @@ pub async fn stop() {
         }
     }
 
-    crate::log::log(LogLevel::Info, "Saving world...");
+    crate::log::log(LogLevel::Info, "Saving world...\n");
 
     save().await;
 }

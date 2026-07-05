@@ -1,8 +1,7 @@
 use std::time::Duration;
-
-use fancy_log::LogLevel;
 use tokio::{io::AsyncWriteExt, net::TcpStream, time::timeout};
 
+use crate::log::LogLevel;
 use crate::net::{
     packet::{ClientPacket, ProtocolState, read_packet},
     packets::clientbound::{pong::send_pong, status_response::send_status_response},

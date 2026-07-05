@@ -1,4 +1,4 @@
-use fancy_log::LogLevel;
+use crate::log::LogLevel;
 use tokio::net::TcpListener;
 use tokio::time::{Duration, timeout};
 

@@ -1,3 +1,4 @@
+use crate::log::LogLevel;
 use crate::net::codec::write_var;
 use crate::net::packet::encode_packet;
 use once_cell::sync::Lazy;
@@ -82,7 +83,7 @@ pub async fn send_all_registers<W: AsyncWriteExt + Unpin>(stream: &mut W) -> any
 
             Err(e) => {
                 crate::log::log(
-                    fancy_log::LogLevel::Error,
+                    LogLevel::Error,
                     format!(
                         "Failed to encode registry data packet for {}: {}",
                         packet.registry_id, e

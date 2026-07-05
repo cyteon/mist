@@ -1,5 +1,5 @@
 use crate::{
-    log,
+    log::{self, LogLevel},
     net::codec::{write_string, write_var},
     types::player::Player,
 };
@@ -50,7 +50,7 @@ pub async fn send_player_info_update<W: tokio::io::AsyncWriteExt + Unpin>(
 
             Err(e) => {
                 log::log(
-                    fancy_log::LogLevel::Error,
+                    LogLevel::Error,
                     &format!("Failed to decode UUID {}: {}", uuid, e),
                 );
 

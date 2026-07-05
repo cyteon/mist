@@ -1,4 +1,4 @@
-use fancy_log::LogLevel;
+use crate::log::LogLevel;
 use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
 use tokio::time;
 use tokio::time::Duration;

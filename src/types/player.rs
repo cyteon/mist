@@ -2,6 +2,7 @@ use once_cell::sync::Lazy;
 use std::{collections::HashMap, sync::atomic::Ordering};
 use tokio::sync::RwLock;
 
+use crate::log::LogLevel;
 use crate::{
     net::packets::clientbound::{
         container_set_content::send_container_set_content,
@@ -153,7 +154,7 @@ impl Player {
                 "spectator" => Gamemode::Spectator,
                 _ => {
                     crate::log::log(
-                        fancy_log::LogLevel::Warn,
+                        LogLevel::Warn,
                         &format!(
                             "Invalid default gamemode in config: {}, defaulting to survival",
                             crate::config::SERVER_CONFIG.default_gamemode
@@ -244,7 +245,7 @@ impl Player {
             player.pitch = player_save.pitch;
 
             crate::log::log(
-                fancy_log::LogLevel::Info,
+                LogLevel::Info,
                 &format!("Loaded save for player {}", username),
             );
         } else {
@@ -318,7 +319,7 @@ impl Player {
             Some(tx) => tx.clone(),
             None => {
                 crate::log::log(
-                    fancy_log::LogLevel::Warn,
+                    LogLevel::Warn,
                     &format!(
                         "No socket found for player {}, possibly disconnected",
                         self.username
@@ -823,12 +824,12 @@ impl Player {
 
                     if result.is_ok() {
                         crate::log::log(
-                            fancy_log::LogLevel::Debug,
+                            LogLevel::Debug,
                             &format!("Sent chunk {}, {} to player {}", cx, cz, username_clone),
                         );
                     } else {
                         crate::log::log(
-                            fancy_log::LogLevel::Warn,
+                            LogLevel::Warn,
                             &format!(
                                 "Failed to send chunk {}, {} to player {}: {:?}",
                                 cx,

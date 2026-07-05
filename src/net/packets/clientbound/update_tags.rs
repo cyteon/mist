@@ -1,4 +1,4 @@
-use fancy_log::LogLevel;
+use crate::log::LogLevel;
 
 use crate::net::codec::{write_string, write_var};
 use crate::net::packet::encode_packet;

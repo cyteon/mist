@@ -1,4 +1,4 @@
-use fancy_log::LogLevel;
+use crate::log::LogLevel;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 

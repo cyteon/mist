@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use fancy_log::LogLevel;
+use crate::log::LogLevel;
 use tokio::{io::AsyncWriteExt, net::TcpStream, time::timeout};
 
 use crate::{

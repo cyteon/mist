@@ -3,6 +3,7 @@ pub mod noise;
 pub mod ores;
 pub mod vanilla;
 
+use crate::log::LogLevel;
 use crate::world::worldgen::noise::{Shape, trilerp};
 
 use super::chunks::{Chunk, Region, Section};
@@ -18,7 +19,7 @@ const ROWS: usize = ((MAX_Y + 1 - MIN_Y) / 8) as usize + 1;
 
 pub async fn initial_gen() {
     let start_time = std::time::Instant::now();
-    crate::log::log(fancy_log::LogLevel::Info, "Generating world...");
+    crate::log::log(LogLevel::Info, "Generating world...");
 
     for x in -1..=0 {
         for z in -1..=0 {
@@ -35,16 +36,14 @@ pub async fn initial_gen() {
                 .collect();
 
             region.save().await.unwrap();
-            crate::log::log(
-                fancy_log::LogLevel::Info,
-                &format!("Generated region {}, {}", x, z),
-            );
+
+            crate::log::log(LogLevel::Info, &format!("Generated region {}, {}", x, z));
         }
     }
 
     let duration = start_time.elapsed();
     crate::log::log(
-        fancy_log::LogLevel::Info,
+        LogLevel::Info,
         format!("World generated in {:.2?}", duration).as_str(),
     );
 }

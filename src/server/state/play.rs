@@ -1,4 +1,4 @@
-use fancy_log::LogLevel;
+use crate::log::LogLevel;
 use once_cell::sync::Lazy;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{

@@ -1,7 +1,8 @@
 use std::time::Duration;
 
-use fancy_log::{LogLevel, set_log_level};
+use log::{LogLevel, set_log_level};
 use once_cell::sync::Lazy;
+use rustyline::{DefaultEditor, error::ReadlineError};
 use tokio::time::timeout;
 
 mod config;
@@ -43,22 +44,39 @@ async fn main() -> anyhow::Result<()> {
         format!("Server motd is \"{}\"", &config::SERVER_CONFIG.motd).as_str(),
     );
 
-    tokio::spawn(async {
-        tokio::signal::ctrl_c().await.ok();
-        log::log(
-            LogLevel::Info,
-            "Received shutdown signal, stopping server...",
-        );
+    let mut rl = DefaultEditor::new()?;
+    let printer = rl.create_external_printer()?;
 
-        if timeout(Duration::from_secs(5), crate::server::run::stop())
-            .await
-            .is_err()
-        {
-            log::log(LogLevel::Error, "Timeout while stopping server :(");
-            log::log(LogLevel::Error, "Killing...");
+    log::set_printer(printer);
+
+    tokio::spawn(async move {
+        loop {
+            match rl.readline("> ") {
+                Ok(line) => {
+                    let _ = rl.add_history_entry(&line);
+                }
+
+                Err(ReadlineError::Interrupted) => {
+                    log::log(
+                        LogLevel::Info,
+                        "Received shutdown signal, stopping server...\n",
+                    );
+
+                    if timeout(Duration::from_secs(5), crate::server::run::stop())
+                        .await
+                        .is_err()
+                    {
+                        log::log(LogLevel::Error, "Timeout while stopping server :(");
+                        log::log(LogLevel::Error, "Killing...");
+                    }
+
+                    std::process::exit(0);
+                }
+
+                Err(ReadlineError::Eof) => break,
+                Err(_) => {}
+            }
         }
-
-        std::process::exit(0);
     });
 
     server::run::run().await

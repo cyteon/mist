@@ -1,6 +1,5 @@
+use crate::log::LogLevel;
 use std::sync::atomic::Ordering;
-
-use fancy_log::LogLevel;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(default)]
@@ -43,7 +42,7 @@ impl Default for PlayerSave {
                 "spectator" => crate::types::player::Gamemode::Spectator,
                 _ => {
                     crate::log::log(
-                        fancy_log::LogLevel::Warn,
+                        LogLevel::Warn,
                         format!(
                             "Invalid default gamemode: {}, defaulting to survival",
                             crate::config::SERVER_CONFIG.default_gamemode
@@ -112,7 +111,7 @@ pub fn exists(path: &str) -> bool {
 
 pub async fn save() {
     ensure_save_folders();
-    crate::log::log(LogLevel::Info, "Saving...");
+    crate::log::log(LogLevel::Info, "Saving...\n");
 
     let start = std::time::Instant::now();
 
@@ -148,7 +147,7 @@ pub async fn save() {
 
     crate::log::log(
         LogLevel::Info,
-        format!("Save complete in {:.2?}", duration).as_str(),
+        format!("Save complete in {:.2?}\n", duration).as_str(),
     );
 }
 
