@@ -5,10 +5,12 @@ use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use serde::{Deserialize, Serialize};
 
+use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 use crate::net::codec::write_var;
+use crate::types::block_entities::BlockEntityData;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Region {
@@ -88,6 +90,8 @@ pub struct Chunk {
     pub x: i32,
     pub z: i32,
     pub sections: Vec<Section>,
+    #[serde(default)]
+    pub block_entities: HashMap<(i32, i32, i32), BlockEntityData>,
 }
 
 impl Chunk {

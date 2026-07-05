@@ -3,6 +3,8 @@ pub mod noise;
 pub mod ores;
 pub mod vanilla;
 
+use std::collections::HashMap;
+
 use crate::log::LogLevel;
 use crate::world::worldgen::noise::{Shape, trilerp};
 
@@ -54,6 +56,7 @@ pub fn generate(x: i32, z: i32) -> Chunk {
         z,
 
         sections: (0..24).map(|y| Section::new(y)).collect(),
+        block_entities: HashMap::new(),
     };
 
     let wx0 = x << 4;

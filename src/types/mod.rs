@@ -1,3 +1,4 @@
+pub mod block_entities;
 pub mod blocks;
 pub mod colors;
 pub mod entity;

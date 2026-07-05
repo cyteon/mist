@@ -7,6 +7,8 @@ use tokio::sync::Mutex;
 
 use chunks::{Chunk, Region};
 
+use crate::log::{self, LogLevel};
+
 pub static REGIONS: Lazy<Mutex<HashMap<(i32, i32), Arc<Mutex<Region>>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
@@ -21,7 +23,18 @@ pub async fn get_region(x: i32, z: i32) -> Arc<Mutex<Region>> {
     let region_file_path = format!("world/regions/{}_{}.mist_region", x, z);
 
     let region = if std::path::Path::new(&region_file_path).exists() {
-        Region::load(x, z).await.ok().unwrap()
+        match Region::load(x, z).await {
+            Ok(region) => region,
+
+            Err(e) => {
+                log::log(
+                    LogLevel::Error,
+                    format!("Failed to load region {},{}: {}", x, z, e).as_str(),
+                );
+
+                Region::new(x, z)
+            }
+        }
     } else {
         Region::new(x, z)
     };

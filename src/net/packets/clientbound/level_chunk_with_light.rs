@@ -31,7 +31,22 @@ pub async fn send_level_chunk_with_light<W: tokio::io::AsyncWriteExt + Unpin>(
     packet_data.extend_from_slice(&data_section);
 
     // block entities
-    write_var(&mut packet_data, 0)?;
+    write_var(&mut packet_data, chunk.block_entities.len() as i32)?;
+
+    for block_entity in &chunk.block_entities {
+        let cords = block_entity.0;
+
+        let lx = (cords.0 & 15) as u8;
+        let lz = (cords.2 & 15) as u8;
+        let xz = (lx << 4) | lz;
+
+        packet_data.write_u8(xz)?;
+        packet_data.write_i16::<BigEndian>(cords.1 as i16)?;
+
+        write_var(&mut packet_data, 0)?;
+
+        block_entity.1.write_nbt(&mut packet_data)?;
+    }
 
     let section_count = chunk.sections.len() + 2;
     let mask = (1u64 << section_count) - 1;

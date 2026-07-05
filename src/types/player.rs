@@ -892,6 +892,7 @@ impl Player {
                 .filter(|id| !all_entity_ids.contains(id))
                 .cloned(),
         );
+
         drop(all_entities);
 
         if !to_remove.is_empty() {
