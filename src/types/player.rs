@@ -470,12 +470,8 @@ impl Player {
             .collect::<Vec<_>>();
 
         let mut buffer = Vec::new();
-        send_player_info_update(
-            &mut buffer,
-            vec![self],
-            vec![PlayerAction::UpdateGameMode(gamemode as i32)],
-        )
-        .await?;
+        send_player_info_update(&mut buffer, vec![self], vec![PlayerAction::UpdateGameMode])
+            .await?;
 
         for tx in all_tx {
             let _ = tx.send(buffer.clone());
@@ -866,29 +862,24 @@ impl Player {
                 continue;
             }
 
-            if !self.loaded_entities.contains(id)
-                && (entity.x - self.x).abs() < 64.0
-                && (entity.z - self.z).abs() < 64.0
-            {
-                let distance_squared = (entity.x - self.x).powi(2)
-                    + (entity.y - self.y).powi(2)
-                    + (entity.z - self.z).powi(2);
+            let distance_squared = (entity.x - self.x).powi(2)
+                + (entity.y - self.y).powi(2)
+                + (entity.z - self.z).powi(2);
 
-                if distance_squared < 64.0 * 64.0 && !self.loaded_entities.contains(id) {
-                    let mut buffer = Vec::new();
-                    send_spawn_entity(&mut buffer, entity).await?;
+            if distance_squared < 64.0 * 64.0 && !self.loaded_entities.contains(id) {
+                let mut buffer = Vec::new();
+                send_spawn_entity(&mut buffer, entity).await?;
 
-                    self.send_packet(buffer).await?;
+                self.send_packet(buffer).await?;
 
-                    let mut buffer = Vec::new();
-                    sent_set_entity_data(&mut buffer, entity).await?;
+                let mut buffer = Vec::new();
+                sent_set_entity_data(&mut buffer, entity).await?;
 
-                    self.send_packet(buffer).await?;
+                self.send_packet(buffer).await?;
 
-                    self.loaded_entities.push(*id);
-                } else if distance_squared >= 64.0 * 64.0 && self.loaded_entities.contains(id) {
-                    to_remove.push(*id);
-                }
+                self.loaded_entities.push(*id);
+            } else if distance_squared >= 64.0 * 64.0 && self.loaded_entities.contains(id) {
+                to_remove.push(*id);
             }
         }
 

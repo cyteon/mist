@@ -8,12 +8,12 @@ use byteorder::WriteBytesExt;
 pub enum PlayerAction {
     AddPlayer, // 0x01
     // InitializeChat(...) // 0x02
-    UpdateGameMode(i32), // 0x04
-    UpdateListed(bool),  // 0x08
-                         // UpdateLatency(i32), // 0x10
-                         // UpdateDisplayName(Option<...>), // 0x20
-                         // UpdateListPriority(i32), // 0x40
-                         // UpdateHatStatus(bool), // 0x80
+    UpdateGameMode, // 0x04
+    UpdateListed(bool), // 0x08
+    // UpdateLatency(i32), // 0x10
+    // UpdateDisplayName(Option<...>), // 0x20
+    // UpdateListPriority(i32), // 0x40
+    // UpdateHatStatus(bool), // 0x80
 }
 
 impl PlayerAction {
@@ -21,7 +21,7 @@ impl PlayerAction {
         match self {
             PlayerAction::AddPlayer => 0x01,
             // PlayerAction::InitializeChat(_) => 0x02,
-            PlayerAction::UpdateGameMode(_) => 0x04,
+            PlayerAction::UpdateGameMode => 0x04,
             PlayerAction::UpdateListed(_) => 0x08,
             // PlayerAction::UpdateLatency(_) => 0x10,
             // PlayerAction::UpdateDisplayName(_) => 0x20,
@@ -88,8 +88,8 @@ pub async fn send_player_info_update<W: tokio::io::AsyncWriteExt + Unpin>(
                     }
                 }
 
-                PlayerAction::UpdateGameMode(gamemode) => {
-                    write_var(&mut packet_data, *gamemode)?;
+                PlayerAction::UpdateGameMode => {
+                    write_var(&mut packet_data, player.gamemode as i32)?;
                 }
 
                 PlayerAction::UpdateListed(listed) => {

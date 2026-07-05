@@ -64,10 +64,11 @@ impl Entity {
 
             let mut packet_buffer = Vec::new();
 
-            if self.x == self.last_x && self.y == self.last_y && self.z == self.last_z {
-                self.ticks_since_last_update += 1;
+            self.ticks_since_last_update += 1;
+            let force_sync = self.ticks_since_last_update >= 20;
 
-                if self.ticks_since_last_update >= 20 {
+            if self.x == self.last_x && self.y == self.last_y && self.z == self.last_z {
+                if force_sync {
                     self.ticks_since_last_update = 0;
                     crate::net::packets::clientbound::entity_position_sync::send_entity_position_sync(&mut packet_buffer, self).await?;
                 } else if self.yaw != self.last_yaw || self.pitch != self.last_pitch {
@@ -84,7 +85,7 @@ impl Entity {
                 let dy = self.y - self.last_y;
                 let dz = self.z - self.last_z;
 
-                if dx.abs() >= 8.0 || dy.abs() >= 7.9 || dz.abs() >= 8.0 {
+                if force_sync || dx.abs() >= 8.0 || dy.abs() >= 7.9 || dz.abs() >= 8.0 {
                     crate::net::packets::clientbound::entity_position_sync::send_entity_position_sync(&mut packet_buffer, self).await?;
                 } else if self.yaw != self.last_yaw || self.pitch != self.last_pitch {
                     crate::net::packets::clientbound::move_entity_pos_rot::send_move_entity_pos_rot(&mut packet_buffer, self).await?;

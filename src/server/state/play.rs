@@ -281,7 +281,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                 other_players_owned.iter().collect(),
                 vec![
                     PlayerAction::AddPlayer,
-                    PlayerAction::UpdateGameMode(player_clone.gamemode as i32),
+                    PlayerAction::UpdateGameMode,
                     PlayerAction::UpdateListed(true),
                 ],
             )
