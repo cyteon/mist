@@ -1,4 +1,4 @@
-use crate::log::LogLevel;
+use crate::{log::LogLevel, types::player::PLAYER_POSITIONS};
 use once_cell::sync::Lazy;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{
@@ -620,6 +620,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
     PLAYERS.write().await.remove(&uuid);
     NAME_TO_UUID.write().await.remove(&username.to_lowercase());
+    PLAYER_POSITIONS.write().await.remove(&uuid);
 
     Ok(())
 }

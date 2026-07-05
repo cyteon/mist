@@ -857,6 +857,8 @@ impl Player {
 
         let mut to_remove = Vec::new();
 
+        let range = crate::config::SERVER_CONFIG.view_distance as f64 * 16.0;
+
         for (id, entity) in all_entities.iter() {
             if id == &self.id {
                 continue;
@@ -866,7 +868,7 @@ impl Player {
                 + (entity.y - self.y).powi(2)
                 + (entity.z - self.z).powi(2);
 
-            if distance_squared < 64.0 * 64.0 && !self.loaded_entities.contains(id) {
+            if distance_squared < range * range && !self.loaded_entities.contains(id) {
                 let mut buffer = Vec::new();
                 send_spawn_entity(&mut buffer, entity).await?;
 
@@ -878,7 +880,7 @@ impl Player {
                 self.send_packet(buffer).await?;
 
                 self.loaded_entities.push(*id);
-            } else if distance_squared >= 64.0 * 64.0 && self.loaded_entities.contains(id) {
+            } else if distance_squared >= range * range && self.loaded_entities.contains(id) {
                 to_remove.push(*id);
             }
         }
