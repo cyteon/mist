@@ -4,6 +4,7 @@ use tokio::sync::RwLock;
 
 use crate::log::LogLevel;
 use crate::net::packets::clientbound::commands::send_commands;
+use crate::types::items::ItemStack;
 use crate::{
     net::packets::clientbound::{
         container_set_content::send_container_set_content,
@@ -52,7 +53,11 @@ pub enum Gamemode {
 
 #[derive(Clone, Copy)]
 pub enum WindowType {
-    CraftingTable([Option<crate::types::items::ItemStack>; 10]),
+    Chest {
+        items: [Option<ItemStack>; 27],
+        cords: (i32, i32, i32),
+    },
+    CraftingTable([Option<ItemStack>; 10]),
 }
 
 #[derive(Clone)]
@@ -64,8 +69,8 @@ pub struct Player {
     pub current_window: Option<WindowType>,
     pub window_id: i32,
 
-    pub inventory: [Option<super::items::ItemStack>; 46],
-    pub carried_item: Option<super::items::ItemStack>,
+    pub inventory: [Option<ItemStack>; 46],
+    pub carried_item: Option<ItemStack>,
     pub current_slot: i16,
 
     pub is_op: bool,
@@ -250,15 +255,15 @@ impl Player {
                 &format!("Loaded save for player {}", username),
             );
         } else {
-            player.inventory[36] = Some(super::items::ItemStack {
+            player.inventory[36] = Some(ItemStack {
                 item_id: super::items::GRASS_BLOCK,
                 count: 64,
             });
-            player.inventory[37] = Some(super::items::ItemStack {
+            player.inventory[37] = Some(ItemStack {
                 item_id: super::items::DIRT,
                 count: 64,
             });
-            player.inventory[38] = Some(super::items::ItemStack {
+            player.inventory[38] = Some(ItemStack {
                 item_id: super::items::STONE,
                 count: 64,
             });
@@ -347,7 +352,16 @@ impl Player {
 
     pub async fn sync_player_inventory(&mut self) -> anyhow::Result<()> {
         let mut buffer = Vec::new();
-        send_container_set_content(&mut buffer, 0, &self.inventory, self.carried_item).await?;
+        send_container_set_content(
+            &mut buffer,
+            0,
+            self.inventory
+                .iter()
+                .map(|item| item.clone())
+                .collect::<Vec<_>>(),
+            self.carried_item,
+        )
+        .await?;
 
         self.send_packet(buffer).await?;
 
@@ -412,7 +426,7 @@ impl Player {
                 }
             } else {
                 let to_add = 64.min(remaining);
-                self.inventory[slot] = Some(super::items::ItemStack {
+                self.inventory[slot] = Some(ItemStack {
                     item_id,
                     count: to_add as u8,
                 });
@@ -435,7 +449,7 @@ impl Player {
                     }
                 } else {
                     let to_add = 64.min(remaining);
-                    self.inventory[slot] = Some(super::items::ItemStack {
+                    self.inventory[slot] = Some(ItemStack {
                         item_id,
                         count: to_add as u8,
                     });
@@ -640,11 +654,10 @@ impl Player {
                         self.send_packet(buffer).await?;
 
                         if item.count > 1 {
-                            self.inventory[self.eating_slot as usize + 36] =
-                                Some(crate::types::items::ItemStack {
-                                    item_id: item.item_id,
-                                    count: item.count - 1,
-                                });
+                            self.inventory[self.eating_slot as usize + 36] = Some(ItemStack {
+                                item_id: item.item_id,
+                                count: item.count - 1,
+                            });
                         }
 
                         self.sync_player_inventory().await?;

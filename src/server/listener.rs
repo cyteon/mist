@@ -19,7 +19,8 @@ pub async fn start_listener() -> anyhow::Result<()> {
                 LogLevel::Error,
                 format!("Failed to bind to {}: {}", addr, e).as_str(),
             );
-            panic!("Failed to bind to address: {}", e);
+
+            return Err(e.into());
         }
 
         Err(_) => {

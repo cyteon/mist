@@ -28,9 +28,9 @@ impl Region {
         }
     }
 
-    pub fn get_chunk(&self, x: i32, z: i32) -> Option<&Chunk> {
+    pub fn get_chunk(&mut self, x: i32, z: i32) -> Option<&mut Chunk> {
         self.chunks
-            .iter()
+            .iter_mut()
             .find(|chunk| chunk.x == x && chunk.z == z)
     }
 

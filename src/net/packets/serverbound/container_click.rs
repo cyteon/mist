@@ -1,4 +1,6 @@
+use crate::log::{self, LogLevel};
 use crate::net::codec::{read_hashed_slot, read_var};
+use crate::types::block_entities::BlockEntityData;
 use crate::types::player::{Player, WindowType};
 use crate::types::recipes::{check_2x2, check_3x3};
 use tokio::io::AsyncReadExt;
@@ -29,7 +31,13 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
                     player.inventory[slot_index as usize] = item_stack.clone();
                 }
 
-                println!("Changed slot {} to {:?}", slot_index, item_stack);
+                log::log(
+                    LogLevel::Debug,
+                    &format!(
+                        "Changed slot {} to {:?} in player {}'s inventory",
+                        slot_index, item_stack, player.username
+                    ),
+                )
             }
 
             let carried_item = read_hashed_slot(stream).await?;
@@ -89,6 +97,60 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
 
             player.send_packet(buffer).await?;
         }
+
+        Some(WindowType::Chest { items, cords }) => {
+            let (bx, by, bz) = cords;
+
+            let chunk_pos = (bx.div_euclid(16), bz.div_euclid(16));
+            let region_pos = (chunk_pos.0.div_euclid(32), chunk_pos.1.div_euclid(32));
+
+            let region = crate::world::get_region(region_pos.0, region_pos.1).await;
+            let mut region_lock = region.lock().await;
+
+            let chunk = match region_lock.get_chunk(chunk_pos.0, chunk_pos.1) {
+                Some(chunk) => chunk,
+
+                None => {
+                    log::log(
+                        LogLevel::Warn,
+                        &format!(
+                            "Could not find chunk {} {} {} for player {}'s chest interaction",
+                            bx, by, bz, player.username
+                        ),
+                    );
+
+                    return Ok(());
+                }
+            };
+
+            for _ in 0..changed_slots_len {
+                let slot_index = stream.read_i16().await?;
+                let item_stack = read_hashed_slot(stream).await?;
+
+                if (0..=26).contains(&slot_index) {
+                    items[slot_index as usize] = item_stack.clone();
+                } else if (27..=62).contains(&slot_index) {
+                    player.inventory[slot_index as usize - 18] = item_stack.clone();
+                }
+
+                log::log(
+                    LogLevel::Debug,
+                    &format!(
+                        "Changed slot {} to {:?} in chest at {} {} {} for player {}",
+                        slot_index, item_stack, bx, by, bz, player.username
+                    ),
+                )
+            }
+
+            chunk.block_entities.insert(
+                (*bx & 15, *by, *bz & 15),
+                BlockEntityData::Chest {
+                    inventory: items.clone(),
+                },
+            );
+        }
+
+        _ => {}
     }
 
     Ok(())

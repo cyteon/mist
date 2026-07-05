@@ -49,7 +49,7 @@ pub async fn get_region(x: i32, z: i32) -> Arc<Mutex<Region>> {
 
 pub async fn get_chunk(region: &Arc<Mutex<Region>>, cx: i32, cz: i32) -> Chunk {
     {
-        let region_guard = region.lock().await;
+        let mut region_guard = region.lock().await;
         if let Some(chunk) = region_guard.get_chunk(cx, cz) {
             return chunk.clone();
         }

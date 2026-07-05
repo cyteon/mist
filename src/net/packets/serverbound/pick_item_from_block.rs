@@ -20,7 +20,7 @@ pub async fn read_pick_item_from_block<R: AsyncReadExt + Unpin>(
     let region_pos = (chunk_pos.0.div_euclid(32), chunk_pos.1.div_euclid(32));
 
     let region = get_region(region_pos.0, region_pos.1).await;
-    let region_lock = region.lock().await;
+    let mut region_lock = region.lock().await;
 
     if let Some(chunk) = region_lock.get_chunk(chunk_pos.0, chunk_pos.1) {
         let block = chunk.get_block((x & 15) as u8, y as i32, (z & 15) as u8);

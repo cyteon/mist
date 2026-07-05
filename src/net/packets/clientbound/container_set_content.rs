@@ -1,10 +1,13 @@
-use crate::net::codec::{write_slot, write_var};
+use crate::{
+    net::codec::{write_slot, write_var},
+    types::items::ItemStack,
+};
 
 pub async fn send_container_set_content<W: tokio::io::AsyncWriteExt + Unpin>(
     stream: &mut W,
     window_id: u8,
-    inventory: &[Option<crate::types::items::ItemStack>; 46],
-    carried_item: Option<crate::types::items::ItemStack>,
+    inventory: Vec<Option<ItemStack>>,
+    carried_item: Option<ItemStack>,
 ) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::CONTAINER_SET_CONTENT as u8];
 
