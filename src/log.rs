@@ -63,6 +63,16 @@ pub fn set_log_level(level: LogLevel) {
 }
 
 pub fn log(level: LogLevel, message: &str) {
+    if level.as_u8() < LOG_LEVEL.load(Relaxed) {
+        return;
+    }
+
+    let message = message
+        .replace("§a", "\x1b[32m")
+        .replace("§e", "\x1b[33m")
+        .replace("§c", "\x1b[31m")
+        .replace("§f", "\x1b[0m");
+
     let timestamp = Local::now().format("%H:%M:%S");
     let line = format!(
         "{}[{:?}]\x1b[0m [{}] {}",

@@ -5,6 +5,8 @@ use once_cell::sync::Lazy;
 use rustyline::{DefaultEditor, error::ReadlineError};
 use tokio::time::timeout;
 
+use crate::server::commands::{CommandInvoker, handle_command};
+
 mod config;
 mod log;
 
@@ -54,6 +56,8 @@ async fn main() -> anyhow::Result<()> {
             match rl.readline("> ") {
                 Ok(line) => {
                     let _ = rl.add_history_entry(&line);
+                    let _ = handle_command(line, &mut CommandInvoker::Console).await;
+                    println!(""); // force flush
                 }
 
                 Err(ReadlineError::Interrupted) => {

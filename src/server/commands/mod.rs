@@ -4,7 +4,7 @@ use crate::log::LogLevel;
 use byteorder::{BigEndian, WriteBytesExt};
 
 use crate::log;
-use crate::types::colors::RED;
+use crate::types::colors::{RED, YELLOW};
 use crate::types::player::Player;
 
 mod deop;
@@ -103,7 +103,15 @@ impl<'b> CommandInvoker<'b> {
                 }
 
                 CommandInvoker::Console => {
-                    log::log(LogLevel::Info, &message);
+                    let message = message + "§f";
+
+                    if message.starts_with(RED) {
+                        log::log(LogLevel::Error, message.trim_start_matches(RED));
+                    } else if message.starts_with(YELLOW) {
+                        log::log(LogLevel::Warn, message.trim_start_matches(YELLOW));
+                    } else {
+                        log::log(LogLevel::Info, &message);
+                    }
                 }
             }
 
