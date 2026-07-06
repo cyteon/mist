@@ -557,27 +557,12 @@ fn load_tags() {
         damage_type_reg_ids.insert(format!("minecraft:{}", key), idx as i64);
     }
 
-    let mut banner_pattern_ids: HashMap<String, i64> = HashMap::new();
-    for (idx, key) in registries["banner_pattern"]
-        .as_object()
-        .unwrap()
-        .keys()
-        .enumerate()
-    {
-        banner_pattern_ids.insert(format!("minecraft:{}", key), idx as i64);
-    }
-
     let configs: &[(&str, &str, &HashMap<String, i64>)] = &[
         ("minecraft:block", "src/assets/tags/block", &block_reg_ids),
         (
             "minecraft:damage_type",
             "src/assets/tags/damage_type",
             &damage_type_reg_ids,
-        ),
-        (
-            "minecraft:banner_pattern",
-            "src/assets/tags/banner_pattern",
-            &banner_pattern_ids,
         ),
     ];
 
