@@ -1,4 +1,11 @@
-use crate::{log::LogLevel, types::player::PLAYER_POSITIONS};
+use crate::{
+    log::LogLevel,
+    net::packets::clientbound::block_action::send_block_action,
+    types::{
+        block_entities::BlockEntityData,
+        player::{PLAYER_POSITIONS, WindowType, broadcast_packet},
+    },
+};
 use once_cell::sync::Lazy;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{
@@ -614,8 +621,62 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         let player_guard = players_guard.remove(&uuid);
 
         if let Some(player) = player_guard {
+            let player_lock = player.lock().await;
+
             let mut entities_write = crate::types::entity::ENTITIES.write().await;
-            entities_write.remove(&player.lock().await.id);
+            entities_write.remove(&player_lock.id);
+            drop(entities_write);
+
+            if let Some(window) = player_lock.current_window {
+                let uuid = player_lock.uuid.clone();
+                drop(player_lock);
+
+                match window {
+                    WindowType::Chest { cords, .. } => {
+                        let chunk_pos = (cords.0.div_euclid(16), cords.2.div_euclid(16));
+                        let region_pos = (chunk_pos.0.div_euclid(32), chunk_pos.1.div_euclid(32));
+
+                        let region = get_region(region_pos.0, region_pos.1).await;
+                        let mut region_lock = region.lock().await;
+
+                        match region_lock.get_chunk(chunk_pos.0, chunk_pos.1) {
+                            Some(chunk) => {
+                                if let Some(be) = chunk.block_entities.get_mut(&(
+                                    cords.0 & 15,
+                                    cords.1,
+                                    cords.2 & 15,
+                                )) {
+                                    match be {
+                                        BlockEntityData::Chest { viewers, .. } => {
+                                            viewers.retain(|viewer| viewer != &uuid);
+
+                                            let mut buffer = Vec::new();
+                                            send_block_action(
+                                                &mut buffer,
+                                                cords,
+                                                1,
+                                                viewers.len() as u8,
+                                            )
+                                            .await?;
+                                            broadcast_packet(
+                                                buffer,
+                                                (cords.0 as f64, cords.1 as f64, cords.2 as f64),
+                                            )
+                                            .await?;
+                                        }
+
+                                        _ => {}
+                                    }
+                                }
+                            }
+
+                            None => {}
+                        }
+                    }
+
+                    _ => {}
+                }
+            }
         }
     }
 
