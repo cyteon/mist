@@ -737,7 +737,7 @@ impl Player {
                 }
             }
 
-            self.server_vy -= 0.08;
+            self.server_vy = (self.server_vy - 0.08) * 0.98;
 
             if self.server_vy < 0.0 {
                 self.fall_distance += -self.server_vy;
@@ -746,7 +746,7 @@ impl Player {
             }
         } else if self.on_ground {
             if self.gamemode == Gamemode::Survival
-                && self.ignore_fall_for_ticks <= 0
+                && self.ignore_fall_for_ticks == 0
                 && self.fall_distance > 3.0
             {
                 let damage = (self.fall_distance - 3.0).ceil() as i32;
@@ -756,12 +756,16 @@ impl Player {
             self.fall_distance = 0.0;
             self.server_vy = 0.0;
             self.jump_applied = false;
+        } else {
+            self.jump_applied = false;
+            self.fall_distance = 0.0;
+            self.server_vy = 0.0;
         }
 
         // void damage
-        if self.y < -64.0 && self.gamemode == Gamemode::Survival && self.ignore_fall_for_ticks <= 0
+        if self.y < -64.0 && self.gamemode == Gamemode::Survival && self.ignore_fall_for_ticks == 0
         {
-            self.damage(2, 32, 0, 0, false).await?;
+            self.damage(1, 32, 0, 0, false).await?;
         }
 
         self.ignore_fall_for_ticks = self.ignore_fall_for_ticks.saturating_sub(1);
