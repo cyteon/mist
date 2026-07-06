@@ -3,7 +3,8 @@ use crate::{
     net::packets::clientbound::block_action::send_block_action,
     types::{
         block_entities::BlockEntityData,
-        player::{PLAYER_POSITIONS, WindowType, broadcast_packet},
+        colors,
+        player::{PLAYER_POSITIONS, WindowType, broadcast_packet, broadcast_system_message},
     },
 };
 use once_cell::sync::Lazy;
@@ -238,6 +239,13 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     let mut buffer = Vec::new();
     send_set_ticking_state(&mut buffer).await?;
     let _ = tx.send(buffer);
+
+    broadcast_system_message(format!(
+        "{}{} has joined the server",
+        colors::YELLOW,
+        player.username
+    ))
+    .await?;
 
     let player = Arc::new(Mutex::new(player));
 
@@ -683,6 +691,13 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     PLAYERS.write().await.remove(&uuid);
     NAME_TO_UUID.write().await.remove(&username.to_lowercase());
     PLAYER_POSITIONS.write().await.remove(&uuid);
+
+    broadcast_system_message(format!(
+        "{}{} has left the server",
+        colors::YELLOW,
+        username
+    ))
+    .await?;
 
     Ok(())
 }

@@ -980,3 +980,15 @@ pub async fn broadcast_packet(packet: Vec<u8>, origin: (f64, f64, f64)) -> anyho
 
     Ok(())
 }
+
+pub async fn broadcast_system_message(message: String) -> anyhow::Result<()> {
+    let mut buffer = Vec::new();
+    send_system_chat_message(&mut buffer, message).await?;
+
+    let players_tx = crate::server::conn::PLAYER_SOCKET_MAP.read().await;
+    for tx in players_tx.values() {
+        let _ = tx.send(buffer.clone());
+    }
+
+    Ok(())
+}

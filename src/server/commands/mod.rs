@@ -1,6 +1,7 @@
 use std::pin::Pin;
 
 use crate::log::LogLevel;
+use crate::net::codec::write_var;
 use byteorder::{BigEndian, WriteBytesExt};
 
 use crate::log;
@@ -11,6 +12,7 @@ mod deop;
 mod gamemode;
 mod give;
 mod op;
+mod say;
 mod tps;
 mod version;
 
@@ -19,11 +21,19 @@ pub type Handler = for<'a, 'b> fn(
     &'a mut CommandInvoker<'b>,
 ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>>;
 
+#[derive(Clone, Copy)]
+pub enum StringBehavior {
+    SingleWord,
+    QuotablePhrase,
+    GreedyPhrase,
+}
+
 // the mc client will use this for autocomplete and stuff
 // todo: finish
 #[derive(Clone, Copy)]
 pub enum Parser {
     Integer { min: Option<i32>, max: Option<i32> },
+    String(StringBehavior),
     GameProfile,
     ItemStack,
     Gamemode,
@@ -33,6 +43,7 @@ impl Parser {
     pub fn id(&self) -> i32 {
         match self {
             Parser::Integer { .. } => 3,
+            Parser::String(_) => 5,
             Parser::GameProfile => 7,
             Parser::ItemStack => 14,
             Parser::Gamemode => 42,
@@ -60,6 +71,15 @@ impl Parser {
             if let Some(max) = max {
                 w.write_i32::<BigEndian>(*max)?;
             }
+        } else if let Parser::String(behavior) = self {
+            write_var(
+                w,
+                match behavior {
+                    StringBehavior::SingleWord => 0,
+                    StringBehavior::QuotablePhrase => 1,
+                    StringBehavior::GreedyPhrase => 2,
+                },
+            )?;
         }
 
         Ok(())
@@ -165,6 +185,15 @@ pub static COMMANDS: &[Command] = &[
         }],
         requires_op: true,
         handler: op::run,
+    },
+    Command {
+        name: "say",
+        args: &[Arg {
+            name: "message",
+            parser: Parser::String(StringBehavior::GreedyPhrase),
+        }],
+        requires_op: true,
+        handler: say::run,
     },
     Command {
         name: "tps",
