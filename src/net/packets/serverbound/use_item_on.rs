@@ -80,8 +80,8 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
             }
 
             blocks::CHEST => {
-                let Some(BlockEntityData::Chest { inventory }) =
-                    chunk.block_entities.get(&((x & 15), y, (z & 15)))
+                let Some(BlockEntityData::Chest { items, viewers }) =
+                    chunk.block_entities.get_mut(&((x & 15), y, (z & 15)))
                 else {
                     log::log(
                         LogLevel::Warn,
@@ -98,7 +98,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
 
                 let mut buffer = Vec::new();
                 let window_id = player.new_window_id(crate::types::player::WindowType::Chest {
-                    items: inventory.clone(),
+                    items: items.clone(),
                     cords: (x, y, z),
                 });
 
@@ -113,7 +113,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
 
                 let mut chest_container: [Option<ItemStack>; 63] = [None; 63];
 
-                for (i, item) in inventory.iter().enumerate() {
+                for (i, item) in items.iter().enumerate() {
                     chest_container[i] = item.clone();
                 }
 
@@ -131,8 +131,10 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                 .await?;
                 player.send_packet(buffer).await?;
 
+                viewers.push(player.uuid.clone());
+
                 let mut buffer = Vec::new();
-                send_block_action(&mut buffer, (x, y, z), 1, 1).await?;
+                send_block_action(&mut buffer, (x, y, z), 1, viewers.len() as u8).await?;
                 player.send_packet(buffer).await?;
 
                 return Ok(());

@@ -142,10 +142,22 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
                 )
             }
 
+            let mut viewers = Vec::new();
+            let past_block_entity = chunk.block_entities.remove(&(*bx & 15, *by, *bz & 15));
+
+            if let Some(BlockEntityData::Chest {
+                viewers: past_viewers,
+                ..
+            }) = past_block_entity
+            {
+                viewers = past_viewers;
+            }
+
             chunk.block_entities.insert(
                 (*bx & 15, *by, *bz & 15),
                 BlockEntityData::Chest {
-                    inventory: items.clone(),
+                    items: items.clone(),
+                    viewers,
                 },
             );
 

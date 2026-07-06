@@ -7,7 +7,11 @@ use crate::types::{
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub enum BlockEntityData {
-    Chest { inventory: [Option<ItemStack>; 27] },
+    Chest {
+        items: [Option<ItemStack>; 27],
+        #[serde(skip)]
+        viewers: Vec<String>,
+    },
 }
 
 impl BlockEntityData {
@@ -35,7 +39,8 @@ impl BlockEntityData {
 pub fn get_block_entity(block_id: u16) -> Option<BlockEntityData> {
     match block_by_state_id(block_id).map(|b| b.default_state) {
         Some(blocks::CHEST) => Some(BlockEntityData::Chest {
-            inventory: [None; 27],
+            items: [None; 27],
+            viewers: Vec::new(),
         }),
 
         _ => None,

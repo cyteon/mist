@@ -78,8 +78,8 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(
 
             if let Some(be) = chunk.block_entities.get(&(x & 15, y, z & 15)) {
                 match be {
-                    BlockEntityData::Chest { inventory, .. } => {
-                        for item in inventory.iter() {
+                    BlockEntityData::Chest { items, .. } => {
+                        for item in items.iter() {
                             if let Some(item_stack) = item {
                                 crate::types::entity::spawn_item_drop(
                                     item_stack.clone(),
