@@ -439,6 +439,93 @@ fn encode_item_components() {
     fs::write(out_path, out).unwrap();
 }
 
+fn read_tag_values(path: &Path) -> Vec<String> {
+    let bytes = fs::read(path).expect("Failed to read tag file");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("Failed to parse tag file");
+
+    json["values"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|value| value.as_str().map(|s| s.to_string()))
+        .collect()
+}
+
+fn collect_raw_tags(dir: &Path) -> Vec<(String, Vec<String>)> {
+    let mut tags = Vec::new();
+
+    let Ok(entires) = fs::read_dir(dir) else {
+        return tags;
+    };
+
+    let mut paths: Vec<_> = entires.flatten().map(|e| e.path()).collect();
+    paths.sort();
+
+    for path in paths {
+        if path.is_dir() {
+            let subdir_name = path.file_name().unwrap().to_str().unwrap();
+
+            if let Ok(subentries) = fs::read_dir(&path) {
+                let mut subpaths: Vec<_> = subentries.flatten().map(|e| e.path()).collect();
+                subpaths.sort();
+
+                for subpath in subpaths {
+                    let file_name = subpath.file_name().unwrap().to_str().unwrap();
+
+                    let tag_name = format!(
+                        "minecraft:{}/{}",
+                        subdir_name,
+                        file_name.strip_suffix(".json").unwrap()
+                    );
+
+                    tags.push((tag_name, read_tag_values(&subpath)));
+                }
+            }
+        } else {
+            let file_name = path.file_name().unwrap().to_str().unwrap();
+            let tag_name = format!("minecraft:{}", file_name.strip_suffix(".json").unwrap());
+
+            tags.push((tag_name, read_tag_values(&path)));
+        }
+    }
+
+    tags
+}
+
+fn expand_nested_tags(raw: HashMap<String, Vec<String>>) -> HashMap<String, Vec<String>> {
+    let mut raw = raw;
+
+    // to protect against infinite loops
+    for _ in 0..16 {
+        let cloned = raw.clone();
+        let mut changed = false;
+
+        for values in raw.values_mut() {
+            let mut expanded = Vec::new();
+
+            for value in values.iter() {
+                if let Some(refrence) = value.strip_prefix("#") {
+                    changed = true;
+
+                    if let Some(sub) = cloned.get(refrence) {
+                        expanded.extend(sub.clone());
+                    }
+                } else {
+                    expanded.push(value.clone());
+                }
+            }
+
+            *values = expanded;
+        }
+
+        if !changed {
+            break;
+        }
+    }
+
+    raw
+}
+
 fn load_tags() {
     let manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
     let blocks_json_path = Path::new(&manifest).join("src/assets/blocks.json");
@@ -501,82 +588,20 @@ fn load_tags() {
         let dir_path = Path::new(&manifest).join(dir);
         println!("cargo:rerun-if-changed={}", dir_path.display());
 
-        let mut tags = Vec::new();
-
-        if let Ok(entries) = fs::read_dir(&dir_path) {
-            let mut paths: Vec<_> = entries.flatten().map(|e| e.path()).collect();
-            paths.sort();
-
-            for path in paths {
-                if path.is_dir() {
-                    let subdir_name = path.file_name().unwrap().to_str().unwrap();
-
-                    if let Ok(subentries) = fs::read_dir(&path) {
-                        let mut subpaths: Vec<_> = subentries.flatten().map(|e| e.path()).collect();
-                        subpaths.sort();
-
-                        for subpath in subpaths {
-                            let file_name = subpath.file_name().unwrap().to_str().unwrap();
-                            let tag_name = format!(
-                                "minecraft:{}/{}",
-                                subdir_name,
-                                file_name.strip_suffix(".json").unwrap()
-                            );
-
-                            let bytes = fs::read(&subpath).expect("Failed to read tag file");
-                            let json: serde_json::Value =
-                                serde_json::from_slice(&bytes).expect("Failed to parse tag file");
-
-                            let mut ids = Vec::new();
-
-                            for value in json["values"].as_array().unwrap() {
-                                let name = value.as_str().unwrap_or("");
-
-                                if name.starts_with('#') {
-                                    // todo: nested tags
-                                    continue;
-                                }
-
-                                if let Some(&id) = reg_ids.get(name) {
-                                    ids.push(id as i32);
-                                }
-                            }
-
-                            tags.push((tag_name, ids));
-                        }
-                    }
-                } else {
-                    let file_name = path.file_name().unwrap().to_str().unwrap();
-                    let tag_name =
-                        format!("minecraft:{}", file_name.strip_suffix(".json").unwrap());
-
-                    let bytes = fs::read(&path).expect("Failed to read tag file");
-                    let json: serde_json::Value =
-                        serde_json::from_slice(&bytes).expect("Failed to parse tag file");
-
-                    let mut ids = Vec::new();
-
-                    for value in json["values"].as_array().unwrap() {
-                        let name = value.as_str().unwrap_or("");
-
-                        if name.starts_with('#') {
-                            continue;
-                        }
-
-                        if let Some(&id) = reg_ids.get(name) {
-                            ids.push(id as i32);
-                        }
-                    }
-
-                    tags.push((tag_name, ids));
-                }
-            }
-        }
+        let raw_tags = collect_raw_tags(&dir_path);
+        let expanded_tags = expand_nested_tags(raw_tags.iter().cloned().collect());
 
         out.push_str(&format!("    (\"{}\", &[\n", name));
 
-        for (tag_name, ids) in tags {
-            out.push_str(&format!("        (\"{}\", &{:?}),\n", tag_name, ids));
+        for (name, _) in &raw_tags {
+            let ids: Vec<i32> = expanded_tags
+                .get(name)
+                .unwrap_or(&Vec::new())
+                .iter()
+                .filter_map(|value| reg_ids.get(value).map(|&id| id as i32))
+                .collect();
+
+            out.push_str(&format!("        (\"{}\", &{:?}),\n", name, ids));
         }
 
         out.push_str("    ]),\n");
