@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicI32, Ordering};
 use tokio::sync::RwLock;
 
+use crate::net::packets::clientbound::entity_position_sync::send_entity_position_sync;
+
 pub static ENTITIES: Lazy<RwLock<HashMap<i32, Entity>>> = Lazy::new(|| RwLock::new(HashMap::new()));
 
 static NEXT_ENTITY_ID: AtomicI32 = AtomicI32::new(1);
@@ -54,6 +56,7 @@ pub struct Entity {
     pub vx: f64,
     pub vy: f64,
     pub vz: f64,
+
     pub on_ground: bool,
 }
 
@@ -86,7 +89,7 @@ impl Entity {
                 let dz = self.z - self.last_z;
 
                 if force_sync || dx.abs() >= 8.0 || dy.abs() >= 7.9 || dz.abs() >= 8.0 {
-                    crate::net::packets::clientbound::entity_position_sync::send_entity_position_sync(&mut packet_buffer, self).await?;
+                    send_entity_position_sync(&mut packet_buffer, self).await?;
                 } else if self.yaw != self.last_yaw || self.pitch != self.last_pitch {
                     crate::net::packets::clientbound::move_entity_pos_rot::send_move_entity_pos_rot(&mut packet_buffer, self).await?;
                 } else {
@@ -139,9 +142,9 @@ impl Entity {
         } else if let EntityType::Item(_) = self.entity_type {
             self.vy -= 0.04;
 
-            self.vx *= 0.98;
+            self.vx *= if self.on_ground { 0.6 * 0.98 } else { 0.98 };
             self.vy *= 0.98;
-            self.vz *= 0.98;
+            self.vz *= if self.on_ground { 0.6 * 0.98 } else { 0.98 };
 
             self.x += self.vx;
             self.y += self.vy;
@@ -160,6 +163,50 @@ impl Entity {
                 self.y = surface as f64 + 1.0;
                 self.vy = 0.0;
                 self.on_ground = true;
+            } else {
+                self.on_ground = false;
+            }
+
+            let mut packet_buffer = Vec::new();
+
+            self.ticks_since_last_update += 1;
+            let force_sync = self.ticks_since_last_update >= 20;
+
+            if self.x == self.last_x && self.y == self.last_y && self.z == self.last_z {
+                if force_sync {
+                    self.ticks_since_last_update = 0;
+                    send_entity_position_sync(&mut packet_buffer, self).await?;
+                }
+            } else {
+                let dx = self.x - self.last_x;
+                let dy = self.y - self.last_y;
+                let dz = self.z - self.last_z;
+
+                if force_sync || dx.abs() >= 8.0 || dy.abs() >= 7.9 || dz.abs() >= 8.0 {
+                    send_entity_position_sync(&mut packet_buffer, self).await?;
+                } else {
+                    crate::net::packets::clientbound::move_entity_pos::send_move_entity_pos(
+                        &mut packet_buffer,
+                        self,
+                    )
+                    .await?;
+                }
+            }
+
+            let positions = super::player::PLAYER_POSITIONS.read().await;
+            let socket_map = crate::server::conn::PLAYER_SOCKET_MAP.read().await;
+            let view_distance_blocks = crate::config::SERVER_CONFIG.view_distance as f64 * 16.0;
+
+            for (uuid, tx) in socket_map.iter() {
+                if let Some(pos) = positions.get(uuid) {
+                    let distance_squared = (pos.0 - self.x).powi(2) + (pos.2 - self.z).powi(2);
+
+                    if distance_squared < view_distance_blocks * view_distance_blocks {
+                        if !packet_buffer.is_empty() {
+                            let _ = tx.send(packet_buffer.clone());
+                        }
+                    }
+                }
             }
         }
 
@@ -217,9 +264,8 @@ impl Entity {
 pub fn spawn_item_drop(
     item_stack: super::items::ItemStack,
     dropped_by: Option<String>,
-    x: f64,
-    y: f64,
-    z: f64,
+    (x, y, z): (f64, f64, f64),
+    (vx, vy, vz): (f64, f64, f64),
 ) -> Entity {
     let entity = Entity {
         id: next_entity_id(),
@@ -245,9 +291,10 @@ pub fn spawn_item_drop(
         last_yaw: 0.0,
         last_pitch: 0.0,
 
-        vx: 0.0,
-        vy: 0.0,
-        vz: 0.0,
+        vx,
+        vy,
+        vz,
+
         on_ground: false,
     };
 

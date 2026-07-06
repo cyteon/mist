@@ -1,4 +1,4 @@
-use crate::net::codec::write_var;
+use crate::net::codec::{write_lpvec3, write_var};
 use byteorder::{BigEndian, WriteBytesExt};
 
 pub async fn send_spawn_entity<W: tokio::io::AsyncWriteExt + Unpin>(
@@ -19,11 +19,11 @@ pub async fn send_spawn_entity<W: tokio::io::AsyncWriteExt + Unpin>(
     packet_data.write_f64::<BigEndian>(entity.y)?;
     packet_data.write_f64::<BigEndian>(entity.z)?;
 
-    packet_data.write_u8(0u8)?;
+    write_lpvec3(&mut packet_data, entity.vx, entity.vy, entity.vz)?;
 
     packet_data.write_i8((entity.pitch / 360.0 * 256.0) as i8)?;
     packet_data.write_i8((entity.yaw / 360.0 * 256.0) as i8)?;
-    packet_data.write_i8(0)?; // head pitch
+    packet_data.write_i8(0)?; // head yaw
 
     write_var(&mut packet_data, 0)?; // data
 

@@ -530,12 +530,14 @@ impl Player {
                 if let Some(item) = self.inventory[i].take()
                     && source_type_id != 32
                 {
+                    let vx: f64 = (rand::random::<f64>() - 0.5) * 0.2;
+                    let vz: f64 = (rand::random::<f64>() - 0.5) * 0.2;
+
                     crate::types::entity::spawn_item_drop(
                         item,
                         Some(self.uuid.clone()),
-                        self.x + (rand::random::<f64>() - 0.5) * 2.0,
-                        self.y + 1.0,
-                        self.z + (rand::random::<f64>() - 0.5) * 2.0,
+                        (self.x, self.y + 0.5, self.z),
+                        (vx, 0.0, vz),
                     );
                 }
             }

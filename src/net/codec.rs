@@ -172,3 +172,50 @@ pub async fn read_hashed_slot<R: AsyncReadExt + Unpin>(
 pub fn normalize_angle(angle: f32) -> u8 {
     ((angle % 360.0 + 360.0) % 360.0 / 360.0 * 256.0) as u8
 }
+
+const MAX_VELOCITY: f64 = 1.717_986_918_3E10;
+const MIN_MAGNITUDE: f64 = 3.051_944_088_384_301E-5;
+
+pub fn write_lpvec3<W: WriteBytesExt + Unpin>(
+    stream: &mut W,
+    vx: f64,
+    vy: f64,
+    vz: f64,
+) -> anyhow::Result<()> {
+    let vx = vx.clamp(-MAX_VELOCITY, MAX_VELOCITY);
+    let vy = vy.clamp(-MAX_VELOCITY, MAX_VELOCITY);
+    let vz = vz.clamp(-MAX_VELOCITY, MAX_VELOCITY);
+    let max = vx.abs().max(vy.abs()).max(vz.abs());
+
+    if max < MIN_MAGNITUDE {
+        stream.write_u8(0)?;
+        return Ok(());
+    }
+
+    let scale_factor = max.ceil() as i64;
+
+    let header = if scale_factor > 3 {
+        (scale_factor & 3) | 4
+    } else {
+        scale_factor
+    };
+
+    let qx = to_long(vx / scale_factor as f64) << 3;
+    let qy = to_long(vy / scale_factor as f64) << 18;
+    let qz = to_long(vz / scale_factor as f64) << 33;
+
+    let packed = header | qx | qy | qz;
+
+    stream.write_all(&(packed as u16).to_le_bytes())?;
+    stream.write_all(&((packed >> 16) as i32).to_be_bytes())?;
+
+    if scale_factor > 3 {
+        write_var(stream, (scale_factor >> 2) as i32)?;
+    }
+
+    Ok(())
+}
+
+fn to_long(value: f64) -> i64 {
+    ((value.mul_add(0.5, 0.5) * 32766.0).round() as i64).clamp(0, 32766)
+}

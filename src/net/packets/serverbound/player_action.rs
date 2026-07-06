@@ -2,7 +2,7 @@ use tokio::io::AsyncReadExt;
 
 use crate::{
     net::codec::{read_position, read_var},
-    types::{block_entities::BlockEntityData, player::Gamemode},
+    types::{block_entities::BlockEntityData, entity::spawn_item_drop, player::Gamemode},
     world::get_region,
 };
 
@@ -67,9 +67,8 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(
                                 count: 1,
                             },
                             None,
-                            x as f64 + 0.5,
-                            y as f64 + 0.5,
-                            z as f64 + 0.5,
+                            (x as f64 + 0.5, y as f64 + 0.5, z as f64 + 0.5),
+                            (0.0, 0.05, 0.0),
                         );
                     }
                 }
@@ -85,9 +84,8 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(
                                 crate::types::entity::spawn_item_drop(
                                     item_stack.clone(),
                                     None,
-                                    x as f64 + 0.5,
-                                    y as f64 + 0.5,
-                                    z as f64 + 0.5,
+                                    (x as f64 + 0.5, y as f64 + 0.5, z as f64 + 0.5),
+                                    (0.0, 0.1, 0.0),
                                 );
                             }
                         }
@@ -124,17 +122,18 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(
                 player.inventory[held_slot] = None;
             }
 
-            let (dx, dz) = {
-                let yaw = player.yaw.to_radians();
-                (-yaw.sin() as f64, yaw.cos() as f64)
-            };
+            let yaw = player.yaw.to_radians();
+            let pitch = player.pitch.to_radians();
 
-            crate::types::entity::spawn_item_drop(
+            let vx = -yaw.sin() as f64 * pitch.cos() as f64 * 0.3;
+            let vy = -pitch.sin() as f64 * 0.3 + 0.1;
+            let vz = yaw.cos() as f64 * pitch.cos() as f64 * 0.3;
+
+            spawn_item_drop(
                 crate::types::items::ItemStack { item_id, count },
                 Some(player.uuid.clone()),
-                player.x + dx,
-                player.y + 1.0,
-                player.z + dz,
+                (player.x, player.y + 1.3, player.z),
+                (vx, vy, vz),
             );
         }
     }
