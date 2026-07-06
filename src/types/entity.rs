@@ -4,6 +4,8 @@ use std::sync::atomic::{AtomicI32, Ordering};
 use tokio::sync::RwLock;
 
 use crate::net::packets::clientbound::entity_position_sync::send_entity_position_sync;
+use crate::net::packets::clientbound::set_entity_data::send_set_entity_data;
+use crate::types::player::broadcast_packet;
 
 pub static ENTITIES: Lazy<RwLock<HashMap<i32, Entity>>> = Lazy::new(|| RwLock::new(HashMap::new()));
 
@@ -23,6 +25,8 @@ pub struct ItemEntity {
 #[derive(Clone)]
 pub struct PlayerEntity {
     pub uuid: String,
+    pub health: f32,
+    pub last_health: f32,
 }
 #[derive(Clone)]
 pub enum EntityType {
@@ -101,35 +105,44 @@ impl Entity {
                 }
             }
 
-            let positions = super::player::PLAYER_POSITIONS.read().await;
-            let socket_map = crate::server::conn::PLAYER_SOCKET_MAP.read().await;
-            let view_distance_blocks = crate::config::SERVER_CONFIG.view_distance as f64 * 16.0;
+            broadcast_packet(
+                packet_buffer,
+                (self.x, self.y, self.z),
+                Some(player_entity.uuid.clone()),
+            )
+            .await?;
 
-            for (uuid, tx) in socket_map.iter() {
-                if uuid == &player_entity.uuid {
-                    continue;
-                }
+            if self.yaw != self.last_yaw {
+                let mut buffer = Vec::new();
+                crate::net::packets::clientbound::rotate_head::send_rotate_head(
+                    &mut buffer,
+                    self.id,
+                    self.yaw,
+                )
+                .await?;
 
-                if let Some(pos) = positions.get(uuid) {
-                    let distance_squared = (pos.0 - self.x).powi(2) + (pos.2 - self.z).powi(2);
+                broadcast_packet(
+                    buffer,
+                    (self.x, self.y, self.z),
+                    Some(player_entity.uuid.clone()),
+                )
+                .await?;
+            }
 
-                    if distance_squared < view_distance_blocks * view_distance_blocks {
-                        if !packet_buffer.is_empty() {
-                            let _ = tx.send(packet_buffer.clone());
-                        }
+            if player_entity.health != player_entity.last_health {
+                println!(
+                    "Player {} health changed from {} to {}",
+                    player_entity.uuid, player_entity.last_health, player_entity.health
+                );
 
-                        if self.yaw != self.last_yaw {
-                            let mut buffer = Vec::new();
-                            crate::net::packets::clientbound::rotate_head::send_rotate_head(
-                                &mut buffer,
-                                self.id,
-                                self.yaw,
-                            )
-                            .await?;
-                            let _ = tx.send(buffer.clone());
-                        }
-                    }
-                }
+                let mut buffer = Vec::new();
+                send_set_entity_data(&mut buffer, self).await?;
+                broadcast_packet(
+                    buffer,
+                    (self.x, self.y, self.z),
+                    Some(player_entity.uuid.clone()),
+                )
+                .await?;
             }
 
             self.last_x = self.x;
@@ -137,6 +150,10 @@ impl Entity {
             self.last_z = self.z;
             self.last_yaw = self.yaw;
             self.last_pitch = self.pitch;
+
+            if let EntityType::Player(player_entity) = &mut self.entity_type {
+                player_entity.last_health = player_entity.health;
+            }
 
             return Ok(());
         } else if let EntityType::Item(_) = self.entity_type {
@@ -193,21 +210,7 @@ impl Entity {
                 }
             }
 
-            let positions = super::player::PLAYER_POSITIONS.read().await;
-            let socket_map = crate::server::conn::PLAYER_SOCKET_MAP.read().await;
-            let view_distance_blocks = crate::config::SERVER_CONFIG.view_distance as f64 * 16.0;
-
-            for (uuid, tx) in socket_map.iter() {
-                if let Some(pos) = positions.get(uuid) {
-                    let distance_squared = (pos.0 - self.x).powi(2) + (pos.2 - self.z).powi(2);
-
-                    if distance_squared < view_distance_blocks * view_distance_blocks {
-                        if !packet_buffer.is_empty() {
-                            let _ = tx.send(packet_buffer.clone());
-                        }
-                    }
-                }
-            }
+            broadcast_packet(packet_buffer, (self.x, self.y, self.z), None).await?;
         }
 
         self.last_x = self.x;

@@ -13,6 +13,7 @@ pub mod entity_event;
 pub mod entity_position_sync;
 pub mod finish_configuration;
 pub mod game_event;
+pub mod hurt_animation;
 pub mod keep_alive;
 pub mod known_packs;
 pub mod level_chunk_with_light;

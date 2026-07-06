@@ -669,6 +669,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                                             broadcast_packet(
                                                 buffer,
                                                 (cords.0 as f64, cords.1 as f64, cords.2 as f64),
+                                                Some(uuid.clone()),
                                             )
                                             .await?;
                                         }

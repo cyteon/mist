@@ -4,6 +4,10 @@ use tokio::sync::RwLock;
 
 use crate::log::LogLevel;
 use crate::net::packets::clientbound::commands::send_commands;
+use crate::net::packets::clientbound::hurt_animation::send_hurt_animation;
+use crate::net::packets::clientbound::set_entity_data::send_set_entity_data;
+use crate::server::state::play::PLAYERS;
+use crate::types::entity::{ENTITIES, EntityType};
 use crate::types::items::ItemStack;
 use crate::{
     net::packets::clientbound::{
@@ -17,7 +21,6 @@ use crate::{
         remove_entities::send_remove_entities,
         respawn::send_respawn,
         set_center_chunk::send_set_center_chunk,
-        set_entity_data::sent_set_entity_data,
         set_health::send_set_health,
         spawn_entity::send_spawn_entity,
         sync_player_position::send_sync_player_position,
@@ -274,6 +277,8 @@ impl Player {
             },
             entity_type: super::entity::EntityType::Player(super::entity::PlayerEntity {
                 uuid: player.uuid.clone(),
+                health: player.health,
+                last_health: player.health,
             }),
 
             x: player.x,
@@ -510,8 +515,11 @@ impl Player {
             source_direct_id,
         )
         .await?;
-
         self.send_packet(buffer).await?;
+
+        let mut buffer = Vec::new();
+        send_hurt_animation(&mut buffer, self.id).await?;
+        broadcast_packet(buffer, (self.x, self.y, self.z), Some(self.uuid.clone())).await?;
 
         if !skip_exhaustion {
             self.add_exhaustion(Player::EX_DAMAGE_TAKEN).await;
@@ -538,6 +546,17 @@ impl Player {
                     );
                 }
             }
+
+            let mut buffer = Vec::new();
+            send_entity_event(&mut buffer, self.id, 3).await?;
+            broadcast_packet(buffer, (self.x, self.y, self.z), Some(self.uuid.clone())).await?;
+        }
+
+        let mut entities_write = ENTITIES.write().await;
+        let player_entity = entities_write.get_mut(&self.id).unwrap();
+
+        if let EntityType::Player(pe) = &mut player_entity.entity_type {
+            pe.health = self.health;
         }
 
         Ok(())
@@ -574,6 +593,28 @@ impl Player {
 
         self.sync_player_health().await?;
         self.sync_player_position().await?;
+
+        let mut entities_write = ENTITIES.write().await;
+        let player_entity = entities_write.get_mut(&self.id).unwrap();
+
+        if let EntityType::Player(pe) = &mut player_entity.entity_type {
+            pe.health = 20.0;
+        }
+
+        let mut buffer = Vec::new();
+        send_remove_entities(&mut buffer, vec![self.id]).await?;
+        broadcast_packet(buffer, (self.x, self.y, self.z), Some(self.uuid.clone())).await?;
+
+        let players = PLAYERS.read().await;
+
+        for (uuid, p) in players.iter() {
+            if uuid == &self.uuid {
+                continue;
+            }
+
+            let mut p = p.lock().await;
+            p.loaded_entities.retain(|&id| id != self.id);
+        }
 
         Ok(())
     }
@@ -891,8 +932,7 @@ impl Player {
                 self.send_packet(buffer).await?;
 
                 let mut buffer = Vec::new();
-                sent_set_entity_data(&mut buffer, entity).await?;
-
+                send_set_entity_data(&mut buffer, entity).await?;
                 self.send_packet(buffer).await?;
 
                 self.loaded_entities.push(*id);
@@ -959,10 +999,20 @@ impl Player {
     }
 }
 
-pub async fn broadcast_packet(packet: Vec<u8>, origin: (f64, f64, f64)) -> anyhow::Result<()> {
+pub async fn broadcast_packet(
+    packet: Vec<u8>,
+    origin: (f64, f64, f64),
+    exclude: Option<String>,
+) -> anyhow::Result<()> {
     let player_positions = PLAYER_POSITIONS.read().await;
 
     for (uuid, (x, y, z)) in player_positions.iter() {
+        if let Some(exclude_uuid) = &exclude {
+            if uuid == exclude_uuid {
+                continue;
+            }
+        }
+
         let distance_squared =
             (x - origin.0).powi(2) + (y - origin.1).powi(2) + (z - origin.2).powi(2);
         let view_distance = crate::config::SERVER_CONFIG.view_distance as f64 * 16.0;

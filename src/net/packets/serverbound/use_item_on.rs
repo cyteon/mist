@@ -133,7 +133,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
 
                 let mut buffer = Vec::new();
                 send_block_action(&mut buffer, (x, y, z), 1, viewers.len() as u8).await?;
-                broadcast_packet(buffer, (x as f64, y as f64, z as f64)).await?;
+                broadcast_packet(buffer, (x as f64, y as f64, z as f64), None).await?;
 
                 return Ok(());
             }
