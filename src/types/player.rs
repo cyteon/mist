@@ -53,10 +53,7 @@ pub enum Gamemode {
 
 #[derive(Clone, Copy)]
 pub enum WindowType {
-    Chest {
-        items: [Option<ItemStack>; 27],
-        cords: (i32, i32, i32),
-    },
+    Chest { cords: (i32, i32, i32) },
     CraftingTable([Option<ItemStack>; 10]),
 }
 

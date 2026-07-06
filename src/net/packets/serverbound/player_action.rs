@@ -90,6 +90,24 @@ pub async fn read_player_action<R: AsyncReadExt + Unpin>(
                             }
                         }
                     }
+
+                    BlockEntityData::Furnace {
+                        input,
+                        fuel,
+                        output,
+                        ..
+                    } => {
+                        for item in [input, fuel, output].iter() {
+                            if let Some(item_stack) = item {
+                                crate::types::entity::spawn_item_drop(
+                                    item_stack.clone(),
+                                    None,
+                                    (x as f64 + 0.5, y as f64 + 0.5, z as f64 + 0.5),
+                                    (0.0, 0.1, 0.0),
+                                );
+                            }
+                        }
+                    }
                 }
             }
 

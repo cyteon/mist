@@ -98,7 +98,7 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
             player.send_packet(buffer).await?;
         }
 
-        Some(WindowType::Chest { items, cords }) => {
+        Some(WindowType::Chest { cords }) => {
             let (bx, by, bz) = cords;
 
             let chunk_pos = (bx.div_euclid(16), bz.div_euclid(16));
@@ -123,6 +123,20 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
                 }
             };
 
+            let Some(BlockEntityData::Chest { items, viewers }) =
+                chunk.block_entities.get_mut(&(*bx & 15, *by, *bz & 15))
+            else {
+                log::log(
+                    LogLevel::Warn,
+                    &format!(
+                        "Could not find chest block entity at {} {} {} for player {}",
+                        bx, by, bz, player.username
+                    ),
+                );
+
+                return Ok(());
+            };
+
             for _ in 0..changed_slots_len {
                 let slot_index = stream.read_i16().await?;
                 let item_stack = read_hashed_slot(stream).await?;
@@ -141,25 +155,6 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
                     ),
                 )
             }
-
-            let mut viewers = Vec::new();
-            let past_block_entity = chunk.block_entities.remove(&(*bx & 15, *by, *bz & 15));
-
-            if let Some(BlockEntityData::Chest {
-                viewers: past_viewers,
-                ..
-            }) = past_block_entity
-            {
-                viewers = past_viewers;
-            }
-
-            chunk.block_entities.insert(
-                (*bx & 15, *by, *bz & 15),
-                BlockEntityData::Chest {
-                    items: items.clone(),
-                    viewers,
-                },
-            );
 
             let carried_item = read_hashed_slot(stream).await?;
             player.carried_item = carried_item;

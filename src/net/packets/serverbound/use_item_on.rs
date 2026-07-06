@@ -97,10 +97,8 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                 };
 
                 let mut buffer = Vec::new();
-                let window_id = player.new_window_id(crate::types::player::WindowType::Chest {
-                    items: items.clone(),
-                    cords: (x, y, z),
-                });
+                let window_id = player
+                    .new_window_id(crate::types::player::WindowType::Chest { cords: (x, y, z) });
 
                 open_screen::send_open_screen(
                     &mut buffer,
@@ -139,6 +137,8 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
 
                 return Ok(());
             }
+
+            blocks::FURNACE => {}
 
             _ => {}
         }
