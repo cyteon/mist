@@ -28,7 +28,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
     let face = stream.read_u8().await?;
 
     let _cursor_x = stream.read_f32().await?;
-    let _cursor_y = stream.read_f32().await?;
+    let cursor_y = stream.read_f32().await?;
     let _cursor_z = stream.read_f32().await?;
 
     let _inside_block = stream.read_u8().await?;
@@ -161,7 +161,8 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
         let block =
             block_by_state_id(default_block_id).expect("Block ID not found in block registry");
 
-        let overrides = compute_overrides(&block, face, player.yaw);
+        let past_block_id = chunk.get_block((bx & 15) as u8, by, (bz & 15) as u8);
+        let overrides = compute_overrides(past_block_id, &block, face, player.yaw, cursor_y);
         let block_id = resolve_state(block, overrides) as u16;
 
         chunk.set_block((bx & 15) as u8, by, (bz & 15) as u8, block_id);

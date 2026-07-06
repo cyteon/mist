@@ -1,7 +1,4 @@
-use crate::{
-    log::LogLevel,
-    types::{entity::ENTITIES, player::PLAYER_POSITIONS},
-};
+use crate::{log::LogLevel, types::player::PLAYER_POSITIONS};
 use once_cell::sync::Lazy;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{

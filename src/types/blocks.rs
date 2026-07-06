@@ -110,7 +110,13 @@ pub fn yaw_to_facing(yaw: f32) -> &'static str {
     }
 }
 
-pub fn compute_overrides(block: &Block, face: u8, yaw: f32) -> Vec<(&'static str, &'static str)> {
+pub fn compute_overrides(
+    past_block_id: u16,
+    block: &Block,
+    face: u8,
+    yaw: f32,
+    cursor_y: f32,
+) -> Vec<(&'static str, &'static str)> {
     let mut overrides = Vec::new();
 
     if let Some(_) = block.properties.iter().find(|p| p.name == "axis") {
@@ -119,6 +125,34 @@ pub fn compute_overrides(block: &Block, face: u8, yaw: f32) -> Vec<(&'static str
 
     if let Some(_) = block.properties.iter().find(|p| p.name == "facing") {
         overrides.push(("facing", yaw_to_facing(yaw)));
+    }
+
+    // both chests and slabs uses name=type
+    // but on chests its left/right/single
+    // and on slabs its top/bottom/double
+
+    if let Some(_) = block.properties.iter().find(|p| p.name == "type") {
+        if block.name.contains("chest") {
+        } else if block.name.contains("slab") {
+            if block_by_state_id(past_block_id)
+                .map(|b| b.name.contains("_slab"))
+                .unwrap_or(false)
+            {
+                overrides.push(("type", "double"));
+            } else {
+                if face_to_direction(face) == "up" {
+                    overrides.push(("type", "bottom"));
+                } else if face_to_direction(face) == "down" {
+                    overrides.push(("type", "top"));
+                } else {
+                    if cursor_y > 0.5 {
+                        overrides.push(("type", "top"));
+                    } else {
+                        overrides.push(("type", "bottom"));
+                    }
+                }
+            }
+        }
     }
 
     overrides
