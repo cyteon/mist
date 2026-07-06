@@ -1,4 +1,7 @@
-use crate::{log::LogLevel, types::player::PLAYER_POSITIONS};
+use crate::{
+    log::LogLevel,
+    types::{entity::ENTITIES, player::PLAYER_POSITIONS},
+};
 use once_cell::sync::Lazy;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{
@@ -361,25 +364,33 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
             Ok(Ok(Some(packet))) => match packet {
                 ClientPacket::ConfirmTeleprortion(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
+
                     read_confirm_teleportation(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::PlayerAction(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
+
                     read_player_action(&mut cursor, &mut player).await?
                 }
 
                 ClientPacket::UseItemOn(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
+
                     read_use_item_on(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::UseItem(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
+
                     read_use_item(&mut cursor, &mut player).await?;
                 }
 
@@ -452,56 +463,64 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
                 ClientPacket::SetPlayerPosition(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
 
                     read_set_player_position(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::SetPlayerPositionAndRotation(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
 
                     read_set_player_position_and_rotation(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::PlayerInput(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
 
                     read_player_input(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::SetPlayerRotation(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
 
                     read_set_player_rotation(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::SetCarriedItem(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
 
                     read_set_carried_item(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::SetCreativeModeSlot(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
 
                     read_set_creative_mode_slot(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::PickItemFromBlock(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
 
                     read_pick_item_from_block(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::PlayerAbilities(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
 
                     read_player_abilities(&mut cursor, &mut player).await?;
                 }
@@ -511,10 +530,11 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                     let player_arc = players_locked.get(&uuid).unwrap().clone();
                     let mut player = player_arc.lock().await;
 
+                    drop(players_locked);
+
                     let action = read_client_status(&mut cursor, &mut player).await?;
 
                     drop(player);
-                    drop(players_locked);
 
                     if action == 0 {
                         let tx_clone = tx.clone();
@@ -528,21 +548,24 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
                 ClientPacket::SwingArm(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
 
                     read_swing_arm(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::ContainerClick(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
 
                     read_container_click(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::ContainerClose(mut cursor) => {
                     let players_locked = PLAYERS.read().await;
-                    let mut player = players_locked.get(&uuid).unwrap().lock().await;
+                    let mut player = players_locked.get(&uuid).unwrap().lock().await.clone();
+                    drop(players_locked);
 
                     read_container_close(&mut cursor, &mut player).await?;
                 }
@@ -612,10 +635,12 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
 
     {
         let mut players_guard = PLAYERS.write().await;
-        let player_guard = players_guard.remove(&uuid).unwrap();
+        let player_guard = players_guard.remove(&uuid);
 
-        let mut entities_write = crate::types::entity::ENTITIES.write().await;
-        entities_write.remove(&player_guard.lock().await.id);
+        if let Some(player) = player_guard {
+            let mut entities_write = crate::types::entity::ENTITIES.write().await;
+            entities_write.remove(&player.lock().await.id);
+        }
     }
 
     PLAYERS.write().await.remove(&uuid);
