@@ -1,7 +1,7 @@
 use crate::net::codec::read_var;
 use crate::net::packets::clientbound::block_action::send_block_action;
 use crate::types::block_entities::BlockEntityData;
-use crate::types::player::{Player, WindowType};
+use crate::types::player::{Player, WindowType, broadcast_packet};
 use crate::world::get_region;
 use tokio::io::AsyncReadExt;
 
@@ -39,11 +39,13 @@ pub async fn read_container_close<R: AsyncReadExt + Unpin>(
                         if let BlockEntityData::Chest { viewers, .. } = be {
                             viewers.retain(|viewer| viewer != &player.uuid);
 
-                            dbg!("Chest at {:?} now has {} viewers", cords, viewers.len());
-
                             let mut buffer = Vec::new();
                             send_block_action(&mut buffer, cords, 1, viewers.len() as u8).await?;
-                            player.send_packet(buffer).await?;
+                            broadcast_packet(
+                                buffer,
+                                (cords.0 as f64, cords.1 as f64, cords.2 as f64),
+                            )
+                            .await?;
                         }
                     }
                 }

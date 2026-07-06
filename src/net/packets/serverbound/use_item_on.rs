@@ -13,7 +13,7 @@ use crate::{
         block_entities::{BlockEntityData, get_block_entity},
         blocks::{self, block_by_state_id, compute_overrides, resolve_state},
         items::ItemStack,
-        player::Player,
+        player::{Player, broadcast_packet},
     },
     world::get_region,
 };
@@ -135,7 +135,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
 
                 let mut buffer = Vec::new();
                 send_block_action(&mut buffer, (x, y, z), 1, viewers.len() as u8).await?;
-                player.send_packet(buffer).await?;
+                broadcast_packet(buffer, (x as f64, y as f64, z as f64)).await?;
 
                 return Ok(());
             }

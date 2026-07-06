@@ -961,3 +961,25 @@ impl Player {
         Ok(())
     }
 }
+
+pub async fn broadcast_packet(packet: Vec<u8>, origin: (f64, f64, f64)) -> anyhow::Result<()> {
+    let player_positions = PLAYER_POSITIONS.read().await;
+
+    for (uuid, (x, y, z)) in player_positions.iter() {
+        let distance_squared =
+            (x - origin.0).powi(2) + (y - origin.1).powi(2) + (z - origin.2).powi(2);
+        let view_distance = crate::config::SERVER_CONFIG.view_distance as f64 * 16.0;
+
+        if distance_squared < view_distance * view_distance {
+            if let Some(tx) = crate::server::conn::PLAYER_SOCKET_MAP
+                .read()
+                .await
+                .get(uuid)
+            {
+                let _ = tx.send(packet.clone());
+            }
+        }
+    }
+
+    Ok(())
+}
