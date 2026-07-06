@@ -186,7 +186,7 @@ fn load_blocks() {
                         max_state_id,
                         tool_ids
                             .iter()
-                            .map(|id| format!("{}", id))
+                            .map(|id| id.to_string())
                             .collect::<Vec<_>>()
                             .join(" | ")
                     ));
@@ -196,7 +196,7 @@ fn load_blocks() {
                         min_state_id,
                         tool_ids
                             .iter()
-                            .map(|id| format!("{}", id))
+                            .map(|id| id.to_string())
                             .collect::<Vec<_>>()
                             .join(" | ")
                     ));
@@ -680,7 +680,7 @@ fn encode_tool_component(tool: &serde_json::Value) -> Vec<u8> {
             let blocks = rule["blocks"].as_str().unwrap_or("");
 
             if blocks.starts_with('#') {
-                KNOWN_TAGS.iter().any(|tag| *tag == blocks)
+                KNOWN_TAGS.contains(&blocks)
             } else {
                 true
             }
