@@ -3,6 +3,7 @@ use crate::net::codec::write_var;
 pub enum WindowType {
     Chest = 2,
     CraftingTable = 12,
+    Furnace = 14,
 }
 
 pub async fn send_open_screen<W: tokio::io::AsyncWriteExt + Unpin>(

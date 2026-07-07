@@ -3,12 +3,10 @@ pub mod noise;
 pub mod ores;
 pub mod vanilla;
 
-use std::collections::HashMap;
-
 use crate::log::LogLevel;
 use crate::world::worldgen::noise::{Shape, trilerp};
 
-use super::chunks::{Chunk, Region, Section};
+use super::chunks::{Chunk, Region};
 use noise::NoiseFn;
 use rayon::prelude::*;
 
@@ -51,13 +49,7 @@ pub async fn initial_gen() {
 }
 
 pub fn generate(x: i32, z: i32) -> Chunk {
-    let mut chunk = Chunk {
-        x,
-        z,
-
-        sections: (0..24).map(|y| Section::new(y)).collect(),
-        block_entities: HashMap::new(),
-    };
+    let mut chunk = Chunk::new(x, z);
 
     let wx0 = x << 4;
     let wz0 = z << 4;

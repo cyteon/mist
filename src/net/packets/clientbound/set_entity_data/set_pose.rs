@@ -3,13 +3,13 @@ use byteorder::{BigEndian, WriteBytesExt};
 use crate::{net::codec::write_var, types::entity::EntityType};
 
 pub enum State {
-    onFire = 0x01,
-    pressingSneak = 0x02,
-    sprinting = 0x08,
-    swimming = 0x10,
-    invisible = 0x20,
-    glowing = 0x40,
-    elytraFlying = 0x80,
+    OnFire = 0x01,
+    Sneaking = 0x02,
+    Sprinting = 0x08,
+    Swimming = 0x10,
+    Invisible = 0x20,
+    Glowing = 0x40,
+    ElytraFlying = 0x80,
 }
 
 // todo: add rest of them

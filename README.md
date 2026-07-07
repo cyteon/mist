@@ -1,6 +1,10 @@
 # Mist
 An minecraft server implementation in rust for minecraft 1.21.11
 
+> [!CAUTION]
+> Mist is still in early development and breaking changes can occur at any time.
+> Mist is not ready for production use.
+
 ## Features
 **General**
 - [x] Config (.toml)

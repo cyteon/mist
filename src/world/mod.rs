@@ -32,6 +32,7 @@ pub async fn get_region(x: i32, z: i32) -> Arc<Mutex<Region>> {
                     format!("Failed to load region {},{}: {}", x, z, e).as_str(),
                 );
 
+                // todo: maybe not explode the old one, maybe backup it or smth
                 Region::new(x, z)
             }
         }

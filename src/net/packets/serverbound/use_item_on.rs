@@ -138,7 +138,64 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                 return Ok(());
             }
 
-            blocks::FURNACE => {}
+            blocks::FURNACE => {
+                let Some(BlockEntityData::Furnace {
+                    input,
+                    output,
+                    fuel,
+                    ..
+                }) = chunk.block_entities.get_mut(&((x & 15), y, (z & 15)))
+                else {
+                    log::log(
+                        LogLevel::Warn,
+                        &format!(
+                            "Block entity data for furnace at ({}, {}, {}) not found",
+                            x & 15,
+                            y,
+                            z & 15
+                        ),
+                    );
+
+                    return Ok(());
+                };
+
+                let mut buffer = Vec::new();
+
+                let window_id = player
+                    .new_window_id(crate::types::player::WindowType::Furnace { cords: (x, y, z) });
+
+                open_screen::send_open_screen(
+                    &mut buffer,
+                    window_id,
+                    open_screen::WindowType::Furnace,
+                    "Furnace",
+                )
+                .await?;
+
+                player.send_packet(buffer).await?;
+
+                let mut furnace_container: [Option<ItemStack>; 39] = [None; 39];
+
+                furnace_container[0] = input.clone();
+                furnace_container[1] = fuel.clone();
+                furnace_container[2] = output.clone();
+
+                for i in 9..=44 {
+                    furnace_container[i - 6] = player.inventory[i].clone();
+                }
+
+                let mut buffer = Vec::new();
+                send_container_set_content(
+                    &mut buffer,
+                    window_id as u8,
+                    furnace_container.to_vec(),
+                    None,
+                )
+                .await?;
+                player.send_packet(buffer).await?;
+
+                return Ok(());
+            }
 
             _ => {}
         }

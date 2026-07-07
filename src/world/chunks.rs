@@ -90,11 +90,22 @@ pub struct Chunk {
     pub x: i32,
     pub z: i32,
     pub sections: Vec<Section>,
-    #[serde(default)]
     pub block_entities: HashMap<(i32, i32, i32), BlockEntityData>,
+    pub ticking_blocks: Vec<(i32, i32, i32)>, // furnaces that are lit and are cooking smth
 }
 
 impl Chunk {
+    pub fn new(x: i32, z: i32) -> Self {
+        Chunk {
+            x,
+            z,
+
+            sections: (0..24).map(|y| Section::new(y)).collect(),
+            block_entities: HashMap::new(),
+            ticking_blocks: Vec::new(),
+        }
+    }
+
     pub fn set_block(&mut self, x: u8, y: i32, z: u8, block_id: u16) {
         let section_idx = y.div_euclid(16) + 4;
 

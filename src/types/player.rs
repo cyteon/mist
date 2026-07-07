@@ -57,6 +57,7 @@ pub enum Gamemode {
 #[derive(Clone, Copy)]
 pub enum WindowType {
     Chest { cords: (i32, i32, i32) },
+    Furnace { cords: (i32, i32, i32) },
     CraftingTable([Option<ItemStack>; 10]),
 }
 
@@ -1013,7 +1014,7 @@ impl Player {
             || !self.movement.sneaking && self.was_sneaking
         {
             let states = if self.movement.sneaking {
-                vec![set_pose::State::pressingSneak]
+                vec![set_pose::State::Sneaking]
             } else {
                 vec![]
             };
