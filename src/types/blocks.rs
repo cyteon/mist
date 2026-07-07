@@ -40,6 +40,38 @@ pub fn block_by_state_id(state_id: u16) -> Option<&'static Block> {
     None
 }
 
+pub fn state_to_values(block: &Block, state_id: u32) -> Vec<(&'static str, &'static str)> {
+    let mut remaining = state_id - block.min_state_id as u32;
+    let mut values = vec![""; block.properties.len()];
+
+    for (i, prop) in block.properties.iter().enumerate().rev() {
+        let n = prop.values.len() as u32;
+        values[i] = prop.values[(remaining % n) as usize];
+        remaining /= n;
+    }
+
+    block
+        .properties
+        .iter()
+        .map(|p| p.name)
+        .zip(values)
+        .collect()
+}
+
+pub fn with_ovveride(state_id: u16, name: &'static str, value: &'static str) -> u16 {
+    let Some(block) = block_by_state_id(state_id) else {
+        return state_id;
+    };
+
+    let mut values = state_to_values(block, state_id as u32);
+
+    if let Some(entry) = values.iter_mut().find(|(n, _)| *n == name) {
+        entry.1 = value;
+    }
+
+    resolve_state(block, values)
+}
+
 pub fn resolve_state(block: &Block, overrides: Vec<(&'static str, &'static str)>) -> u16 {
     let mut default_remaining = (block.default_state - block.min_state_id) as u32;
     let mut default_indices = vec![0; block.properties.len()];

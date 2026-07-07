@@ -77,9 +77,13 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
             let mut region_lock = region.lock().await;
 
             for chunk in region_lock.chunks.iter_mut() {
-                for block_entity in chunk.block_entities.values_mut() {
-                    block_entity.tick();
+                let mut entities = std::mem::take(&mut chunk.block_entities);
+
+                for (cords, block_entity) in entities.iter_mut() {
+                    block_entity.tick(chunk, *cords).await?;
                 }
+
+                chunk.block_entities = entities;
             }
         }
 

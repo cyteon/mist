@@ -1,9 +1,14 @@
 use std::collections::HashMap;
 
-use crate::types::{
-    blocks::{self, block_by_state_id},
-    items::ItemStack,
-    recipes::get_smelting_recipe,
+use crate::{
+    net::packets::clientbound::block_update::send_block_update,
+    types::{
+        blocks::{self, block_by_state_id, with_ovveride},
+        items::ItemStack,
+        player::broadcast_packet,
+        recipes::get_smelting_recipe,
+    },
+    world::chunks::Chunk,
 };
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
@@ -26,6 +31,8 @@ pub enum BlockEntityData {
         properties_changed: bool,
         #[serde(skip)]
         slots_changed: bool,
+        #[serde(skip)]
+        was_lit: bool,
     },
 }
 
@@ -60,7 +67,7 @@ impl BlockEntityData {
         }
     }
 
-    pub fn tick(&mut self) {
+    pub async fn tick(&mut self, chunk: &mut Chunk, cords: (i32, i32, i32)) -> anyhow::Result<()> {
         match self {
             BlockEntityData::Furnace {
                 input,
@@ -72,6 +79,7 @@ impl BlockEntityData {
                 cook_left,
                 properties_changed,
                 slots_changed,
+                was_lit,
             } => {
                 *properties_changed = false;
                 *slots_changed = false;
@@ -103,18 +111,18 @@ impl BlockEntityData {
                 }
 
                 if *cook_left == 0 {
-                    if let Some(stack) = output {
-                        stack.count += 1;
-                    } else {
-                        *output = currently_cooking.take();
+                    if currently_cooking.is_some() {
+                        if let Some(stack) = output {
+                            stack.count += 1;
+                        } else {
+                            *output = currently_cooking.take();
+                        }
+
+                        *currently_cooking = None;
                     }
 
-                    *currently_cooking = None;
-
                     if let Some(input_stack) = input {
-                        let result_id = get_smelting_recipe(input_stack.item_id);
-
-                        if let Some(result_id) = result_id {
+                        if let Some(result_id) = get_smelting_recipe(input_stack.item_id) {
                             if let Some(output_stack) = output {
                                 if output_stack.item_id == result_id && output_stack.count < 64 {
                                     *currently_cooking = Some(ItemStack {
@@ -144,10 +152,30 @@ impl BlockEntityData {
                     *properties_changed = true;
                     *slots_changed = true;
                 }
+
+                if (*lit_left > 0 && !*was_lit) || (*lit_left == 0 && *was_lit) {
+                    let block = chunk.get_block(cords.0 as u8, cords.1, cords.2 as u8);
+
+                    let new =
+                        with_ovveride(block, "lit", if *lit_left > 0 { "true" } else { "false" });
+
+                    chunk.set_block(cords.0 as u8, cords.1, cords.2 as u8, new);
+
+                    let wx = chunk.x * 16 + cords.0;
+                    let wz = chunk.z * 16 + cords.2;
+
+                    let mut buffer = Vec::new();
+                    send_block_update(&mut buffer, wx, cords.1, wz, new as i32).await?;
+                    broadcast_packet(buffer, (wx as f64, cords.1 as f64, wz as f64), None).await?;
+                }
+
+                *was_lit = *lit_left > 0;
             }
 
             _ => {}
         }
+
+        Ok(())
     }
 }
 
@@ -163,6 +191,7 @@ pub fn get_block_entity(block_id: u16) -> Option<BlockEntityData> {
             cook_left: 200,
             properties_changed: false,
             slots_changed: false,
+            was_lit: false,
         }),
 
         Some(blocks::CHEST) => Some(BlockEntityData::Chest {
