@@ -1,6 +1,7 @@
+use crate::{net::codec::write_var, types::entity::EntityType};
 use byteorder::{BigEndian, WriteBytesExt};
 
-use crate::{net::codec::write_var, types::entity::EntityType};
+pub mod set_pose;
 
 pub async fn send_set_entity_data<W: tokio::io::AsyncWriteExt + Unpin>(
     stream: &mut W,

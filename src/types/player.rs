@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 use crate::log::LogLevel;
 use crate::net::packets::clientbound::commands::send_commands;
 use crate::net::packets::clientbound::hurt_animation::send_hurt_animation;
-use crate::net::packets::clientbound::set_entity_data::send_set_entity_data;
+use crate::net::packets::clientbound::set_entity_data::{send_set_entity_data, set_pose};
 use crate::server::state::play::PLAYERS;
 use crate::types::entity::{ENTITIES, EntityType};
 use crate::types::items::ItemStack;
@@ -89,6 +89,7 @@ pub struct Player {
     pub starvation_timer: u32,
     // todo: food poisoning
     pub dead: bool,
+    pub ticks_until_despawn_player: u32,
     pub ignore_fall_for_ticks: u32,
 
     pub shared_secret: Option<Vec<u8>>,
@@ -118,6 +119,7 @@ pub struct Player {
     pub yaw: f32,
     pub pitch: f32,
 
+    pub was_sneaking: bool,
     pub movement: PlayerMovement,
 
     pub initial_sync_done: bool,
@@ -204,11 +206,13 @@ impl Player {
             flying: false,
             fall_distance: 0.0,
             dead: false,
+            ticks_until_despawn_player: 20,
             ignore_fall_for_ticks: 0,
 
             yaw: 0.0,
             pitch: 0.0,
 
+            was_sneaking: false,
             movement: PlayerMovement {
                 forward: false,
                 backward: false,
@@ -278,7 +282,6 @@ impl Player {
             entity_type: super::entity::EntityType::Player(super::entity::PlayerEntity {
                 uuid: player.uuid.clone(),
                 health: player.health,
-                last_health: player.health,
             }),
 
             x: player.x,
@@ -557,6 +560,7 @@ impl Player {
 
         if let EntityType::Player(pe) = &mut player_entity.entity_type {
             pe.health = self.health;
+            player_entity.sync_entity_data().await?;
         }
 
         Ok(())
@@ -599,11 +603,8 @@ impl Player {
 
         if let EntityType::Player(pe) = &mut player_entity.entity_type {
             pe.health = 20.0;
+            player_entity.sync_entity_data().await?;
         }
-
-        let mut buffer = Vec::new();
-        send_remove_entities(&mut buffer, vec![self.id]).await?;
-        broadcast_packet(buffer, (self.x, self.y, self.z), Some(self.uuid.clone())).await?;
 
         let players = PLAYERS.read().await;
 
@@ -653,6 +654,18 @@ impl Player {
     }
 
     pub async fn tick(&mut self) -> anyhow::Result<()> {
+        if self.dead {
+            self.ticks_until_despawn_player = self.ticks_until_despawn_player.saturating_sub(1);
+
+            if self.ticks_until_despawn_player == 0 {
+                let mut buffer = Vec::new();
+                send_remove_entities(&mut buffer, vec![self.id]).await?;
+                broadcast_packet(buffer, (self.x, self.y, self.z), Some(self.uuid.clone())).await?;
+            }
+
+            return Ok(());
+        }
+
         if self.dead || !self.initial_sync_done {
             return Ok(());
         }
@@ -962,6 +975,7 @@ impl Player {
 
         let mut player_positions = PLAYER_POSITIONS.write().await;
         player_positions.insert(self.uuid.clone(), (self.x, self.y, self.z));
+        drop(player_positions);
 
         let mut entities_write = crate::types::entity::ENTITIES.write().await;
 
@@ -994,6 +1008,28 @@ impl Player {
 
             self.send_packet(buffer).await?;
         }
+
+        if self.movement.sneaking && !self.was_sneaking
+            || !self.movement.sneaking && self.was_sneaking
+        {
+            let states = if self.movement.sneaking {
+                vec![set_pose::State::pressingSneak]
+            } else {
+                vec![]
+            };
+
+            let pose = if self.movement.sneaking {
+                set_pose::Pose::Sneaking
+            } else {
+                set_pose::Pose::Standing
+            };
+
+            let mut buffer = Vec::new();
+            set_pose::send_set_pose(&mut buffer, self.id, states, pose).await?;
+            broadcast_packet(buffer, (self.x, self.y, self.z), Some(self.uuid.clone())).await?;
+        }
+
+        self.was_sneaking = self.movement.sneaking;
 
         Ok(())
     }

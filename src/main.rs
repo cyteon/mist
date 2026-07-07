@@ -99,8 +99,8 @@ async fn main() -> anyhow::Result<()> {
                         .await
                         .is_err()
                     {
-                        log::log(LogLevel::Error, "Timeout while stopping server :(");
-                        log::log(LogLevel::Error, "Killing...");
+                        log::log(LogLevel::Error, "Timeout while stopping server :(\n");
+                        log::log(LogLevel::Error, "Killing...\n");
                     }
 
                     std::process::exit(0);

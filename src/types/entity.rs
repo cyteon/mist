@@ -26,8 +26,8 @@ pub struct ItemEntity {
 pub struct PlayerEntity {
     pub uuid: String,
     pub health: f32,
-    pub last_health: f32,
 }
+
 #[derive(Clone)]
 pub enum EntityType {
     Item(ItemEntity),
@@ -67,7 +67,7 @@ pub struct Entity {
 impl Entity {
     pub async fn tick(&mut self) -> anyhow::Result<()> {
         if let EntityType::Player(player_entity) = &self.entity_type {
-            // TODO: sync pose (sneaking, swimming, etc)
+            // TODO: sync pose (swimming, etc)
 
             let mut packet_buffer = Vec::new();
 
@@ -129,31 +129,11 @@ impl Entity {
                 .await?;
             }
 
-            if player_entity.health != player_entity.last_health {
-                println!(
-                    "Player {} health changed from {} to {}",
-                    player_entity.uuid, player_entity.last_health, player_entity.health
-                );
-
-                let mut buffer = Vec::new();
-                send_set_entity_data(&mut buffer, self).await?;
-                broadcast_packet(
-                    buffer,
-                    (self.x, self.y, self.z),
-                    Some(player_entity.uuid.clone()),
-                )
-                .await?;
-            }
-
             self.last_x = self.x;
             self.last_y = self.y;
             self.last_z = self.z;
             self.last_yaw = self.yaw;
             self.last_pitch = self.pitch;
-
-            if let EntityType::Player(player_entity) = &mut self.entity_type {
-                player_entity.last_health = player_entity.health;
-            }
 
             return Ok(());
         } else if let EntityType::Item(_) = self.entity_type {
@@ -239,25 +219,32 @@ impl Entity {
             )
             .await?;
 
-            let socket_map = crate::server::conn::PLAYER_SOCKET_MAP.read().await;
-            let positions = super::player::PLAYER_POSITIONS.read().await;
-            let view_distance_blocks = crate::config::SERVER_CONFIG.view_distance as f64 * 16.0;
-
-            for (uuid, tx) in socket_map.iter() {
-                if uuid == &player_entity.uuid {
-                    continue;
-                }
-
-                if let Some(pos) = positions.get(uuid) {
-                    let distance_squared = (pos.0 - self.x).powi(2) + (pos.2 - self.z).powi(2);
-
-                    if distance_squared < view_distance_blocks * view_distance_blocks {
-                        let _ = tx.send(buffer.clone());
-                    }
-                }
-            }
+            broadcast_packet(
+                buffer,
+                (self.x, self.y, self.z),
+                Some(player_entity.uuid.clone()),
+            )
+            .await?;
         } else {
             anyhow::bail!("Only player entities can swing their arms");
+        }
+
+        Ok(())
+    }
+
+    pub async fn sync_entity_data(&self) -> anyhow::Result<()> {
+        let mut buffer = Vec::new();
+        send_set_entity_data(&mut buffer, self).await?;
+
+        if let EntityType::Player(player_entity) = &self.entity_type {
+            broadcast_packet(
+                buffer,
+                (self.x, self.y, self.z),
+                Some(player_entity.uuid.clone()),
+            )
+            .await?;
+        } else {
+            broadcast_packet(buffer, (self.x, self.y, self.z), None).await?;
         }
 
         Ok(())
