@@ -4,9 +4,11 @@ use tokio::sync::RwLock;
 
 use crate::log::LogLevel;
 use crate::net::packets::clientbound::commands::send_commands;
+use crate::net::packets::clientbound::container_set_data::send_container_set_data;
 use crate::net::packets::clientbound::hurt_animation::send_hurt_animation;
 use crate::net::packets::clientbound::set_entity_data::{send_set_entity_data, set_pose};
 use crate::server::state::play::PLAYERS;
+use crate::types::block_entities::BlockEntityData;
 use crate::types::entity::{ENTITIES, EntityType};
 use crate::types::items::ItemStack;
 use crate::{
@@ -1028,6 +1030,80 @@ impl Player {
             let mut buffer = Vec::new();
             set_pose::send_set_pose(&mut buffer, self.id, states, pose).await?;
             broadcast_packet(buffer, (self.x, self.y, self.z), Some(self.uuid.clone())).await?;
+        }
+
+        if let Some(window) = self.current_window {
+            if let WindowType::Furnace { cords } = window {
+                let chunk_pos = (cords.0.div_euclid(16), cords.2.div_euclid(16));
+                let region_pos = (chunk_pos.0.div_euclid(32), chunk_pos.1.div_euclid(32));
+
+                let region = get_region(region_pos.0, region_pos.1).await;
+                let mut region_lock = region.lock().await;
+
+                if let Some(chunk) = region_lock.get_chunk(chunk_pos.0, chunk_pos.1) {
+                    if let Some(furnace) =
+                        chunk
+                            .block_entities
+                            .get(&(cords.0 & 15, cords.1, cords.2 & 15))
+                    {
+                        if let BlockEntityData::Furnace {
+                            input,
+                            fuel,
+                            output,
+                            slots_changed,
+                            properties_changed,
+                            lit_left,
+                            cook_left,
+                            ..
+                        } = furnace
+                        {
+                            if *slots_changed {
+                                let mut furnace_container: [Option<ItemStack>; 39] = [None; 39];
+
+                                furnace_container[0] = input.clone();
+                                furnace_container[1] = fuel.clone();
+                                furnace_container[2] = output.clone();
+
+                                for i in 9..=44 {
+                                    furnace_container[i - 6] = self.inventory[i].clone();
+                                }
+
+                                let mut buffer = Vec::new();
+                                send_container_set_content(
+                                    &mut buffer,
+                                    self.window_id as u8,
+                                    furnace_container.to_vec(),
+                                    self.carried_item,
+                                )
+                                .await?;
+                                self.send_packet(buffer).await?;
+                            }
+
+                            if *properties_changed {
+                                let mut buffer = Vec::new();
+                                send_container_set_data(
+                                    &mut buffer,
+                                    self.window_id as u8,
+                                    0,
+                                    *lit_left as i16,
+                                )
+                                .await?;
+                                self.send_packet(buffer).await?;
+
+                                let mut buffer = Vec::new();
+                                send_container_set_data(
+                                    &mut buffer,
+                                    self.window_id as u8,
+                                    2,
+                                    200 - *cook_left as i16,
+                                )
+                                .await?;
+                                self.send_packet(buffer).await?;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         self.was_sneaking = self.movement.sneaking;

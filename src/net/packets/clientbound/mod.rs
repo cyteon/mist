@@ -5,6 +5,7 @@ pub mod block_entity_data;
 pub mod block_update;
 pub mod commands;
 pub mod container_set_content;
+pub mod container_set_data;
 pub mod container_set_slot;
 pub mod damage_event;
 pub mod disconnect;

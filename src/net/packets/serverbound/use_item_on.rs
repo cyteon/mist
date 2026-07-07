@@ -6,7 +6,7 @@ use crate::{
         codec::{read_position, read_var},
         packets::clientbound::{
             block_action::send_block_action, container_set_content::send_container_set_content,
-            open_screen,
+            container_set_data::send_container_set_data, open_screen,
         },
     },
     types::{
@@ -192,6 +192,10 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                     None,
                 )
                 .await?;
+                player.send_packet(buffer).await?;
+
+                let mut buffer = Vec::new();
+                send_container_set_data(&mut buffer, window_id as u8, 3, 200).await?;
                 player.send_packet(buffer).await?;
 
                 return Ok(());

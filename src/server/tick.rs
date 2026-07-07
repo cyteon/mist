@@ -1,6 +1,7 @@
 use crate::log::LogLevel;
 use crate::net::packets::clientbound::pickup_item::send_pickup_item;
 use crate::types::entity::{EntityType, ItemEntity};
+use crate::world::REGIONS;
 use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
 use tokio::time;
 use tokio::time::Duration;
@@ -70,6 +71,19 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
             last_tps_5m_check = std::time::Instant::now();
             ticks_5m = 0;
         }
+
+        let mut regions = REGIONS.lock().await;
+        for region in regions.values_mut() {
+            let mut region_lock = region.lock().await;
+
+            for chunk in region_lock.chunks.iter_mut() {
+                for block_entity in chunk.block_entities.values_mut() {
+                    block_entity.tick();
+                }
+            }
+        }
+
+        drop(regions);
 
         let players = crate::server::state::play::PLAYERS.read().await;
 

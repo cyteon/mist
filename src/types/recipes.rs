@@ -18,6 +18,7 @@ pub enum Recipe {
 }
 
 include!(concat!(env!("OUT_DIR"), "/recipes.rs"));
+include!(concat!(env!("OUT_DIR"), "/furnace_recipes.rs"));
 
 pub fn check_2x2(grid: &[Option<i32>; 4]) -> Option<(i32, u8)> {
     for recipe in RECIPES {
