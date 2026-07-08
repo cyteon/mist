@@ -115,7 +115,24 @@ impl BlockEntityData {
                     && let Some(stack) = fuel
                     && (currently_cooking.is_some() || input.is_some())
                 {
-                    if let Some(fuel_time) = fuel_time(stack.item_id) {
+                    let recipe = input.as_ref().and_then(|stack| match furnace_type {
+                        FurnaceType::Furnace => get_smelting_recipe(stack.item_id),
+                        FurnaceType::BlastFurnace => get_blasting_recipe(stack.item_id),
+                        FurnaceType::Smoker => get_smoking_recipe(stack.item_id),
+                    });
+
+                    let can_smelt = match (recipe, output.as_ref()) {
+                        (Some(result_id), Some(output_stack)) => {
+                            output_stack.item_id == result_id && output_stack.count < 64
+                        }
+
+                        (Some(_), None) => true,
+                        _ => false,
+                    };
+
+                    if (can_smelt || currently_cooking.is_some())
+                        && let Some(fuel_time) = fuel_time(stack.item_id)
+                    {
                         stack.count -= 1;
 
                         if stack.count == 0 {

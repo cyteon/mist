@@ -143,6 +143,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                     input,
                     output,
                     fuel,
+                    lit_total,
                     ..
                 }) = chunk.block_entities.get_mut(&((x & 15), y, (z & 15)))
                 else {
@@ -210,6 +211,10 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
 
                 let mut buffer = Vec::new();
                 send_container_set_data(&mut buffer, window_id as u8, 3, max_cook).await?;
+                player.send_packet(buffer).await?;
+
+                let mut buffer = Vec::new();
+                send_container_set_data(&mut buffer, window_id as u8, 1, *lit_total as i16).await?;
                 player.send_packet(buffer).await?;
 
                 return Ok(());
