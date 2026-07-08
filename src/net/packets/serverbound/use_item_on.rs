@@ -138,7 +138,7 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                 return Ok(());
             }
 
-            blocks::FURNACE => {
+            blocks::FURNACE | blocks::BLAST_FURNACE | blocks::SMOKER => {
                 let Some(BlockEntityData::Furnace {
                     input,
                     output,
@@ -164,13 +164,22 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                 let window_id = player
                     .new_window_id(crate::types::player::WindowType::Furnace { cords: (x, y, z) });
 
-                open_screen::send_open_screen(
-                    &mut buffer,
-                    window_id,
-                    open_screen::WindowType::Furnace,
-                    "Furnace",
-                )
-                .await?;
+                let window_type = match default_block_id {
+                    blocks::FURNACE => open_screen::WindowType::Furnace,
+                    blocks::BLAST_FURNACE => open_screen::WindowType::BlastFurnace,
+                    blocks::SMOKER => open_screen::WindowType::Smoker,
+                    _ => unreachable!(),
+                };
+
+                let window_title = match default_block_id {
+                    blocks::FURNACE => "Furnace",
+                    blocks::BLAST_FURNACE => "Blast Furnace",
+                    blocks::SMOKER => "Smoker",
+                    _ => unreachable!(),
+                };
+
+                open_screen::send_open_screen(&mut buffer, window_id, window_type, window_title)
+                    .await?;
 
                 player.send_packet(buffer).await?;
 
@@ -194,8 +203,13 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                 .await?;
                 player.send_packet(buffer).await?;
 
+                let max_cook = match default_block_id {
+                    blocks::FURNACE => 200,
+                    _ => 100,
+                };
+
                 let mut buffer = Vec::new();
-                send_container_set_data(&mut buffer, window_id as u8, 3, 200).await?;
+                send_container_set_data(&mut buffer, window_id as u8, 3, max_cook).await?;
                 player.send_packet(buffer).await?;
 
                 return Ok(());

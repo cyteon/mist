@@ -52,7 +52,7 @@ pub async fn read_container_close<R: AsyncReadExt + Unpin>(
                 }
             }
 
-            WindowType::Furnace { cords } => {}
+            WindowType::Furnace { .. } => {}
         },
 
         None => {}

@@ -6,10 +6,17 @@ use crate::{
         blocks::{self, block_by_state_id, with_ovveride},
         items::ItemStack,
         player::broadcast_packet,
-        recipes::get_smelting_recipe,
+        recipes::{get_blasting_recipe, get_smelting_recipe, get_smoking_recipe},
     },
     world::chunks::Chunk,
 };
+
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
+pub enum FurnaceType {
+    Furnace,
+    BlastFurnace,
+    Smoker,
+}
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub enum BlockEntityData {
@@ -20,6 +27,7 @@ pub enum BlockEntityData {
     },
 
     Furnace {
+        furnace_type: FurnaceType,
         input: Option<ItemStack>,
         fuel: Option<ItemStack>,
         output: Option<ItemStack>,
@@ -39,10 +47,16 @@ pub enum BlockEntityData {
 impl BlockEntityData {
     pub fn write_nbt(&self, w: &mut Vec<u8>) -> anyhow::Result<()> {
         match self {
-            BlockEntityData::Furnace { .. } => {
+            BlockEntityData::Furnace { furnace_type, .. } => {
+                let id = match furnace_type {
+                    FurnaceType::Furnace => "minecraft:furnace",
+                    FurnaceType::BlastFurnace => "minecraft:blast_furnace",
+                    FurnaceType::Smoker => "minecraft:smoker",
+                };
+
                 let compound = craftflow_nbt::DynNBT::Compound(HashMap::from([(
                     "id".to_string(),
-                    craftflow_nbt::DynNBT::String("minecraft:furnace".to_string()),
+                    craftflow_nbt::DynNBT::String(id.to_string()),
                 )]));
 
                 craftflow_nbt::to_writer(w, &compound)?;
@@ -70,6 +84,7 @@ impl BlockEntityData {
     pub async fn tick(&mut self, chunk: &mut Chunk, cords: (i32, i32, i32)) -> anyhow::Result<()> {
         match self {
             BlockEntityData::Furnace {
+                furnace_type,
                 input,
                 fuel,
                 output,
@@ -91,6 +106,7 @@ impl BlockEntityData {
 
                 if *lit_left == 0
                     && let Some(stack) = fuel
+                    && (currently_cooking.is_some() || input.is_some())
                 {
                     stack.count -= 1;
 
@@ -105,9 +121,59 @@ impl BlockEntityData {
                     *slots_changed = true;
                 }
 
-                if *cook_left > 0 && *lit_left > 0 {
+                if *cook_left > 0 && *lit_left > 0 && currently_cooking.is_some() {
                     *cook_left -= 1;
                     *properties_changed = true;
+                }
+
+                if currently_cooking.is_none() && *lit_left > 0 {
+                    if let Some(input_stack) = input {
+                        let result_id = match furnace_type {
+                            FurnaceType::Furnace => get_smelting_recipe(input_stack.item_id),
+                            FurnaceType::BlastFurnace => get_blasting_recipe(input_stack.item_id),
+                            FurnaceType::Smoker => get_smoking_recipe(input_stack.item_id),
+                        };
+
+                        if let Some(result_id) = result_id {
+                            if let Some(output_stack) = output {
+                                if output_stack.item_id == result_id && output_stack.count < 64 {
+                                    *currently_cooking = Some(ItemStack {
+                                        item_id: result_id,
+                                        count: 1,
+                                    });
+
+                                    input_stack.count -= 1;
+
+                                    *cook_left = match furnace_type {
+                                        FurnaceType::Furnace => 200,
+                                        _ => 100,
+                                    };
+
+                                    *slots_changed = true;
+                                    *properties_changed = true;
+                                }
+                            } else {
+                                *currently_cooking = Some(ItemStack {
+                                    item_id: result_id,
+                                    count: 1,
+                                });
+
+                                input_stack.count -= 1;
+
+                                *cook_left = match furnace_type {
+                                    FurnaceType::Furnace => 200,
+                                    _ => 100,
+                                };
+
+                                *slots_changed = true;
+                                *properties_changed = true;
+                            }
+                        }
+
+                        if input_stack.count == 0 {
+                            *input = None;
+                        }
+                    }
                 }
 
                 if *cook_left == 0 {
@@ -119,38 +185,9 @@ impl BlockEntityData {
                         }
 
                         *currently_cooking = None;
+                        *properties_changed = true;
+                        *slots_changed = true;
                     }
-
-                    if let Some(input_stack) = input {
-                        if let Some(result_id) = get_smelting_recipe(input_stack.item_id) {
-                            if let Some(output_stack) = output {
-                                if output_stack.item_id == result_id && output_stack.count < 64 {
-                                    *currently_cooking = Some(ItemStack {
-                                        item_id: result_id,
-                                        count: 1,
-                                    });
-
-                                    *cook_left = 200;
-                                    input_stack.count -= 1;
-                                }
-                            } else {
-                                *currently_cooking = Some(ItemStack {
-                                    item_id: result_id,
-                                    count: 1,
-                                });
-
-                                *cook_left = 200;
-                                input_stack.count -= 1;
-                            }
-                        }
-
-                        if input_stack.count == 0 {
-                            *input = None;
-                        }
-                    }
-
-                    *properties_changed = true;
-                    *slots_changed = true;
                 }
 
                 if (*lit_left > 0 && !*was_lit) || (*lit_left == 0 && *was_lit) {
@@ -182,6 +219,35 @@ impl BlockEntityData {
 pub fn get_block_entity(block_id: u16) -> Option<BlockEntityData> {
     match block_by_state_id(block_id).map(|b| b.default_state) {
         Some(blocks::FURNACE) => Some(BlockEntityData::Furnace {
+            furnace_type: FurnaceType::Furnace,
+            input: None,
+            fuel: None,
+            output: None,
+            currently_cooking: None,
+            lit_left: 0,
+            lit_total: 0,
+            cook_left: 200,
+            properties_changed: false,
+            slots_changed: false,
+            was_lit: false,
+        }),
+
+        Some(blocks::BLAST_FURNACE) => Some(BlockEntityData::Furnace {
+            furnace_type: FurnaceType::BlastFurnace,
+            input: None,
+            fuel: None,
+            output: None,
+            currently_cooking: None,
+            lit_left: 0,
+            lit_total: 0,
+            cook_left: 200,
+            properties_changed: false,
+            slots_changed: false,
+            was_lit: false,
+        }),
+
+        Some(blocks::SMOKER) => Some(BlockEntityData::Furnace {
+            furnace_type: FurnaceType::Smoker,
             input: None,
             fuel: None,
             output: None,

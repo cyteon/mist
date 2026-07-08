@@ -8,7 +8,7 @@ use crate::net::packets::clientbound::container_set_data::send_container_set_dat
 use crate::net::packets::clientbound::hurt_animation::send_hurt_animation;
 use crate::net::packets::clientbound::set_entity_data::{send_set_entity_data, set_pose};
 use crate::server::state::play::PLAYERS;
-use crate::types::block_entities::BlockEntityData;
+use crate::types::block_entities::{BlockEntityData, FurnaceType};
 use crate::types::entity::{ENTITIES, EntityType};
 use crate::types::items::ItemStack;
 use crate::{
@@ -1047,6 +1047,7 @@ impl Player {
                             .get(&(cords.0 & 15, cords.1, cords.2 & 15))
                     {
                         if let BlockEntityData::Furnace {
+                            furnace_type,
                             input,
                             fuel,
                             output,
@@ -1090,12 +1091,17 @@ impl Player {
                                 .await?;
                                 self.send_packet(buffer).await?;
 
+                                let cook_total = match furnace_type {
+                                    FurnaceType::Furnace => 200,
+                                    _ => 100,
+                                };
+
                                 let mut buffer = Vec::new();
                                 send_container_set_data(
                                     &mut buffer,
                                     self.window_id as u8,
                                     2,
-                                    200 - *cook_left as i16,
+                                    cook_total - *cook_left as i16,
                                 )
                                 .await?;
                                 self.send_packet(buffer).await?;
