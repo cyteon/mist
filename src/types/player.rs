@@ -608,18 +608,6 @@ impl Player {
                 player_entity.sync_entity_data().await?;
             }
         }
-        drop(entities_write);
-
-        let players = PLAYERS.read().await;
-
-        for (uuid, p) in players.iter() {
-            if uuid == &self.uuid {
-                continue;
-            }
-
-            let mut p = p.lock().await;
-            p.loaded_entities.retain(|&id| id != self.id);
-        }
 
         Ok(())
     }

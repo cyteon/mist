@@ -1,4 +1,4 @@
-use crate::log::LogLevel;
+use crate::log::{self, LogLevel};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
@@ -34,14 +34,30 @@ pub async fn login(mut socket: TcpStream, handshake: HandshakePacket) -> anyhow:
         ).await?;
     }
 
-    let current_players = crate::server::state::play::PLAYERS.read().await.len();
-    if current_players >= SERVER_CONFIG.max_players as usize {
+    let login_start = read_login_start(&mut socket).await?;
+
+    let current_players = crate::server::state::play::PLAYERS.read().await;
+    if current_players.len() >= SERVER_CONFIG.max_players as usize {
         send_disconnect_login(&mut socket, "The server is full! Please try again later.").await?;
 
         return Ok(());
     }
 
-    let login_start = read_login_start(&mut socket).await?;
+    if current_players.contains_key(&login_start.uuid) {
+        log::log(
+            LogLevel::Warn,
+            format!(
+                "Player {} ({}) tried to connect, but is already connected",
+                login_start.username, login_start.uuid
+            )
+            .as_str(),
+        );
+        send_disconnect_login(&mut socket, "You are already connected to this server!").await?;
+
+        return Ok(());
+    }
+
+    drop(current_players);
 
     let mut player = Player::new(login_start.uuid.clone(), login_start.username.clone()).await;
 

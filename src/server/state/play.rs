@@ -127,8 +127,9 @@ pub async fn send_chunks_to_player(
         }
     }
 
+    let uuid = player.lock().await.uuid.clone();
     let players_locked = PLAYERS.read().await;
-    if let Some(player_lock) = players_locked.get(&player.lock().await.uuid) {
+    if let Some(player_lock) = players_locked.get(&uuid) {
         let mut player = player_lock.lock().await;
         player.chunks_loaded = true;
     }
@@ -376,28 +377,28 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         {
             Ok(Ok(Some(packet))) => match packet {
                 ClientPacket::ConfirmTeleprortion(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_confirm_teleportation(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::PlayerAction(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_player_action(&mut cursor, &mut player).await?
                 }
 
                 ClientPacket::UseItemOn(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_use_item_on(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::UseItem(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_use_item(&mut cursor, &mut player).await?;
@@ -411,7 +412,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                         format!("{} issued command /{}", username, command).as_str(),
                     );
 
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     handle_command(
@@ -426,9 +427,8 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                 ClientPacket::ChatMessage(mut cursor) => {
                     let message = read_chat_message(&mut cursor).await?;
 
-                    let players_locked = PLAYERS.read().await;
-                    let player_clone = players_locked.get(&uuid).unwrap().lock().await.clone();
-                    drop(players_locked);
+                    let arc = Arc::clone(&player);
+                    let player_clone = arc.lock().await.clone();
 
                     crate::log::log(
                         LogLevel::Info,
@@ -471,69 +471,79 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                 }
 
                 ClientPacket::SetPlayerPosition(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_set_player_position(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::SetPlayerPositionAndRotation(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_set_player_position_and_rotation(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::PlayerInput(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_player_input(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::SetPlayerRotation(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_set_player_rotation(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::SetCarriedItem(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_set_carried_item(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::SetCreativeModeSlot(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_set_creative_mode_slot(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::PickItemFromBlock(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_pick_item_from_block(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::PlayerAbilities(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_player_abilities(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::ClientStatus(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     let action = read_client_status(&mut cursor, &mut player).await?;
+                    let player_id = player.id;
                     drop(player);
 
                     if action == 0 {
+                        let players = PLAYERS.read().await;
+                        for (other_uuid, p) in players.iter() {
+                            if other_uuid == &uuid {
+                                continue;
+                            }
+
+                            p.lock().await.loaded_entities.retain(|&id| id != player_id);
+                        }
+
                         let tx_clone = tx.clone();
                         tokio::spawn(async move {
                             send_chunks_to_player(tx_clone, arc.clone()).await.unwrap();
@@ -542,21 +552,21 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
                 }
 
                 ClientPacket::SwingArm(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_swing_arm(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::ContainerClick(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_container_click(&mut cursor, &mut player).await?;
                 }
 
                 ClientPacket::ContainerClose(mut cursor) => {
-                    let arc = player_arc(&uuid).await;
+                    let arc = Arc::clone(&player);
                     let mut player = arc.lock().await;
 
                     read_container_close(&mut cursor, &mut player).await?;
@@ -702,8 +712,4 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
     .await?;
 
     Ok(())
-}
-
-async fn player_arc(uuid: &str) -> Arc<Mutex<Player>> {
-    PLAYERS.read().await.get(uuid).unwrap().clone()
 }
