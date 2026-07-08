@@ -244,16 +244,18 @@ pub fn save_world_data(world_save: &WorldSave) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn load_world_data() -> WorldSave {
+pub fn load_world_data() -> anyhow::Result<WorldSave> {
     let world_path = format!(
         "{}/world.json",
         crate::config::SERVER_CONFIG.world_name.clone()
     );
 
     if !std::path::Path::new(&world_path).exists() {
-        return WorldSave::default();
+        return Ok(WorldSave::default());
     }
 
-    let world_json = std::fs::read_to_string(world_path).unwrap();
-    serde_json::from_str(&world_json).unwrap()
+    let world_json = std::fs::read_to_string(world_path)?;
+    let save = serde_json::from_str(&world_json);
+
+    Ok(save.unwrap_or_default())
 }

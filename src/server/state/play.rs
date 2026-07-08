@@ -128,12 +128,10 @@ pub async fn send_chunks_to_player(
     }
 
     let players_locked = PLAYERS.read().await;
-    let player_lock = players_locked
-        .get(&player.lock().await.uuid)
-        .unwrap()
-        .clone();
-    let mut player = player_lock.lock().await;
-    player.chunks_loaded = true;
+    if let Some(player_lock) = players_locked.get(&player.lock().await.uuid) {
+        let mut player = player_lock.lock().await;
+        player.chunks_loaded = true;
+    }
 
     Ok(())
 }

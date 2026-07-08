@@ -559,11 +559,11 @@ impl Player {
         }
 
         let mut entities_write = ENTITIES.write().await;
-        let player_entity = entities_write.get_mut(&self.id).unwrap();
-
-        if let EntityType::Player(pe) = &mut player_entity.entity_type {
-            pe.health = self.health;
-            player_entity.sync_entity_data().await?;
+        if let Some(player_entity) = entities_write.get_mut(&self.id) {
+            if let EntityType::Player(pe) = &mut player_entity.entity_type {
+                pe.health = self.health;
+                player_entity.sync_entity_data().await?;
+            }
         }
 
         Ok(())
@@ -602,12 +602,13 @@ impl Player {
         self.sync_player_position().await?;
 
         let mut entities_write = ENTITIES.write().await;
-        let player_entity = entities_write.get_mut(&self.id).unwrap();
-
-        if let EntityType::Player(pe) = &mut player_entity.entity_type {
-            pe.health = 20.0;
-            player_entity.sync_entity_data().await?;
+        if let Some(player_entity) = entities_write.get_mut(&self.id) {
+            if let EntityType::Player(pe) = &mut player_entity.entity_type {
+                pe.health = 20.0;
+                player_entity.sync_entity_data().await?;
+            }
         }
+        drop(entities_write);
 
         let players = PLAYERS.read().await;
 
@@ -624,14 +625,9 @@ impl Player {
     }
 
     pub async fn send_hand_swing(&mut self, main_hand: bool) -> anyhow::Result<()> {
-        let entity = crate::types::entity::ENTITIES
-            .read()
-            .await
-            .get(&self.id)
-            .cloned()
-            .unwrap();
-
-        entity.send_hand_swing(main_hand).await?;
+        if let Some(entity) = ENTITIES.read().await.get(&self.id).cloned() {
+            entity.send_hand_swing(main_hand).await?;
+        }
 
         Ok(())
     }
@@ -898,9 +894,8 @@ impl Player {
                     let chunk = get_chunk(&region_arc, cx, cz).await;
 
                     let mut buffer = Vec::new();
-                    let result = send_level_chunk_with_light(&mut buffer, &chunk).await;
-
-                    player_clone.send_packet(buffer).await.unwrap();
+                    let _ = send_level_chunk_with_light(&mut buffer, &chunk).await;
+                    let result = player_clone.send_packet(buffer).await;
 
                     if result.is_ok() {
                         crate::log::log(
@@ -915,7 +910,7 @@ impl Player {
                                 cx,
                                 cz,
                                 username_clone,
-                                result.err().unwrap()
+                                result.err().unwrap_or(anyhow::anyhow!("Unknown error"))
                             ),
                         );
                     }

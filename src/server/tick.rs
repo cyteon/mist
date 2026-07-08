@@ -17,7 +17,7 @@ pub static TIMESTAMP: AtomicI64 = AtomicI64::new(0);
 pub async fn start_tick_loop() -> anyhow::Result<()> {
     crate::log::log(LogLevel::Info, "Tick loop started");
 
-    let world_save = crate::server::save::load_world_data();
+    let world_save = crate::server::save::load_world_data()?;
     TIMESTAMP.store(world_save.timestamp, Ordering::Relaxed);
 
     let mut interval = time::interval(Duration::from_millis(50)); // 20 tps
@@ -165,8 +165,7 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
 
                         let mut buffer = Vec::new();
                         send_pickup_item(&mut buffer, *entity_id, player_lock.id, count as i32)
-                            .await
-                            .unwrap();
+                            .await?;
 
                         player_lock.send_packet(buffer).await?;
                     }
