@@ -4,7 +4,7 @@ use crate::{
     net::packets::clientbound::block_update::send_block_update,
     types::{
         blocks::{self, block_by_state_id, with_ovveride},
-        items::ItemStack,
+        items::{self, ItemStack},
         player::broadcast_packet,
         recipes::{get_blasting_recipe, get_smelting_recipe, get_smoking_recipe},
     },
@@ -108,17 +108,19 @@ impl BlockEntityData {
                     && let Some(stack) = fuel
                     && (currently_cooking.is_some() || input.is_some())
                 {
-                    stack.count -= 1;
+                    if let Some(fuel_time) = fuel_time(stack.item_id) {
+                        stack.count -= 1;
 
-                    if stack.count == 0 {
-                        *fuel = None;
+                        if stack.count == 0 {
+                            *fuel = None;
+                        }
+
+                        *lit_left = fuel_time;
+                        *lit_total = fuel_time;
+
+                        *properties_changed = true;
+                        *slots_changed = true;
                     }
-
-                    *lit_left = 200;
-                    *lit_total = 200;
-
-                    *properties_changed = true;
-                    *slots_changed = true;
                 }
 
                 if *cook_left > 0 && *lit_left > 0 && currently_cooking.is_some() {
@@ -183,6 +185,11 @@ impl BlockEntityData {
                         } else {
                             *output = currently_cooking.take();
                         }
+
+                        *cook_left = match furnace_type {
+                            FurnaceType::Furnace => 200,
+                            _ => 100,
+                        };
 
                         *currently_cooking = None;
                         *properties_changed = true;
@@ -265,6 +272,18 @@ pub fn get_block_entity(block_id: u16) -> Option<BlockEntityData> {
             viewers: Vec::new(),
         }),
 
+        _ => None,
+    }
+}
+
+// todo: finish
+pub fn fuel_time(item_id: i32) -> Option<u32> {
+    match item_id {
+        items::LAVA_BUCKET => Some(20000),
+        items::COAL_BLOCK => Some(16000),
+        items::DRIED_KELP_BLOCK => Some(4000),
+        items::BLAZE_ROD => Some(2400),
+        items::COAL | items::CHARCOAL => Some(1600),
         _ => None,
     }
 }
