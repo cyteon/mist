@@ -7,6 +7,7 @@ use crate::{
         items::{self, ItemStack},
         player::broadcast_packet,
         recipes::{get_blasting_recipe, get_smelting_recipe, get_smoking_recipe},
+        tags::TAGS,
     },
     world::chunks::Chunk,
 };
@@ -35,6 +36,10 @@ pub enum BlockEntityData {
         lit_left: u32,
         lit_total: u32,
         cook_left: u32,
+        // seperate for this one cause both cook_left and lit_left change at same rate
+        // while lit_total only changes when fuel type is changed
+        #[serde(skip)]
+        lit_total_last: u32,
         #[serde(skip)]
         properties_changed: bool,
         #[serde(skip)]
@@ -92,12 +97,14 @@ impl BlockEntityData {
                 lit_left,
                 lit_total,
                 cook_left,
+                lit_total_last,
                 properties_changed,
                 slots_changed,
                 was_lit,
             } => {
                 *properties_changed = false;
                 *slots_changed = false;
+                *lit_total_last = *lit_total;
 
                 if *lit_left > 0 {
                     *lit_left -= 1;
@@ -234,6 +241,7 @@ pub fn get_block_entity(block_id: u16) -> Option<BlockEntityData> {
             lit_left: 0,
             lit_total: 0,
             cook_left: 200,
+            lit_total_last: 0,
             properties_changed: false,
             slots_changed: false,
             was_lit: false,
@@ -247,7 +255,8 @@ pub fn get_block_entity(block_id: u16) -> Option<BlockEntityData> {
             currently_cooking: None,
             lit_left: 0,
             lit_total: 0,
-            cook_left: 200,
+            cook_left: 100,
+            lit_total_last: 0,
             properties_changed: false,
             slots_changed: false,
             was_lit: false,
@@ -261,7 +270,8 @@ pub fn get_block_entity(block_id: u16) -> Option<BlockEntityData> {
             currently_cooking: None,
             lit_left: 0,
             lit_total: 0,
-            cook_left: 200,
+            cook_left: 100,
+            lit_total_last: 0,
             properties_changed: false,
             slots_changed: false,
             was_lit: false,
@@ -279,11 +289,46 @@ pub fn get_block_entity(block_id: u16) -> Option<BlockEntityData> {
 // todo: finish
 pub fn fuel_time(item_id: i32) -> Option<u32> {
     match item_id {
-        items::LAVA_BUCKET => Some(20000),
-        items::COAL_BLOCK => Some(16000),
-        items::DRIED_KELP_BLOCK => Some(4000),
-        items::BLAZE_ROD => Some(2400),
-        items::COAL | items::CHARCOAL => Some(1600),
-        _ => None,
+        items::LAVA_BUCKET => return Some(20000),
+        items::COAL_BLOCK => return Some(16000),
+        items::DRIED_KELP_BLOCK => return Some(4000),
+        items::BLAZE_ROD => return Some(2400),
+        items::COAL | items::CHARCOAL => return Some(1600),
+        _ => {}
     }
+
+    let types: &[(&str, u32)] = &[
+        ("minecraft:boats", 1200),
+        ("minecraft:hanging_signs", 800),
+        ("minecraft:planks", 300),
+        ("minecraft:logs_that_burn", 300),
+        ("minecraft:fence_gates", 300),
+        ("minecraft:wooden_stairs", 300),
+        ("minecraft:wooden_fences", 300),
+        ("minecraft:wooden_pressure_plates", 300),
+        ("minecraft:wooden_trapdoors", 300),
+        ("minecraft:signs", 200),
+        ("minecraft:wooden_doors", 200),
+        ("minecraft:wooden_slabs", 150),
+        ("minecraft:saplings", 100),
+        ("minecraft:wooden_buttons", 100),
+        ("minecraft:wool", 100),
+        ("minecraft:wool_carpets", 67),
+    ];
+
+    let item_tags = TAGS
+        .iter()
+        .find(|(reg, _)| *reg == "minecraft:item")
+        .map(|(_, tags)| *tags)
+        .unwrap_or(&[]);
+
+    for (tag, burn_time) in types {
+        if let Some(found) = item_tags.iter().find(|(name, _)| name == tag) {
+            if found.1.contains(&item_id) {
+                return Some(*burn_time);
+            }
+        }
+    }
+
+    None
 }

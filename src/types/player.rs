@@ -1051,6 +1051,8 @@ impl Player {
                             input,
                             fuel,
                             output,
+                            lit_total,
+                            lit_total_last,
                             slots_changed,
                             properties_changed,
                             lit_left,
@@ -1102,6 +1104,18 @@ impl Player {
                                     self.window_id as u8,
                                     2,
                                     cook_total - *cook_left as i16,
+                                )
+                                .await?;
+                                self.send_packet(buffer).await?;
+                            }
+
+                            if *lit_total_last != *lit_total {
+                                let mut buffer = Vec::new();
+                                send_container_set_data(
+                                    &mut buffer,
+                                    self.window_id as u8,
+                                    1,
+                                    *lit_total as i16,
                                 )
                                 .await?;
                                 self.send_packet(buffer).await?;
