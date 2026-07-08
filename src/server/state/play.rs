@@ -339,7 +339,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         let player_arc = Arc::clone(&player);
 
         tokio::spawn(async move {
-            send_chunks_to_player(tx, player_arc).await.unwrap();
+            let _ = send_chunks_to_player(tx, player_arc).await;
         })
     };
 

@@ -254,18 +254,12 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
         }
 
         if player.gamemode as u8 != 1 {
-            player.inventory[player.current_slot as usize + 36]
-                .as_mut()
-                .unwrap()
-                .count -= 1;
+            if let Some(stack) = player.inventory[player.current_slot as usize + 36].as_mut() {
+                stack.count -= 1;
 
-            if player.inventory[player.current_slot as usize + 36]
-                .as_ref()
-                .unwrap()
-                .count
-                == 0
-            {
-                player.inventory[player.current_slot as usize + 36] = None;
+                if stack.count == 0 {
+                    player.inventory[player.current_slot as usize + 36] = None;
+                }
             }
         }
 

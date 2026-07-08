@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
+use crate::log::{self, LogLevel};
 use crate::net::codec::write_var;
 use crate::types::block_entities::BlockEntityData;
 
@@ -44,10 +45,24 @@ impl Region {
 
         let serialized = postcard::to_allocvec(self).context("Failed to serialize region")?;
 
+        let x = self.x;
+        let z = self.z;
+
         let compressed = tokio::task::spawn_blocking(move || {
             let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
-            std::io::copy(&mut &serialized[..], &mut encoder).unwrap();
-            encoder.finish().unwrap()
+
+            if std::io::copy(&mut &serialized[..], &mut encoder).is_ok()
+                && let Ok(result) = encoder.finish()
+            {
+                result
+            } else {
+                log::log(
+                    LogLevel::Error,
+                    format!("Failed to compress region {}_{}", x, z).as_str(),
+                );
+
+                Vec::new()
+            }
         })
         .await?;
 
