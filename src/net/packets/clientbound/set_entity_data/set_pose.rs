@@ -1,6 +1,4 @@
-use byteorder::{BigEndian, WriteBytesExt};
-
-use crate::{net::codec::write_var, types::entity::EntityType};
+use crate::net::codec::write_var;
 
 pub enum State {
     OnFire = 0x01,
