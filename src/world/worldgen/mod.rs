@@ -17,7 +17,7 @@ pub const MAX_Y: i32 = 319;
 const COLS: usize = (16 / 4) as usize + 1;
 const ROWS: usize = ((MAX_Y + 1 - MIN_Y) / 8) as usize + 1;
 
-pub async fn initial_gen() {
+pub async fn initial_gen() -> anyhow::Result<()> {
     let start_time = std::time::Instant::now();
     crate::log::log(LogLevel::Info, "Generating world...");
 
@@ -35,7 +35,7 @@ pub async fn initial_gen() {
                 })
                 .collect();
 
-            region.save().await.unwrap();
+            region.save().await?;
 
             crate::log::log(LogLevel::Info, &format!("Generated region {}, {}", x, z));
         }
@@ -46,6 +46,8 @@ pub async fn initial_gen() {
         LogLevel::Info,
         format!("World generated in {:.2?}", duration).as_str(),
     );
+
+    Ok(())
 }
 
 pub fn generate(x: i32, z: i32) -> Chunk {

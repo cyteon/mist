@@ -1,4 +1,4 @@
-use crate::log::LogLevel;
+use crate::log::{self, LogLevel};
 use std::sync::atomic::Ordering;
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -83,18 +83,20 @@ impl Default for WorldSave {
     }
 }
 
-pub fn ensure_save_folders() {
-    std::fs::create_dir_all(crate::config::SERVER_CONFIG.world_name.clone()).unwrap();
+pub fn ensure_save_folders() -> anyhow::Result<()> {
+    std::fs::create_dir_all(crate::config::SERVER_CONFIG.world_name.clone())?;
+
     std::fs::create_dir_all(format!(
         "{}/players",
         crate::config::SERVER_CONFIG.world_name.clone()
-    ))
-    .unwrap();
+    ))?;
+
     std::fs::create_dir_all(format!(
         "{}/regions",
         crate::config::SERVER_CONFIG.world_name.clone()
-    ))
-    .unwrap();
+    ))?;
+
+    Ok(())
 }
 
 pub fn exists(path: &str) -> bool {
@@ -109,8 +111,8 @@ pub fn exists(path: &str) -> bool {
     .exists()
 }
 
-pub async fn save() {
-    ensure_save_folders();
+pub async fn save() -> anyhow::Result<()> {
+    ensure_save_folders()?;
     crate::log::log(LogLevel::Info, "Saving...\n");
 
     let start = std::time::Instant::now();
@@ -122,7 +124,13 @@ pub async fn save() {
 
         handles.push(tokio::spawn(async move {
             let player = player.lock().await;
-            save_player(&player).await;
+
+            if let Err(e) = save_player(&player).await {
+                crate::log::log(
+                    LogLevel::Error,
+                    format!("Failed to save player {}: {}", player.username, e).as_str(),
+                );
+            }
         }))
     }
 
@@ -141,7 +149,7 @@ pub async fn save() {
 
     save_world_data(&WorldSave {
         timestamp: crate::server::tick::TIMESTAMP.load(Ordering::Relaxed),
-    });
+    })?;
 
     let duration = start.elapsed();
 
@@ -149,9 +157,11 @@ pub async fn save() {
         LogLevel::Info,
         format!("Save complete in {:.2?}\n", duration).as_str(),
     );
+
+    Ok(())
 }
 
-pub async fn save_player(player: &crate::types::player::Player) {
+pub async fn save_player(player: &crate::types::player::Player) -> anyhow::Result<()> {
     let inventory = player.inventory.iter().map(|slot| slot.clone()).collect();
 
     let player_save = PlayerSave {
@@ -178,14 +188,16 @@ pub async fn save_player(player: &crate::types::player::Player) {
         pitch: player.pitch,
     };
 
-    let player_json = serde_json::to_string_pretty(&player_save).unwrap();
+    let player_json = serde_json::to_string_pretty(&player_save)?;
     let player_path = format!(
         "{}/players/{}.json",
         crate::config::SERVER_CONFIG.world_name.clone(),
         player.uuid
     );
 
-    std::fs::write(player_path, player_json).unwrap();
+    std::fs::write(player_path, player_json)?;
+
+    Ok(())
 }
 
 pub fn load_player(uuid: &str) -> Option<PlayerSave> {
@@ -199,20 +211,37 @@ pub fn load_player(uuid: &str) -> Option<PlayerSave> {
         return None;
     }
 
-    let player_json = std::fs::read_to_string(player_path).unwrap();
-    let player_save: PlayerSave = serde_json::from_str(&player_json).unwrap();
+    let Ok(player_json) = std::fs::read_to_string(player_path) else {
+        log::log(
+            LogLevel::Warn,
+            format!("Failed to read player save for UUID: {}", uuid).as_str(),
+        );
+
+        return None;
+    };
+
+    let Ok(player_save) = serde_json::from_str(&player_json) else {
+        log::log(
+            LogLevel::Warn,
+            format!("Failed to parse player save for UUID: {}", uuid).as_str(),
+        );
+
+        return None;
+    };
 
     Some(player_save)
 }
 
-pub fn save_world_data(world_save: &WorldSave) {
+pub fn save_world_data(world_save: &WorldSave) -> anyhow::Result<()> {
     let world_path = format!(
         "{}/world.json",
         crate::config::SERVER_CONFIG.world_name.clone()
     );
 
-    let world_json = serde_json::to_string_pretty(world_save).unwrap();
-    std::fs::write(world_path, world_json).unwrap();
+    let world_json = serde_json::to_string_pretty(world_save)?;
+    std::fs::write(world_path, world_json)?;
+
+    Ok(())
 }
 
 pub fn load_world_data() -> WorldSave {

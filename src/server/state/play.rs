@@ -1,11 +1,14 @@
 use crate::{
     log::LogLevel,
     net::packets::clientbound::block_action::send_block_action,
+    server::save,
     types::{
         block_entities::BlockEntityData,
         colors,
+        entity::ENTITIES,
         player::{PLAYER_POSITIONS, WindowType, broadcast_packet, broadcast_system_message},
     },
+    world::REGIONS,
 };
 use once_cell::sync::Lazy;
 use std::{collections::HashMap, sync::Arc, time::Duration};
@@ -609,12 +612,12 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
             "No players online, saving and clearing regions from memory",
         );
 
-        crate::server::save::save().await;
-        crate::world::REGIONS.lock().await.clear(); // unnecesary having all regions loaded in while nobody is playing
+        save::save().await?;
+        REGIONS.lock().await.clear(); // unnecesary having all regions loaded in while nobody is playing
     } else {
         let players_locked = PLAYERS.read().await;
         let player_lock = players_locked.get(&uuid).unwrap().clone();
-        crate::server::save::save_player(&player_lock.lock().await.clone()).await;
+        save::save_player(&player_lock.lock().await.clone()).await?;
 
         for other_tx in PLAYER_SOCKET_MAP.read().await.values().into_iter() {
             let mut buffer = Vec::new();
@@ -631,7 +634,7 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         if let Some(player) = player_guard {
             let player_lock = player.lock().await;
 
-            let mut entities_write = crate::types::entity::ENTITIES.write().await;
+            let mut entities_write = ENTITIES.write().await;
             entities_write.remove(&player_lock.id);
             drop(entities_write);
 

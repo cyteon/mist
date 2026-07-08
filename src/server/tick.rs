@@ -37,7 +37,7 @@ pub async fn start_tick_loop() -> anyhow::Result<()> {
 
         if ticks_until_autosave == 0 {
             ticks_until_autosave = 6000; // 5 mins
-            save().await;
+            save().await?;
         } else {
             ticks_until_autosave -= 1;
         }

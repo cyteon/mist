@@ -15,10 +15,10 @@ pub async fn run() -> anyhow::Result<()> {
         .as_str(),
     );
 
-    crate::server::save::ensure_save_folders();
+    save::ensure_save_folders()?;
 
     if !save::exists("regions/0_0.mist_region") {
-        crate::world::worldgen::initial_gen().await;
+        crate::world::worldgen::initial_gen().await?;
     }
 
     // server setup stuff goes here before listener activates
@@ -31,7 +31,7 @@ pub async fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn stop() {
+pub async fn stop() -> anyhow::Result<()> {
     crate::log::log(LogLevel::Info, "Stopping server...\n");
 
     let players = crate::server::state::play::PLAYERS
@@ -46,7 +46,12 @@ pub async fn stop() {
     for player in players {
         match tokio::time::timeout(Duration::from_millis(500), player.lock()).await {
             Ok(player) => {
-                save_player(&player).await;
+                if let Err(e) = save_player(&player).await {
+                    crate::log::log(
+                        LogLevel::Error,
+                        format!("Failed to save player {}: {}", player.username, e).as_str(),
+                    );
+                }
             }
 
             Err(_) => {
@@ -63,6 +68,7 @@ pub async fn stop() {
     }
 
     crate::log::log(LogLevel::Info, "Saving world...\n");
+    save().await?;
 
-    save().await;
+    Ok(())
 }
