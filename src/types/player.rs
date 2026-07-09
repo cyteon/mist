@@ -7,7 +7,6 @@ use crate::net::packets::clientbound::commands::send_commands;
 use crate::net::packets::clientbound::container_set_data::send_container_set_data;
 use crate::net::packets::clientbound::hurt_animation::send_hurt_animation;
 use crate::net::packets::clientbound::set_entity_data::{send_set_entity_data, set_pose};
-use crate::server::state::play::PLAYERS;
 use crate::types::block_entities::{BlockEntityData, FurnaceType};
 use crate::types::entity::{ENTITIES, EntityType};
 use crate::types::items::ItemStack;
@@ -71,6 +70,7 @@ pub struct Player {
 
     pub current_window: Option<WindowType>,
     pub window_id: i32,
+    pub state_id: i32,
 
     pub inventory: [Option<ItemStack>; 46],
     pub carried_item: Option<ItemStack>,
@@ -152,6 +152,7 @@ impl Player {
 
             current_window: None,
             window_id: 0,
+            state_id: 0,
 
             inventory: [None; 46],
             carried_item: None,
@@ -323,6 +324,11 @@ impl Player {
         self.window_id
     }
 
+    pub fn next_state_id(&mut self) -> i32 {
+        self.state_id = (self.state_id + 1) & 0x7FFF;
+        self.state_id
+    }
+
     pub async fn send_packet(&self, packet: Vec<u8>) -> anyhow::Result<()> {
         let tx = match crate::server::conn::PLAYER_SOCKET_MAP
             .read()
@@ -360,6 +366,7 @@ impl Player {
 
     pub async fn sync_player_inventory(&mut self) -> anyhow::Result<()> {
         let mut buffer = Vec::new();
+        let state_id = self.next_state_id();
         send_container_set_content(
             &mut buffer,
             0,
@@ -368,6 +375,7 @@ impl Player {
                 .map(|item| item.clone())
                 .collect::<Vec<_>>(),
             self.carried_item,
+            state_id,
         )
         .await?;
 
@@ -400,8 +408,15 @@ impl Player {
 
     pub async fn set_inventory_slot(&mut self, slot: i16) -> anyhow::Result<()> {
         let mut buffer = Vec::new();
-        send_container_set_slot(&mut buffer, 0, slot, self.inventory[slot as usize]).await?;
-
+        let state_id = self.next_state_id();
+        send_container_set_slot(
+            &mut buffer,
+            0,
+            slot,
+            self.inventory[slot as usize],
+            state_id,
+        )
+        .await?;
         self.send_packet(buffer).await?;
 
         Ok(())
@@ -1055,11 +1070,13 @@ impl Player {
                                 }
 
                                 let mut buffer = Vec::new();
+                                let state_id = self.next_state_id();
                                 send_container_set_content(
                                     &mut buffer,
                                     self.window_id as u8,
                                     furnace_container.to_vec(),
                                     self.carried_item,
+                                    state_id,
                                 )
                                 .await?;
                                 self.send_packet(buffer).await?;

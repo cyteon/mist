@@ -120,11 +120,13 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                 }
 
                 let mut buffer = Vec::new();
+                let state_id = player.next_state_id();
                 send_container_set_content(
                     &mut buffer,
                     window_id as u8,
                     chest_container.to_vec(),
                     None,
+                    state_id,
                 )
                 .await?;
                 player.send_packet(buffer).await?;
@@ -195,11 +197,13 @@ pub async fn read_use_item_on<R: AsyncReadExt + Unpin>(
                 }
 
                 let mut buffer = Vec::new();
+                let state_id = player.next_state_id();
                 send_container_set_content(
                     &mut buffer,
                     window_id as u8,
                     furnace_container.to_vec(),
                     None,
+                    state_id,
                 )
                 .await?;
                 player.send_packet(buffer).await?;

@@ -1,6 +1,9 @@
 use crate::log::{self, LogLevel};
 use crate::net::codec::{read_hashed_slot, read_var};
+use crate::net::packets::clientbound::container_set_content::send_container_set_content;
+use crate::net::packets::clientbound::container_set_slot::send_container_set_slot;
 use crate::types::block_entities::BlockEntityData;
+use crate::types::items::ItemStack;
 use crate::types::player::{Player, WindowType};
 use crate::types::recipes::{check_2x2, check_3x3};
 use tokio::io::AsyncReadExt;
@@ -10,7 +13,9 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
     player: &mut Player,
 ) -> anyhow::Result<()> {
     let window_id = read_var(stream).await?;
-    let _state_id = read_var(stream).await?;
+
+    let state_id = read_var(stream).await?;
+    let mismatch = state_id != player.state_id as u32;
 
     let _slot = stream.read_i16().await?;
     let _button = stream.read_u8().await?;
@@ -68,7 +73,8 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
                 }
             }
 
-            let _carried_item = read_hashed_slot(stream).await?;
+            let carried_item = read_hashed_slot(stream).await?;
+            player.carried_item = carried_item;
 
             let crafting_grid = [
                 grid[1].as_ref().map(|s| s.item_id),
@@ -82,18 +88,42 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
                 grid[9].as_ref().map(|s| s.item_id),
             ];
 
-            grid[0] = check_3x3(&crafting_grid)
-                .map(|(id, count)| crate::types::items::ItemStack { item_id: id, count });
+            grid[0] = check_3x3(&crafting_grid).map(|(id, count)| ItemStack { item_id: id, count });
+
+            let grid = grid.clone();
+            let next_state_id = player.next_state_id();
 
             let mut buffer = Vec::new();
 
-            crate::net::packets::clientbound::container_set_slot::send_container_set_slot(
-                &mut buffer,
-                player.window_id as u8,
-                0,
-                grid[0].clone(),
-            )
-            .await?;
+            if !mismatch {
+                send_container_set_slot(
+                    &mut buffer,
+                    player.window_id as u8,
+                    0,
+                    grid[0].clone(),
+                    next_state_id,
+                )
+                .await?;
+            } else {
+                let mut contents: [Option<ItemStack>; 46] = [None; 46];
+
+                for i in 0..=9 {
+                    contents[i] = grid[i].clone();
+                }
+
+                for i in 10..=45 {
+                    contents[i] = player.inventory[i - 1].clone();
+                }
+
+                send_container_set_content(
+                    &mut buffer,
+                    player.window_id as u8,
+                    contents.to_vec(),
+                    player.carried_item.clone(),
+                    next_state_id,
+                )
+                .await?;
+            }
 
             player.send_packet(buffer).await?;
         }
@@ -158,6 +188,30 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
 
             let carried_item = read_hashed_slot(stream).await?;
             player.carried_item = carried_item;
+
+            if mismatch {
+                let mut buffer = Vec::new();
+                let mut contents: [Option<ItemStack>; 63] = [None; 63];
+
+                for i in 0..=26 {
+                    contents[i] = items[i].clone();
+                }
+
+                for i in 27..=62 {
+                    contents[i] = player.inventory[i - 18].clone();
+                }
+
+                send_container_set_content(
+                    &mut buffer,
+                    player.window_id as u8,
+                    contents.to_vec(),
+                    player.carried_item.clone(),
+                    player.next_state_id(),
+                )
+                .await?;
+
+                player.send_packet(buffer).await?;
+            }
         }
 
         Some(WindowType::Furnace { cords }) => {
@@ -254,6 +308,30 @@ pub async fn read_container_click<R: AsyncReadExt + Unpin>(
 
             let carried_item = read_hashed_slot(stream).await?;
             player.carried_item = carried_item;
+
+            if mismatch {
+                let mut buffer = Vec::new();
+                let mut contents: [Option<ItemStack>; 39] = [None; 39];
+
+                contents[0] = input.clone();
+                contents[1] = fuel.clone();
+                contents[2] = output.clone();
+
+                for i in 3..=38 {
+                    contents[i] = player.inventory[i + 6].clone();
+                }
+
+                send_container_set_content(
+                    &mut buffer,
+                    player.window_id as u8,
+                    contents.to_vec(),
+                    player.carried_item.clone(),
+                    player.next_state_id(),
+                )
+                .await?;
+
+                player.send_packet(buffer).await?;
+            }
         }
     }
 

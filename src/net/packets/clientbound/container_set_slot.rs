@@ -6,11 +6,12 @@ pub async fn send_container_set_slot<W: tokio::io::AsyncWriteExt + Unpin>(
     window_id: u8,
     slot: i16,
     item_stack: Option<crate::types::items::ItemStack>,
+    state_id: i32,
 ) -> anyhow::Result<()> {
     let mut packet_data = vec![crate::net::packet::play::clientbound::CONTAINER_SET_SLOT as u8];
 
     write_var(&mut packet_data, window_id as i32)?;
-    write_var(&mut packet_data, 0)?; // state id, TODO: implement
+    write_var(&mut packet_data, state_id)?;
     packet_data.write_i16::<BigEndian>(slot)?;
 
     match item_stack {
