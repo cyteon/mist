@@ -2,7 +2,7 @@ use std::pin::Pin;
 
 use crate::server::commands::CommandInvoker;
 use crate::server::state::play::{NAME_TO_UUID, PLAYERS};
-use crate::types::colors::{GREEN, YELLOW};
+use crate::types::colors::{GREEN, RED, YELLOW};
 
 pub fn run<'a, 'b>(
     args: &'a [&'a str],
@@ -35,7 +35,7 @@ pub fn run<'a, 'b>(
 
         let Some(uuid) = uuid else {
             invoker
-                .send_message(format!("{}Player not found: {}", YELLOW, target_username))
+                .send_message(format!("{}Player not found: {}", RED, target_username))
                 .await?;
 
             return Ok(());
@@ -48,7 +48,7 @@ pub fn run<'a, 'b>(
 
         let Some(target) = target else {
             invoker
-                .send_message(format!("{}Player not found: {}", YELLOW, target_username))
+                .send_message(format!("{}Player not found: {}", RED, target_username))
                 .await?;
 
             return Ok(());

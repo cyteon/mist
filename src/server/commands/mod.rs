@@ -152,16 +152,26 @@ pub static COMMANDS: &[Command] = &[
     },
     Command {
         name: "gamemode",
-        args: &[Arg {
-            name: "mode",
-            parser: Parser::Gamemode,
-        }],
+        args: &[
+            Arg {
+                name: "player",
+                parser: Parser::GameProfile,
+            },
+            Arg {
+                name: "mode",
+                parser: Parser::Gamemode,
+            },
+        ],
         requires_op: true,
         handler: gamemode::run,
     },
     Command {
         name: "give",
         args: &[
+            Arg {
+                name: "player",
+                parser: Parser::GameProfile,
+            },
             Arg {
                 name: "item",
                 parser: Parser::ItemStack,

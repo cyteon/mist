@@ -37,7 +37,7 @@ pub fn run<'a, 'b>(
 
         let Some(uuid) = uuid else {
             invoker
-                .send_message(format!("{}Player not found: {}", YELLOW, target_username))
+                .send_message(format!("{}Player not found: {}", RED, target_username))
                 .await?;
 
             return Ok(());
@@ -50,7 +50,7 @@ pub fn run<'a, 'b>(
 
         let Some(target) = target else {
             invoker
-                .send_message(format!("{}Player not found: {}", YELLOW, target_username))
+                .send_message(format!("{}Player not found: {}", RED, target_username))
                 .await?;
 
             return Ok(());
