@@ -234,19 +234,20 @@ impl Section {
             self.block_count -= 1;
         }
 
-        if palette_index.is_none() {
+        if let Some(palette) = palette_index {
+            self.blocks.set_palette_index(idx, palette as u16);
+        } else {
             self.blocks.palette.push(block_id);
-            palette_index = Some(self.blocks.palette.len() - 1);
+            let palette = self.blocks.palette.len() - 1;
 
             let new_bits_per_block = Self::calculate_bits_per_block(self.blocks.palette.len());
 
             if new_bits_per_block > self.blocks.bits_per_block {
                 self.blocks.resize_and_repack(new_bits_per_block);
             }
-        }
 
-        self.blocks
-            .set_palette_index(idx, palette_index.unwrap() as u16);
+            self.blocks.set_palette_index(idx, palette as u16);
+        }
     }
 
     fn calculate_bits_per_block(palette_size: usize) -> u8 {

@@ -2,6 +2,8 @@ use std::time::Duration;
 use tokio::{task, try_join};
 
 use crate::log::LogLevel;
+use crate::net::packets::clientbound::disconnect::send_disconnect_play;
+use crate::server::conn::PLAYER_SOCKET_MAP;
 use crate::server::save::{self, save, save_player};
 
 pub async fn run() -> anyhow::Result<()> {
@@ -41,7 +43,14 @@ pub async fn stop() -> anyhow::Result<()> {
         .map(|(_, p)| p)
         .collect::<Vec<_>>();
 
-    crate::server::conn::PLAYER_SOCKET_MAP.write().await.clear();
+    let mut buffer = Vec::new();
+    send_disconnect_play(&mut buffer, "Server is stopping").await?;
+
+    for tx in PLAYER_SOCKET_MAP.write().await.values() {
+        let _ = tx.send(buffer.clone());
+    }
+
+    PLAYER_SOCKET_MAP.write().await.clear();
 
     for player in players {
         match tokio::time::timeout(Duration::from_millis(500), player.lock()).await {

@@ -624,7 +624,10 @@ pub async fn play(socket: EncryptedStream<TcpStream>, player: Player) -> anyhow:
         REGIONS.lock().await.clear(); // unnecesary having all regions loaded in while nobody is playing
     } else {
         let players_locked = PLAYERS.read().await;
-        let player_lock = players_locked.get(&uuid).unwrap().clone();
+        let Some(player_lock) = players_locked.get(&uuid) else {
+            return Ok(());
+        };
+
         save::save_player(&player_lock.lock().await.clone()).await?;
 
         for other_tx in PLAYER_SOCKET_MAP.read().await.values().into_iter() {
