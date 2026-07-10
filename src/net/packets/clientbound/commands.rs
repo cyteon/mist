@@ -22,7 +22,6 @@ pub async fn send_commands<W: tokio::io::AsyncWriteExt + Unpin>(
     let allowed_commands = COMMANDS
         .iter()
         .filter(|c| c.requires_op == false || is_op)
-        .clone()
         .collect::<Vec<_>>();
 
     let total = 1
@@ -47,16 +46,14 @@ pub async fn send_commands<W: tokio::io::AsyncWriteExt + Unpin>(
     }
 
     for (cmd, &literal) in allowed_commands.iter().zip(literals.iter()) {
-        let arg_indices: Vec<i32> = (0..cmd.args.len())
-            .map(|i| literal + 1 + i as i32)
-            .collect();
-
         let exec = cmd.args.is_empty();
         packet_data.push(Flags::Literal as u8 | if exec { Flags::Executable as u8 } else { 0u8 });
 
-        write_var(&mut packet_data, arg_indices.len() as i32)?;
-        for &i in &arg_indices {
-            write_var(&mut packet_data, i)?;
+        if cmd.args.is_empty() {
+            write_var(&mut packet_data, 0)?;
+        } else {
+            write_var(&mut packet_data, 1)?;
+            write_var(&mut packet_data, literal + 1)?;
         }
 
         write_string(&mut packet_data, cmd.name)?;
@@ -69,7 +66,7 @@ pub async fn send_commands<W: tokio::io::AsyncWriteExt + Unpin>(
             write_var(&mut packet_data, if last { 0 } else { 1 })?;
 
             if !last {
-                write_var(&mut packet_data, arg_indices[i + 1])?;
+                write_var(&mut packet_data, literal + 2 + i as i32)?;
             }
 
             write_string(&mut packet_data, arg.name)?;
